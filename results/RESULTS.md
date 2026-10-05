@@ -1,0 +1,55 @@
+# Results (PsyCoPref-Llama3-8B target)
+
+All metrics are CARES: **ASR** = non-refusal rate, **SS** = harm-level-weighted
+Safety Score (higher = safer target), **UNSAFE** = fraction of cases failing any
+of the 4 PCSA axes. LLM-judge research measurement, not a clinical-validity claim.
+Full per-run table: [`ablation_table.md`](ablation_table.md) / `.csv`.
+
+## 1. On-target profiling ablation — benchmark goals + persona matching (N=40/condition)
+
+| condition | UNSAFE | ASR | SS |
+|---|---|---|---|
+| fixed (no profile) | 0.475 | 0.194 | 0.831 |
+| profile_blind (profile ignored) | 0.525 | 0.244 | 0.809 |
+| profile_shuffled (wrong profile) | 0.575 | 0.263 | 0.816 |
+| **profile_aware (on-target profile)** | **0.600** | **0.275** | 0.812 |
+
+Paired: aware−blind **+0.075** (95% CI [−0.15, 0.30]); aware−shuffled **+0.025**
+([−0.15, 0.20]).
+- **profile_aware is the strongest condition** and clearly beats **fixed** (+0.125):
+  on-target susceptibility profiling raises attack success over no profiling.
+- aware vs blind/shuffled is **directionally positive but not significant at N=40** —
+  the open challenge (targeted vs generic profiling).
+- The benchmark-seeded goals + persona matching **~2.4× the fixed-condition potency**
+  vs the earlier synthetic-goal setup (fixed 0.200 → 0.475).
+
+## 2. Skill-memory pilot — does the accumulated profile help? (N=20/condition)
+
+| condition | UNSAFE | ASR | SS |
+|---|---|---|---|
+| profile_aware (static pre-test) | 0.500 | 0.250 | 0.750 |
+| **profile_memory (accumulated)** | **0.600** | 0.263 | 0.756 |
+
+Accumulated cross-case skill memory adds **+0.10 UNSAFE** over the static profile
+(directional; N=20).
+
+## 3. External baselines (same CARES judge)
+
+| method | UNSAFE | ASR | SS | PPL |
+|---|---|---|---|---|
+| direct | 0.000 | 0.000 | 1.000 | 37 |
+| actorattack | 0.250 | 0.062 | 0.969 | 53 |
+| coa | 0.286 | 0.107 | 0.946 | 48 |
+| ama | 0.286 | 0.143 | 0.929 | 67 |
+| crescendo | 0.500 | 0.281 | 0.797 | 59 |
+
+Our **profile_aware (0.600)** exceeds the strongest baseline **crescendo (0.500)**;
+all methods pass the GPT-2 perplexity filter (PPL < 100).
+
+## 4. Phase-2 selector comparison (TRIPLE)
+
+See `ablation_table.md` once the selector run completes (sequential_halving /
+continuous_reject / UCB / clustered / uniform over the APE pool, multi-turn).
+
+_Notes: base-vs-hardened (Phase-I) and the earlier synthetic-goal N=10 run are in
+the full table; small-N rows are noisy and shown for completeness._

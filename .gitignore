@@ -1,0 +1,19 @@
+# secrets — never commit
+.env
+*.key
+*token*
+
+# large raw corpora (obtain from original sources)
+data/raw/
+**/cactus*.json
+**/CARES*/
+
+# run artifacts
+runs/
+reports/
+*.log
+
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

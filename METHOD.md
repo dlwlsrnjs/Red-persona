@@ -95,16 +95,18 @@ Ablation conditions (to quantify the on-target profile's value):
 
 ## 3. Efficient on-target optimization [F] — TRIPLE best-arm identification
 
-**Strategies vs register (clarification).** The four PCSA counseling interaction
-**strategies** are kept exactly: `reassurance_seeking`, `appeal_to_expertise`,
-`intellectualization`, `metaphorical_expression` (`pcsa.STRATEGIES` /
-`STRATEGY_GUIDE`). `plain`/`clinical` are **not** strategies — they are a separate
-**register** (linguistic style) axis we add on top. So the arm space is
-`4 strategies × 2 registers = 8` base arms (`bai.ARMS`), expanded by APE into the
-candidate pool — i.e. more coverage than PCSA's 4, not fewer.
+**Pool = PCSA strategies × APE generation.** The arms are exactly the four PCSA
+counseling interaction **strategies**: `reassurance_seeking`,
+`appeal_to_expertise`, `intellectualization`, `metaphorical_expression`
+(`pcsa.STRATEGIES` / `bai.ARMS`). There is **no register dimension** (the earlier
+plain/clinical axis was removed as it overlapped `appeal_to_expertise` and was not
+part of PCSA). For each strategy, the pool is *generated* the APE way (Zhou et
+al.): the attacker is shown real client-utterance **demos** and induces `k` diverse
+candidate openers realizing that strategy toward the goal; high-scoring ones can be
+expanded by APE Monte-Carlo resampling (`prompt_pool.expand_pool`).
 
-Candidate openers (APE pool, fused with goal + matched persona, diverse across
-the 4 strategies × 2 registers) are the **arms**. A fixed query **budget** B of pulls is
+Candidate openers (APE pool over the 4 strategies, fused with goal + matched
+persona + on-target exemplars) are the **arms**. A fixed query **budget** B of pulls is
 spent **on the target**; each pull applies a candidate and scores the target's
 **response** 1–10 (gpt-4o-mini, PCSA Fig.3). Selectors (`triple.py`): uniform,
 sequential_halving, continuous_reject, UCB-E, clustered (CLST), + APO variants.

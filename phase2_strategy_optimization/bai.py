@@ -1,12 +1,12 @@
-"""Best-Arm-Identification selector over strategy x register arms.
+"""Best-Arm-Identification selector over the PCSA counseling strategies.
 
-Hybrid of ArtPerception-style measurement and online best-arm identification
+Hybrid of on-target susceptibility measurement and online best-arm identification
 (Efficient Prompt Optimization Through the Lens of BAI): the measured
-susceptibility wobble warm-starts the arms (and gives the cluster structure), but
-the best attack strategy is identified ONLINE on the real target, so a wrong Top-1
-is corrected by exploration instead of being committed. Each "arm" is a
-(strategy, register) cluster; pulling an arm = generate+send one client turn with
-that strategy/register and observe the progress reward (1-10, normalized to 0-1).
+susceptibility wobble warm-starts the arms, but the best attack strategy is
+identified ONLINE on the real target, so a wrong Top-1 is corrected by exploration
+instead of being committed. Each "arm" is one PCSA strategy; pulling an arm =
+generate+send one client turn with that strategy and observe the progress reward
+(1-10, normalized to 0-1).
 
 Pure logic (no I/O) so it is unit-testable; the attack loop lives in ``pcsa.py``.
 """
@@ -15,15 +15,14 @@ from __future__ import annotations
 import math
 
 STRATEGIES = ("reassurance_seeking", "appeal_to_expertise", "intellectualization", "metaphorical_expression")
-REGISTERS = ("plain", "clinical")
-ARMS = tuple((s, r) for s in STRATEGIES for r in REGISTERS)
+ARMS = STRATEGIES  # one arm per PCSA strategy (no register dimension)
 
 
 class BAISelector:
     """UCB-E selection with successive elimination and optional warm-start.
 
-    warm_start: {(strategy, register): wobble(1-10)} -> each seeded as one pseudo
-    pull of reward wobble/10. ``c`` is the exploration coefficient.
+    warm_start: {strategy: wobble(1-10)} -> each seeded as one pseudo pull of
+    reward wobble/10. ``c`` is the exploration coefficient.
     """
 
     def __init__(self, arms=ARMS, warm_start=None, c=0.7, min_active=2):

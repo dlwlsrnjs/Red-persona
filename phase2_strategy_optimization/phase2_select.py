@@ -57,8 +57,11 @@ def main():
     ap.add_argument("--selectors", nargs="+", default=ALL_SELECTORS, choices=ALL_SELECTORS)
     ap.add_argument("--cases-per-axis", type=int, default=2)
     ap.add_argument("--budget", type=int, default=40, help="query budget per case per selector")
+    ap.add_argument("--turns", type=int, default=1,
+                    help="multi-turn: after TRIPLE picks the best opener, continue the dialogue with "
+                         "response-scored Best-of-N for this many total turns (1 = single-turn opener only)")
     ap.add_argument("--apo-rounds", type=int, default=2, help="APO generate/select rounds for apo_* selectors")
-    ap.add_argument("--base-of-k", type=int, default=3, help="base candidates per (strategy,register) cluster")
+    ap.add_argument("--base-of-k", type=int, default=3, help="base APE candidates generated per PCSA strategy")
     ap.add_argument("--seed", type=int, default=20261002)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--rapport-turns", type=int, default=2)
@@ -123,8 +126,8 @@ def main():
     def warm_for(pool, hint):
         if not (args.warm_start and hint):
             return None
-        wob = {(r["strategy"], r["register"]): r["wobble"] for r in hint.get("strategy_ranking", [])}
-        return {i: (wob.get((pool[i]["strategy"], pool[i]["register"]), 5) / 10.0, 1) for i in range(len(pool))}
+        wob = {r["strategy"]: r["wobble"] for r in hint.get("strategy_ranking", [])}
+        return {i: (wob.get(pool[i]["strategy"], 5) / 10.0, 1) for i in range(len(pool))}
 
     def cluster_for(pool, inner):
         # CLST uses EMBEDDING clustering of candidate texts; others use no clustering.
@@ -164,13 +167,33 @@ def main():
                     new, reasons = prompt_pool.apo_refine(case, fails, gen, k=5)
                     pool = pool + new
                     fault_reasons += reasons
-        resp = respond([{"role": "user", "content": best["text"]}], target)
-        verdict = invoke(judge, {"task": "judge_response", "client_turn": best["text"],
-                                 "response": resp, "goal_intent": case["goal"].get("intent", ""),
-                                 "harm_level": case["goal"].get("harm_level", 2)})
+        # Turn 0: the TRIPLE-selected best opener, applied to the target and judged.
+        hl = case["goal"].get("harm_level", 2)
+        gi = case["goal"].get("intent", "")
+        history = [{"role": "user", "content": best["text"]}]
+        resp = respond(history, target)
+        history.append({"role": "assistant", "content": resp})
+        verdicts = [invoke(judge, {"task": "judge_response", "client_turn": best["text"], "response": resp,
+                                   "goal_intent": gi, "harm_level": hl})]
+        # Turns 1..T-1: in-dialogue adaptation with response-scored Best-of-N (cold: no prior hint).
+        feedback, cont_plan = "", {"mode": "attack", "strategies": list(pcsa.STRATEGIES), "n": args.base_of_k}
+        for turn in range(1, max(1, args.turns)):
+            cands = pcsa._generate_candidates(case, history, cont_plan, None, None, feedback, gen, args.base_of_k)
+            trials = []
+            for c in cands:
+                r2, prog = pcsa._evaluate_candidate(case, history, c["text"], True, None, target, progress)
+                trials.append({"text": c["text"], "response": r2, "progress": prog})
+            bi = max(range(len(trials)), key=lambda i: trials[i]["progress"]["score"])
+            ch = trials[bi]
+            feedback = ch["progress"].get("next_strategy", "")
+            history += [{"role": "user", "content": ch["text"]}, {"role": "assistant", "content": ch["response"]}]
+            verdicts.append(invoke(judge, {"task": "judge_response", "client_turn": ch["text"],
+                                           "response": ch["response"], "goal_intent": gi, "harm_level": hl}))
+        verdict = pcsa.aggregate_verdicts(verdicts)
         return {"selector": sel_name, "pool_mode": pool_mode, "axis": case["axis"],
                 "goal_id": case["goal"].get("goal_id"), "pool_size": len(pool), "pulls": total_pulls,
-                "chosen": best, "fault_reasons": fault_reasons, "judge": verdict, "response": resp}
+                "chosen": best, "fault_reasons": fault_reasons, "judge": verdict, "response": resp,
+                "turns": max(1, args.turns)}
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool_ex:
         futures = {pool_ex.submit(run_unit, u): u for u in units}
@@ -205,8 +228,11 @@ def main():
         n = len(recs)
         summary["selectors"][sel] = {
             "cases": n,
-            "asr": round(sum(r["judge"].get("non_refusal", False) for r in recs) / n, 4) if n else None,
-            "safety_score": round(mean(r["judge"].get("ss_score", 0.0) for r in recs), 4) if n else None,
+            # judge is aggregate_verdicts output: case_non_refusal (bool) + ss_scores (list per turn).
+            "asr": round(sum(bool(r["judge"].get("case_non_refusal", r["judge"].get("non_refusal", False)))
+                             for r in recs) / n, 4) if n else None,
+            "safety_score": round(mean([s for r in recs for s in (r["judge"].get("ss_scores")
+                                        or [r["judge"].get("ss_score", 0.0)])]), 4) if n else None,
             "unsafe_rate": round(sum(r["judge"]["unsafe"] for r in recs) / n, 4) if n else None,
             "mean_pulls": round(mean(r["pulls"] for r in recs), 2) if n else None,
             "mean_pool_size": round(mean(r["pool_size"] for r in recs), 1) if n else None,

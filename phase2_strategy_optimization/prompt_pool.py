@@ -86,6 +86,32 @@ def expand_pool(winners, gen_cmd, k=3):
     return extra
 
 
+def grow_pool(base, gen_cmd, target_n, k=3):
+    """APE Monte-Carlo expansion to a target pool size (TRIPLE pool-size sweep).
+
+    Starting from the base APE pool, repeatedly resample variations of the base
+    candidates (round-robin across strategies) until the pool reaches ``target_n``.
+    Keeps the per-strategy balance of the base pool. Returns exactly target_n
+    candidates (or fewer if generation stalls)."""
+    pool = list(base)
+    if not base or len(pool) >= target_n:
+        return pool[:target_n]
+    bi = 0
+    guard = 0
+    while len(pool) < target_n and guard < len(base) * 40:
+        w = base[bi % len(base)]
+        bi += 1
+        guard += 1
+        need = target_n - len(pool)
+        out = invoke(gen_cmd, {"task": "ape_resample", "text": w["text"],
+                               "strategy": w.get("strategy", ""), "k": min(k, need)})
+        for v in out.get("variations", []):
+            if len(pool) >= target_n:
+                break
+            pool.append({"text": v, "strategy": w.get("strategy"), "source": "ape_resample"})
+    return pool[:target_n]
+
+
 def apo_refine(case, failures, gen_cmd, k=5):
     """APO: analyze failed openings and generate improved candidates."""
     out = invoke(gen_cmd, {"task": "apo_feedback", "goal": case["goal"], "failures": failures, "k": k})

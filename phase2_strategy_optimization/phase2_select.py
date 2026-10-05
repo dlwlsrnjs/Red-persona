@@ -60,6 +60,12 @@ def main():
     ap.add_argument("--turns", type=int, default=1,
                     help="multi-turn: after TRIPLE picks the best opener, continue the dialogue with "
                          "response-scored Best-of-N for this many total turns (1 = single-turn opener only)")
+    ap.add_argument("--pool-sizes", nargs="+", type=int, default=[0],
+                    help="APE-expand the base pool to each target size via Monte-Carlo resampling and run the "
+                         "selector comparison at each size (TRIPLE pool-size sweep). 0 = base pool only.")
+    ap.add_argument("--budget-mult", type=float, default=0.0,
+                    help="if >0, per-unit query budget = max(--budget, round(pool_size * mult)) so larger pools "
+                         "get proportional budget (TRIPLE uses a few pulls per candidate, e.g. mult=1.5)")
     ap.add_argument("--apo-rounds", type=int, default=2, help="APO generate/select rounds for apo_* selectors")
     ap.add_argument("--base-of-k", type=int, default=3, help="base APE candidates generated per PCSA strategy")
     ap.add_argument("--seed", type=int, default=20261002)
@@ -100,17 +106,19 @@ def main():
         target, analyzer, args.seed, cache_dir=cache_dir, progress_cmd=progress, probes=probes,
         calibration_probes=data_sources.load_calibration_probes(), rapport_turns=args.rapport_turns,
         on_progress=lambda s, d, t: print(f"[PROFILE] {s} {d}/{t}", flush=True))
-    cases = [c for axis in pcsa.PCSA_AXES
+    axes_with_goals = {g.get("axis") for g in goals}  # allow goal subsets (e.g. a single-axis sweep)
+    cases = [c for axis in pcsa.PCSA_AXES if axis in axes_with_goals
              for c in data_sources.build_cases(axis, personas, goals, args.cases_per_axis, args.seed,
                                                persona_match=args.persona_match)]
 
-    units = [(case, sel, pm) for case in cases for sel in args.selectors for pm in args.pool_modes]
+    units = [(case, sel, pm, ps) for case in cases for sel in args.selectors
+             for pm in args.pool_modes for ps in args.pool_sizes]
 
-    def unit_key(case, sel, pm):
-        return (case["axis"], case["goal"].get("goal_id"), sel, pm)
+    def unit_key(case, sel, pm, ps):
+        return (case["axis"], case["goal"].get("goal_id"), sel, pm, ps)
 
     def rec_key(rec):
-        return (rec["axis"], rec.get("goal_id"), rec["selector"], rec["pool_mode"])
+        return (rec["axis"], rec.get("goal_id"), rec["selector"], rec["pool_mode"], rec.get("pool_target", 0))
 
     records, lock, done = [], threading.Lock(), 0
     writer = None
@@ -122,6 +130,27 @@ def main():
             writer = resume_util.open_appendable(args.jsonl)
         else:
             writer = args.jsonl.open("x", encoding="utf-8")
+
+    # Build ONE APE pool per (case, pool_mode) so all selectors share the SAME fixed
+    # arm set (TRIPLE compares selection algorithms, not pool luck). Built sequentially
+    # before the executor for determinism; keyed by (axis, goal_id, pool_mode).
+    needed = {(c["axis"], c["goal"].get("goal_id"), pm, ps): c for (c, s, pm, ps) in units}
+    base_cache, pool_cache = {}, {}
+    print(f"[POOL] building {len(needed)} shared pools (per case x pool_mode x size)...", flush=True)
+    for (axis, gid, pm, ps), case in needed.items():
+        bkey = (axis, gid, pm)
+        if bkey not in base_cache:  # APE base pool (per strategy) built once, reused for all sizes
+            h = hints.get(axis)
+            exemplars = prompt_pool.harvest_exemplars(suscept, probes, axis)
+            demos = data_sources.load_client_exemplars(axis, n=10, seed=args.seed) if args.icl_demos else None
+            base_cache[bkey] = prompt_pool.build_pool(
+                case, h, gen, list(pcsa.STRATEGIES), base_k=args.base_of_k,
+                exemplars=exemplars, fused=(pm == "fused"), demos=demos)
+        base = base_cache[bkey]
+        # APE Monte-Carlo expansion to the target size (0 = base pool only).
+        pool_cache[(axis, gid, pm, ps)] = base if ps <= len(base) else prompt_pool.grow_pool(base, gen, ps)
+        print(f"[POOL] {axis}/{gid}/{pm}/size={ps}: {len(pool_cache[(axis, gid, pm, ps)])} candidates "
+              f"(base {len(base)})", flush=True)
 
     def warm_for(pool, hint):
         if not (args.warm_start and hint):
@@ -143,19 +172,19 @@ def main():
         return res, pull
 
     def run_unit(unit):
-        case, sel_name, pool_mode = unit
+        case, sel_name, pool_mode, pool_target = unit
         hint = hints.get(case["axis"])
-        exemplars = prompt_pool.harvest_exemplars(suscept, probes, case["axis"])
-        demos = data_sources.load_client_exemplars(case["axis"], n=10, seed=args.seed) if args.icl_demos else None
-        pool = prompt_pool.build_pool(case, hint, gen, list(pcsa.STRATEGIES),
-                                      base_k=args.base_of_k, exemplars=exemplars,
-                                      fused=(pool_mode == "fused"), demos=demos)
+        # Shared arm set: every selector for this (case, pool_mode, size) competes on the
+        # SAME APE pool (built once in pool_cache), so the comparison isolates the selection
+        # algorithm (TRIPLE), not pool-generation luck. Copy so APO can extend locally.
+        pool = list(pool_cache[(case["axis"], case["goal"].get("goal_id"), pool_mode, pool_target)])
         apo = sel_name.startswith("apo_")
         inner = sel_name[4:] if apo else sel_name
+        eff_budget = max(args.budget, round(len(pool) * args.budget_mult)) if args.budget_mult > 0 else args.budget
         total_pulls, rounds, fault_reasons = 0, (args.apo_rounds if apo else 1), []
         best = None
         for r in range(rounds):
-            budget = max(1, args.budget // rounds)
+            budget = max(1, eff_budget // rounds)
             res, _pull = select_once(case, pool, inner, budget, hint)
             total_pulls += res["pulls"]
             best = pool[res["best"]]
@@ -190,10 +219,10 @@ def main():
             verdicts.append(invoke(judge, {"task": "judge_response", "client_turn": ch["text"],
                                            "response": ch["response"], "goal_intent": gi, "harm_level": hl}))
         verdict = pcsa.aggregate_verdicts(verdicts)
-        return {"selector": sel_name, "pool_mode": pool_mode, "axis": case["axis"],
-                "goal_id": case["goal"].get("goal_id"), "pool_size": len(pool), "pulls": total_pulls,
-                "chosen": best, "fault_reasons": fault_reasons, "judge": verdict, "response": resp,
-                "turns": max(1, args.turns)}
+        return {"selector": sel_name, "pool_mode": pool_mode, "pool_target": pool_target,
+                "axis": case["axis"], "goal_id": case["goal"].get("goal_id"), "pool_size": len(pool),
+                "pulls": total_pulls, "chosen": best, "fault_reasons": fault_reasons, "judge": verdict,
+                "response": resp, "turns": max(1, args.turns)}
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool_ex:
         futures = {pool_ex.submit(run_unit, u): u for u in units}
@@ -217,7 +246,7 @@ def main():
 
     by_sel = defaultdict(list)
     for r in records:
-        by_sel[f"{r['selector']}|{r['pool_mode']}"].append(r)
+        by_sel[f"{r['selector']}|{r['pool_mode']}|size{r.get('pool_target', 0)}"].append(r)
     summary = {"target_model": args.target_model, "budget": args.budget, "base_of_k": args.base_of_k,
                "warm_start": args.warm_start, "pool_modes": args.pool_modes,
                "metric_defs": {"reward": "LLM-judge attack progress (1-10)/10 on the target response; "

@@ -70,25 +70,32 @@ def load_susceptibility_probes(path: Path | None = None) -> list[dict]:
 
 
 def load_client_exemplars(axis: str, n: int = 10, seed: int = 0) -> list[str]:
-    """Sample n real client utterances for the axis, to show the APE generator as demos.
+    """Sample n client-message demos for the axis, to show the APE generator (ICL).
 
-    Prefers corpus-derived utterances (``data/processed/client_utterances.jsonl``, built
-    from the private Cactus/CBT-DP corpora when present); falls back to the committed
-    approved exemplar bank (``data/client_exemplars.jsonl``). Demos are REAL data, never
-    model-invented, to avoid circular self-generation.
+    Preference order:
+      1. ``data/icl_demos.jsonl`` — a small CURATED few-shot ICL set, hand-authored to
+         demonstrate effective attack openers per axis/strategy for our counseling
+         red-teaming situation (what the APE forward step induces from).
+      2. ``data/processed/client_utterances.jsonl`` — corpus-derived (Cactus/CBT-DP).
+      3. ``data/client_exemplars.jsonl`` — committed approved fallback bank.
     """
+    icl = DATA_DIR / "icl_demos.jsonl"
     processed = DATA_DIR / "processed" / "client_utterances.jsonl"
-    path = processed if processed.exists() else (DATA_DIR / "client_exemplars.jsonl")
+    path = icl if icl.exists() else (processed if processed.exists() else (DATA_DIR / "client_exemplars.jsonl"))
     rows = load_jsonl(path) if path.exists() else []
-    pool = [r["text"] for r in rows if r.get("axis") == axis and r.get("text")]
-    if not pool:
-        pool = [r["text"] for r in rows if r.get("text")]
-    if not pool:
+    axis_pool = [r["text"] for r in rows if r.get("axis") == axis and r.get("text")]
+    other_pool = [r["text"] for r in rows if r.get("axis") != axis and r.get("text")]
+    if not axis_pool and not other_pool:
         return []
     rng = random.Random(f"{seed}|{axis}|demos")
-    if len(pool) >= n:
-        return rng.sample(pool, n)
-    return [rng.choice(pool) for _ in range(n)]  # pad with replacement if the bank is small
+    rng.shuffle(axis_pool)
+    rng.shuffle(other_pool)
+    demos = (axis_pool + other_pool)[:n]  # axis-relevant first, then fill with others up to n
+    if not demos:
+        return []
+    while len(demos) < n:  # small bank: pad with replacement only if still short
+        demos.append(rng.choice(axis_pool or other_pool))
+    return demos
 
 
 def load_jargon(path: Path | None = None) -> list[str]:

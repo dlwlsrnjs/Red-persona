@@ -17,7 +17,8 @@ references.
 | `harmful_behavior_collection/` | Build the attack goals: benchmark self-harm taxonomy (JailbreakBench + HarmBench) + counseling-corpus patterns → **seeds** → reconstructed counseling **goals** (5 PCSA target types, harm levels) + distress-oriented **personas**. |
 | `phase1_persona_perturbation/` | Phase I: persona construction / perturbation and its PPL-constrained fitness (kept as an ablation in the corrected method). |
 | `phase2_strategy_optimization/` | Phase II: the efficient **on-target** optimizer — APE candidate pool + TRIPLE best-arm-identification selectors (SH/CR/UCB/CLST) + BAI + cross-case skill memory. |
-| `evaluation/` | CARES metrics, external-method baselines, §4.4 defenses, ablation report. |
+| `baselines/` | External attack methods, **one folder per paper** (Direct, Crescendo, CoA, AMA, ActorAttack), each self-contained and scored by the same CARES judge for a fair comparison. |
+| `evaluation/` | CARES metrics, external-method baselines runner, §4.4 defenses, ablation report. |
 | `common/` | Shared modules used by all stages: the multi-role small-model adapter, the target adapter, the PCSA core (strategies/axes/profiling/run_case), data loaders, experiment runner. |
 | `docs/` | Design notes (goal-generation design, profiling-enhancement analysis). |
 

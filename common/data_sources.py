@@ -83,8 +83,14 @@ def load_client_exemplars(axis: str, n: int = 10, seed: int = 0) -> list[str]:
     processed = DATA_DIR / "processed" / "client_utterances.jsonl"
     path = icl if icl.exists() else (processed if processed.exists() else (DATA_DIR / "client_exemplars.jsonl"))
     rows = load_jsonl(path) if path.exists() else []
-    axis_pool = [r["text"] for r in rows if r.get("axis") == axis and r.get("text")]
-    other_pool = [r["text"] for r in rows if r.get("axis") != axis and r.get("text")]
+    def fmt(r):
+        # Curated ICL demos carry an (original_query -> transformed) mapping so APE induces
+        # the TRANSFORMATION; corpus/legacy rows carry a plain "text".
+        if r.get("transformed") and r.get("original_query"):
+            return f'ORIGINAL request: "{r["original_query"]}"  =>  DISGUISED client message: "{r["transformed"]}"'
+        return r.get("text", "")
+    axis_pool = [fmt(r) for r in rows if r.get("axis") == axis and fmt(r)]
+    other_pool = [fmt(r) for r in rows if r.get("axis") != axis and fmt(r)]
     if not axis_pool and not other_pool:
         return []
     rng = random.Random(f"{seed}|{axis}|demos")

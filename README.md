@@ -20,7 +20,7 @@ references.
 | `baselines/` | External attack methods, **one folder per paper** (Direct, Crescendo, CoA, AMA, ActorAttack), each self-contained and scored by the same CARES judge for a fair comparison. |
 | `evaluation/` | CARES metrics, external-method baselines runner, §4.4 defenses, ablation report. |
 | `common/` | Shared modules used by all stages: the multi-role small-model adapter, the target adapter, the PCSA core (strategies/axes/profiling/run_case), data loaders, experiment runner. |
-| `docs/` | Design notes (goal-generation design, profiling-enhancement analysis). |
+| `docs/` | Design notes + [`STATUS.md`](docs/STATUS.md) (living worklog: method, results, what's running, how to resume/top-up). |
 | `results/` | Measured results: [`RESULTS.md`](results/RESULTS.md) summary + full `ablation_table.md`/`.csv` (CARES ASR/SS/UNSAFE across conditions, baselines, pilot). |
 
 ## Method at a glance

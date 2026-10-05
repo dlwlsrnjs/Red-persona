@@ -70,7 +70,12 @@ def build_pool(case, hint, gen_cmd, strategies, base_k=3, exemplars=None,
                                              "opening_utterances": p1.get("opening_utterances", []),
                                              "distortion": p1.get("distortion")}
         src = "ape_forward" if fused else "ape_vanilla"
-        for text in invoke(gen_cmd, payload).get("candidates", []):
+        try:  # a single strategy's generation refusing/erroring must not kill the whole pool
+            cands = invoke(gen_cmd, payload).get("candidates", [])
+        except Exception as exc:
+            print(f"[build_pool] ape_forward failed for strategy={s} ({exc}); skipping", flush=True)
+            cands = []
+        for text in cands:
             pool.append({"text": text, "strategy": s, "source": src})
     return pool
 
@@ -103,8 +108,12 @@ def grow_pool(base, gen_cmd, target_n, k=3):
         bi += 1
         guard += 1
         need = target_n - len(pool)
-        out = invoke(gen_cmd, {"task": "ape_resample", "text": w["text"],
-                               "strategy": w.get("strategy", ""), "k": min(k, need)})
+        try:
+            out = invoke(gen_cmd, {"task": "ape_resample", "text": w["text"],
+                                   "strategy": w.get("strategy", ""), "k": min(k, need)})
+        except Exception as exc:
+            print(f"[grow_pool] resample failed ({exc}); skipping", flush=True)
+            continue
         for v in out.get("variations", []):
             if len(pool) >= target_n:
                 break

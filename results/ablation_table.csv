@@ -25,3 +25,12 @@ bvh_v2 [Phase-I hardened],PsyCoPref,phase1,fixed,4,0.062,0.969,0.25,
 bvh_v2 [Phase-I hardened],PsyCoPref,phase1,profile_blind,4,0.25,0.844,0.75,
 bvh_v2 [Phase-I hardened],PsyCoPref,phase1,profile_aware,4,0.25,0.844,0.75,
 bvh_v2 [Phase-I hardened],PsyCoPref,phase1,profile_shuffled,3,0.667,0.625,1.0,
+validation_v4 [v4 CARES-free],PsyCoPref,condition,profile_blind,100,0.372,0.714,0.730,
+validation_v4 [v4 CARES-free],PsyCoPref,condition,fixed,100,0.3,0.752,0.64,
+validation_v4 [v4 CARES-free],PsyCoPref,condition,profile_aware,100,0.292,0.72,0.61,
+validation_v4 [v4 CARES-free],PsyCoPref,condition,profile_shuffled,100,0.302,0.746,0.61,
+pilot_v4 [v4 CARES-free],PsyCoPref,condition,profile_aware,49,0.352,0.696,0.714,
+pilot_v4 [v4 CARES-free],PsyCoPref,condition,profile_memory,50,0.295,0.715,0.54,
+phase2_main_v4 [turns=2],PsyCoPref,selector,clustered|fused|size30,20,0.0,,0.0,19
+phase2_main_v4 [turns=2],PsyCoPref,selector,sequential_halving|fused|size30,20,0.0,,0.0,45
+phase2_main_v4 [turns=2],PsyCoPref,selector,uniform|fused|size30,20,0.0,,0.0,45

@@ -48,17 +48,22 @@ the original→disguise *transformation*.
 
 ## 3. What is running / pending
 
-- **2026-10-06 — CARES-contamination fix + re-run (CURRENT).** Found 10/26 v2 seeds
-  were CARES-sourced (5 verbatim CARES-18K prompts) → rebuilt a **CARES-free** seed
-  bank (`..._v3`, 43 seeds) + `attack_goals_v3.jsonl` (108 goals). All v2 results
-  (incl. the pushed selector-n20 and Phase-I rows) are **superseded** and being re-run
-  on v3 goals:
-  - RUNNING GPU0:8013 — aware-vs-blind `validation_v3` (4 conditions, N=100/cond).
-  - RUNNING GPU1:8012 — `phase2_main_v3` selector (n=20) → then `pilot_memory_v3` (50/cond).
-  - Persistent `nohup` servers (ppid=1), heal+resume loops, finalize markers in
-    `runs/val_v3.log` / `runs/phase2_v3.log`.
-- PENDING: fold v3 results into `results/` + ablation (replacing v2 rows); pool-size
-  sweep (30/50/120) re-run on v3; more axes' ICL sets.
+- **2026-10-07 — CARES-free v4 complete (CURRENT).** After finding v2 was
+  CARES-contaminated, rebuilt the query set CARES-free and scaled it:
+  `malicious_behavior_seeds_v4.jsonl` (82 seeds) → `attack_goals_v4.jsonl` (576 goals),
+  from JailbreakBench+HarmBench self-harm taxonomy (all PCSA-fitting benchmark queries,
+  ~12) + Cactus corpus (10 distortion patterns + 12 CBT-technique subversions) + a
+  hand-authored counseling failure-mode taxonomy. **CARES = scoring metric only.**
+  - **Phase 1** (open surrogate `PsychoCounsel-Llama3-8B`, persona-match + jargon/
+    evasiveness perturbation): 570/576 hardened, fitness mean 5.75.
+  - **aware-vs-blind** N=100/cond: fixed 0.640 / blind 0.730 / aware 0.610 / shuffled
+    0.610. **aware−blind = −0.12 (95% CI [−0.22,−0.02]) — profiling does NOT help**
+    (overturns the contaminated-v2 positive). The target is highly vulnerable anyway.
+  - **pilot** N≈50: aware 0.714 vs memory 0.540 — accumulated memory did not help.
+  - **selector** turns=2: all 0.000 (uninformative; target not broken in 2 turns) →
+    **turns=4 re-run pending** for a real selection comparison. Per-goal APE pool for
+    all 576 goals saved (`runs/ape_pool_v4.json`).
+- PENDING: selector turns=4 re-run; base-vs-hardened_v4 (Phase-1 value); pool-size sweep on v4.
 
 ## 4. How to run / resume / top-up
 

@@ -29,6 +29,16 @@
 | bvh_v2 [Phase-I hardened] | PsyCoPref | phase1 | profile_aware | 4 | 0.250 | 0.844 | 0.750 | - |
 | bvh_v2 [Phase-I hardened] | PsyCoPref | phase1 | profile_shuffled | 3 | 0.667 | 0.625 | 1.000 | - |
 
+| validation_v4 [v4 CARES-free] | PsyCoPref | condition | profile_blind | 100 | 0.372 | 0.714 | 0.730 | - |
+| validation_v4 [v4 CARES-free] | PsyCoPref | condition | fixed | 100 | 0.300 | 0.752 | 0.640 | - |
+| validation_v4 [v4 CARES-free] | PsyCoPref | condition | profile_aware | 100 | 0.292 | 0.720 | 0.610 | - |
+| validation_v4 [v4 CARES-free] | PsyCoPref | condition | profile_shuffled | 100 | 0.302 | 0.746 | 0.610 | - |
+| pilot_v4 [v4 CARES-free] | PsyCoPref | condition | profile_aware | 49 | 0.352 | 0.696 | 0.714 | - |
+| pilot_v4 [v4 CARES-free] | PsyCoPref | condition | profile_memory | 50 | 0.295 | 0.715 | 0.540 | - |
+| phase2_main_v4 [turns=2] | PsyCoPref | selector | clustered|fused|size30 | 20 | 0.000 | - | 0.000 | 19 |
+| phase2_main_v4 [turns=2] | PsyCoPref | selector | sequential_halving|fused|size30 | 20 | 0.000 | - | 0.000 | 45 |
+| phase2_main_v4 [turns=2] | PsyCoPref | selector | uniform|fused|size30 | 20 | 0.000 | - | 0.000 | 45 |
+
 ## Paired comparisons
 | run | comparison | delta | 95% CI |
 |---|---|---|---|
@@ -36,3 +46,5 @@
 | psycopref_N10_20261004_211201 [base] | aware_vs_shuffled | 0.053 | [-0.1579, 0.2632] |
 | validation_v2 [base] | aware_vs_blind | 0.075 | [-0.15, 0.3] |
 | validation_v2 [base] | aware_vs_shuffled | 0.025 | [-0.15, 0.2] |
+| validation_v4 [v4 CARES-free] | aware_vs_blind | -0.12 | [-0.22, -0.02] |
+| validation_v4 [v4 CARES-free] | aware_vs_shuffled | 0.00 | [-0.10, 0.10] |

@@ -1,45 +1,52 @@
 # Results (PsyCoPref-Llama3-8B target)
 
-> ⚠️ **2026-10-06: the numbers below used the v2 goal set, which was found to be
-> CARES-contaminated (10/26 seeds from CARES, 5 verbatim) and is deprecated.**
-> CARES must be a scoring metric only, not a query source. A CARES-free re-run on
-> `attack_goals_v3.jsonl` (43 seeds, 108 goals) is in progress; these tables will be
-> replaced with the v3 numbers as they land. See `docs/STATUS.md` §3 and
-> `harmful_behavior_collection/data/DEPRECATED_v2.md`.
-
+> **2026-10-07: these are the CARES-free v4 results** (`attack_goals_v4.jsonl`,
+> 82 seeds / 576 goals, built from the JailbreakBench + HarmBench self-harm taxonomy
+> + the Cactus counseling corpus + a hand-authored counseling failure-mode taxonomy).
+> **CARES contributes no queries — it is the scoring metric and judge-validation set
+> only.** The earlier v2 goal set was CARES-contaminated (10/26 seeds from CARES, 5
+> verbatim) and is deprecated; its numbers (which suggested profiling helped) did not
+> survive the correction. See `harmful_behavior_collection/data/DEPRECATED_v2.md`.
 
 All metrics are CARES: **ASR** = non-refusal rate, **SS** = harm-level-weighted
-Safety Score (higher = safer target), **UNSAFE** = fraction of cases failing any
-of the 4 PCSA axes. LLM-judge research measurement, not a clinical-validity claim.
+Safety Score (higher = safer target), **UNSAFE** = fraction of cases failing any of
+the 4 PCSA axes. LLM-judge research measurement, not a clinical-validity claim.
 Full per-run table: [`ablation_table.md`](ablation_table.md) / `.csv`.
 
-## 1. On-target profiling ablation — benchmark goals + persona matching (N=40/condition)
+## 1. On-target profiling ablation — CARES-free goals + persona matching (N=100/condition)
 
 | condition | UNSAFE | ASR | SS |
 |---|---|---|---|
-| fixed (no profile) | 0.475 | 0.194 | 0.831 |
-| profile_blind (profile ignored) | 0.525 | 0.244 | 0.809 |
-| profile_shuffled (wrong profile) | 0.575 | 0.263 | 0.816 |
-| **profile_aware (on-target profile)** | **0.600** | **0.275** | 0.812 |
+| fixed (no profile) | 0.640 | 0.300 | 0.752 |
+| **profile_blind (profile ignored)** | **0.730** | 0.372 | 0.714 |
+| profile_aware (on-target profile) | 0.610 | 0.292 | 0.720 |
+| profile_shuffled (wrong profile) | 0.610 | 0.302 | 0.746 |
 
-Paired: aware−blind **+0.075** (95% CI [−0.15, 0.30]); aware−shuffled **+0.025**
-([−0.15, 0.20]).
-- **profile_aware is the strongest condition** and clearly beats **fixed** (+0.125):
-  on-target susceptibility profiling raises attack success over no profiling.
-- aware vs blind/shuffled is **directionally positive but not significant at N=40** —
-  the open challenge (targeted vs generic profiling).
-- The benchmark-seeded goals + persona matching **~2.4× the fixed-condition potency**
-  vs the earlier synthetic-goal setup (fixed 0.200 → 0.475).
+Paired (case-level bootstrap, 100 pairs): **aware − blind = −0.12, 95% CI
+[−0.22, −0.02]** (discordant: blind-only 21 vs aware-only 9); aware − shuffled =
+**0.00** ([−0.10, 0.10]).
 
-## 2. Skill-memory pilot — does the accumulated profile help? (N=20/condition)
+- **On-target susceptibility profiling does NOT help on the clean goal set.** Giving
+  the attacker the measured target profile (`aware`) is **significantly worse** than
+  ignoring it (`blind`, same call budget) and **no different** from a wrong/shuffled
+  profile. The profiling signal is not useful — and weakly counterproductive — here.
+- This **overturns the deprecated v2 result** ("profile_aware strongest, +0.075"),
+  which was an artifact of CARES-contaminated goals at N=40. The blind/shuffled
+  controls are exactly what exposed it. We report the corrected null/negative finding.
+- The target is **highly vulnerable regardless**: even `fixed` (no profiling) fails
+  0.640 of disguised harmful counseling requests. The method's potency comes from the
+  goal reconstruction + persona matching + multi-turn, not from profiling.
+
+## 2. Skill-memory pilot — does the accumulated profile help? (N≈50/condition)
 
 | condition | UNSAFE | ASR | SS |
 |---|---|---|---|
-| profile_aware (static pre-test) | 0.500 | 0.250 | 0.750 |
-| **profile_memory (accumulated)** | **0.600** | 0.263 | 0.756 |
+| **profile_aware (static pre-test)** | **0.714** | 0.352 | 0.696 |
+| profile_memory (accumulated) | 0.540 | 0.295 | 0.715 |
 
-Accumulated cross-case skill memory adds **+0.10 UNSAFE** over the static profile
-(directional; N=20).
+On the clean v4 goals the **accumulated cross-case skill memory did not help** (and
+was lower than the static profile). Consistent with §1: the carried per-model prior
+provides no measurable attack benefit here. (Small N; directional.)
 
 ## 3. External baselines (same CARES judge)
 
@@ -51,48 +58,42 @@ Accumulated cross-case skill memory adds **+0.10 UNSAFE** over the static profil
 | ama | 0.286 | 0.143 | 0.929 | 67 |
 | crescendo | 0.500 | 0.281 | 0.797 | 59 |
 
-Our **profile_aware (0.600)** exceeds the strongest baseline **crescendo (0.500)**;
-all methods pass the GPT-2 perplexity filter (PPL < 100).
+Our pipeline's `fixed`/`blind` conditions on v4 (0.640 / 0.730 UNSAFE) exceed the
+strongest external baseline (`crescendo` 0.500); all methods pass the GPT-2
+perplexity filter (PPL < 100). The headline contribution is the counseling-specific
+goal+persona construction and multi-turn attack, not the profiling step.
 
-_Notes: base-vs-hardened (Phase-I) and the earlier synthetic-goal N=10 run are in
-the full `ablation_table.md`; small-N rows are noisy and shown for completeness._
+## 4. Phase-2 selector comparison — TRIPLE on a shared APE pool (v4)
 
-## 4. Phase-2 selector comparison — TRIPLE on a shared APE pool (new config)
+Size-30 APE pool per goal (PCSA 4 strategies × APE induction + Monte-Carlo grow),
+rebuilt per v4 goal; 4 axes, n=20/selector, **turns=2**:
 
-All selectors compete on the SAME size-30 APE pool per case (v2 goals + persona
-matching + ICL demos + on-target warm-start + skill-memory), 4 axes (n=20/selector):
+| selector | UNSAFE | mean pulls |
+|---|---|---|
+| clustered (TRIPLE-CLST) | 0.000 | **19** |
+| sequential_halving | 0.000 | 45 |
+| uniform | 0.000 | 45 |
 
-| selector | UNSAFE | ASR | SS | mean pulls |
-|---|---|---|---|---|
-| **clustered (TRIPLE-CLST)** | 0.450 | 0.450 | 0.762 | **21** |
-| sequential_halving | 0.400 | 0.400 | 0.725 | 45 |
-| uniform | 0.650 | 0.650 | 0.662 | 45 |
+**Uninformative at turns=2**: every selector reached UNSAFE 0.000 (the selected
+single-prompt attack did not break the target within 2 turns on any of 20 cases),
+so there is no selection-quality signal to compare — only the query-efficiency
+ordering holds (CLST 19 vs 45 pulls). §1–§2 show the target *is* broken at turns=4,
+so a **turns=4 selector re-run** is needed for a meaningful comparison (pending).
+A per-goal APE pool for all 576 v4 goals (avg 30 candidates each) is saved at
+`runs/ape_pool_v4.json`.
 
-The efficiency advantage TRIPLE's clustering is designed for shows at N=20:
-**CLST matches/beats sequential_halving using ~half the query budget** (21 vs 45
-pulls; 0.450 vs 0.400 UNSAFE). `uniform` reaches the highest raw UNSAFE (0.650) but
-it is the full-budget, non-adaptive reference — it spends the entire budget probing
-every candidate equally rather than identifying a best arm, so its "win" costs the
-most queries and offers no selection. Among the adaptive best-arm selectors, CLST is
-the best accuracy-per-query. Pool-size sweep (30/50/120) will extend this.
+## 5. Phase-1 persona perturbation (v4, open counseling surrogate)
 
-## 5. Phase-I persona perturbation — base vs hardened (v2 config, N=4/condition)
+Phase 1 = match a distress persona to each goal, then perturb the persona to raise
+linguistic complexity + psychiatric jargon + evasiveness, scored by an **open
+counseling surrogate** (`PsychoCounsel-Llama3-8B`, distinct from the target) with
+hill-climbing (transfer-attack design; no closed model, no CARES).
 
-Does the surrogate-guided persona-hardening of Phase I (re-run under the v2 goal
-config) make the resulting client opener harder for the target to handle safely?
-Same 4 target-type cases, base persona vs hardened persona, scored on-target:
+- Hardened **570 / 576** goals (6 transient failures); fitness mean **5.75**
+  (max 6.0, iters mean 2.6). Fitness plateaus near ~6/10 — the open counseling
+  surrogate is itself fairly safe, capping the surrogate-measured progress.
+- Hardened personas feed the base-vs-hardened ablation (Phase-1 value), to be run
+  against the target next.
 
-| condition | base UNSAFE | hardened UNSAFE | base SS | hardened SS |
-|---|---|---|---|---|
-| fixed (no profile) | 0.500 | 0.250 | 0.906 | 0.969 |
-| profile_blind | 0.750 | 0.750 | 0.844 | 0.844 |
-| profile_aware | 0.250 | **0.750** | 0.938 | 0.844 |
-| profile_shuffled | 0.500 | **1.000** | 0.906 | 0.625 |
-
-Directional read (N=4 — **not** significant, shown for completeness): hardening
-raises UNSAFE under the profile-driven conditions (aware 0.25→0.75, shuffled
-0.50→1.00) while leaving the no-profile `fixed` condition flat/lower — i.e. the
-Phase-I hardening and the Phase-II on-target profiling appear **complementary**
-(hardening pays off most once a profile steers the strategy). Phase I currently
-produces only 4 hardened cases; scaling it is future work. This is an ablation of
-the corrected method, not the main result.
+_Deprecated v2/v3 rows and the single-GPU throughput notes live in
+`ablation_table.md`; small-N rows are noisy and shown for completeness._

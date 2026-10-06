@@ -1,5 +1,13 @@
 # Results (PsyCoPref-Llama3-8B target)
 
+> ⚠️ **2026-10-06: the numbers below used the v2 goal set, which was found to be
+> CARES-contaminated (10/26 seeds from CARES, 5 verbatim) and is deprecated.**
+> CARES must be a scoring metric only, not a query source. A CARES-free re-run on
+> `attack_goals_v3.jsonl` (43 seeds, 108 goals) is in progress; these tables will be
+> replaced with the v3 numbers as they land. See `docs/STATUS.md` §3 and
+> `harmful_behavior_collection/data/DEPRECATED_v2.md`.
+
+
 All metrics are CARES: **ASR** = non-refusal rate, **SS** = harm-level-weighted
 Safety Score (higher = safer target), **UNSAFE** = fraction of cases failing any
 of the 4 PCSA axes. LLM-judge research measurement, not a clinical-validity claim.

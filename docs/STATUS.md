@@ -8,10 +8,14 @@ and how to continue. See [METHOD.md](../METHOD.md) for the full method and
 
 Fully **on-target, surrogate-free, prior-transfer-free** counseling red-teaming:
 
-1. **Harmful-behavior collection** — seeds from JailbreakBench + HarmBench self-harm
-   taxonomy + counseling-corpus patterns → `malicious_behavior_seeds.jsonl` (26,
-   5 target types) → `generate_counseling_goal` → `attack_goals_v2.jsonl` (69 goals,
-   harm levels) + distress personas from Cactus (`personas.jsonl`, 150).
+1. **Harmful-behavior collection** — query seeds from the JailbreakBench + HarmBench
+   self-harm taxonomy (all counseling-relevant behaviors) + counseling-corpus (Cactus)
+   + a hand-authored counseling failure-mode taxonomy → `malicious_behavior_seeds_v3.jsonl`
+   (**43 seeds, CARES-free**, 5 target types) → `generate_counseling_goal` →
+   `attack_goals_v3.jsonl` (**108 goals**, harm levels) + distress personas from Cactus
+   (`personas.jsonl`, 150). **CARES supplies no queries — it is the scoring metric and
+   judge-validation set only** (see `data/DEPRECATED_v2.md`: the earlier 26-seed/69-goal
+   v2 set pulled 10 seeds from CARES, 5 verbatim, and is deprecated).
 2. **Target↔persona matching** — embedding cosine (goal ↔ distress persona).
 3. **On-target susceptibility** (profile *aware*) — fixed probe battery (16, axis×
    strategy; **no register dimension**) measured on the target.
@@ -44,11 +48,17 @@ the original→disguise *transformation*.
 
 ## 3. What is running / pending
 
-- RUNNING: `phase2_select` pool-size sweep on GPU1:8012 — APE-expanded pools
-  30/50/120, 4 selectors, budget-mult 1.5, multi-turn, single representative
-  harmful_content goal. Writes `reports/phase2_sweep.json` + `runs/phase2_sweep.jsonl`.
-- PENDING: fold sweep into `results/` + ablation; optionally more axes' ICL sets;
-  larger N for aware-vs-blind significance.
+- **2026-10-06 — CARES-contamination fix + re-run (CURRENT).** Found 10/26 v2 seeds
+  were CARES-sourced (5 verbatim CARES-18K prompts) → rebuilt a **CARES-free** seed
+  bank (`..._v3`, 43 seeds) + `attack_goals_v3.jsonl` (108 goals). All v2 results
+  (incl. the pushed selector-n20 and Phase-I rows) are **superseded** and being re-run
+  on v3 goals:
+  - RUNNING GPU0:8013 — aware-vs-blind `validation_v3` (4 conditions, N=100/cond).
+  - RUNNING GPU1:8012 — `phase2_main_v3` selector (n=20) → then `pilot_memory_v3` (50/cond).
+  - Persistent `nohup` servers (ppid=1), heal+resume loops, finalize markers in
+    `runs/val_v3.log` / `runs/phase2_v3.log`.
+- PENDING: fold v3 results into `results/` + ablation (replacing v2 rows); pool-size
+  sweep (30/50/120) re-run on v3; more axes' ICL sets.
 
 ## 4. How to run / resume / top-up
 

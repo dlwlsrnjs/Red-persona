@@ -7,9 +7,9 @@
 | baselines_psycopref_20261004_162424 | PsyCoPref | baseline | ama | 7 | 0.143 | 0.929 | 0.286 | 66.570 |
 | baselines_psycopref_20261004_162424 | PsyCoPref | baseline | actorattack | 8 | 0.062 | 0.969 | 0.250 | 53.080 |
 | baselines_psycopref_20261004_162424 | PsyCoPref | baseline | direct | 8 | 0.000 | 1.000 | 0.000 | 36.950 |
-| phase2_main | PsyCoPref | selector | sequential_halving|fused|size30 | 4 | 0.500 | 0.875 | 0.500 | 45 |
-| phase2_main | PsyCoPref | selector | clustered|fused|size30 | 4 | 0.500 | 0.938 | 0.500 | 21 |
-| phase2_main | PsyCoPref | selector | uniform|fused|size30 | 4 | 0.500 | 0.812 | 0.500 | 45 |
+| phase2_main | PsyCoPref | selector | clustered|fused|size30 | 20 | 0.450 | 0.762 | 0.450 | 21 |
+| phase2_main | PsyCoPref | selector | sequential_halving|fused|size30 | 20 | 0.400 | 0.725 | 0.400 | 45 |
+| phase2_main | PsyCoPref | selector | uniform|fused|size30 | 20 | 0.650 | 0.662 | 0.650 | 45 |
 | pilot_memory [rank] | PsyCoPref | condition | profile_memory | 20 | 0.263 | 0.756 | 0.600 | - |
 | pilot_memory [rank] | PsyCoPref | condition | profile_aware | 20 | 0.250 | 0.750 | 0.500 | - |
 | psycopref_N10_20261004_211201 [base] | Psychotherapy-LLM/PsyCoPref-Llama3-8B | condition | profile_aware | 39 | 0.167 | 0.907 | 0.513 | - |

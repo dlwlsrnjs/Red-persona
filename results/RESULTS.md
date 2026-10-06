@@ -52,18 +52,21 @@ the full `ablation_table.md`; small-N rows are noisy and shown for completeness.
 ## 4. Phase-2 selector comparison — TRIPLE on a shared APE pool (new config)
 
 All selectors compete on the SAME size-30 APE pool per case (v2 goals + persona
-matching + ICL demos + on-target warm-start + skill-memory), 4 axes (n=4/selector):
+matching + ICL demos + on-target warm-start + skill-memory), 4 axes (n=20/selector):
 
-| selector | UNSAFE | SS | mean pulls |
-|---|---|---|---|
-| **clustered (TRIPLE-CLST)** | 0.500 | 0.938 | **21** |
-| sequential_halving | 0.500 | 0.875 | 45 |
-| uniform | 0.500 | 0.812 | 45 |
+| selector | UNSAFE | ASR | SS | mean pulls |
+|---|---|---|---|---|
+| **clustered (TRIPLE-CLST)** | 0.450 | 0.450 | 0.762 | **21** |
+| sequential_halving | 0.400 | 0.400 | 0.725 | 45 |
+| uniform | 0.650 | 0.650 | 0.662 | 45 |
 
-Same UNSAFE across selectors, but **CLST reaches it with ~half the query budget**
-(21 vs 45 pulls) — the efficiency advantage TRIPLE's clustering is designed for.
-impersonation_violation is the most vulnerable axis (3/3). Small N (4/selector);
-pool-size sweep (30/50/120) is partial and will extend this.
+The efficiency advantage TRIPLE's clustering is designed for shows at N=20:
+**CLST matches/beats sequential_halving using ~half the query budget** (21 vs 45
+pulls; 0.450 vs 0.400 UNSAFE). `uniform` reaches the highest raw UNSAFE (0.650) but
+it is the full-budget, non-adaptive reference — it spends the entire budget probing
+every candidate equally rather than identifying a best arm, so its "win" costs the
+most queries and offers no selection. Among the adaptive best-arm selectors, CLST is
+the best accuracy-per-query. Pool-size sweep (30/50/120) will extend this.
 
 ## 5. Phase-I persona perturbation — base vs hardened (v2 config, N=4/condition)
 

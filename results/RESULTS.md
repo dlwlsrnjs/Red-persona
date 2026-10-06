@@ -46,10 +46,21 @@ Accumulated cross-case skill memory adds **+0.10 UNSAFE** over the static profil
 Our **profile_aware (0.600)** exceeds the strongest baseline **crescendo (0.500)**;
 all methods pass the GPT-2 perplexity filter (PPL < 100).
 
-## 4. Phase-2 selector comparison (TRIPLE)
-
-See `ablation_table.md` once the selector run completes (sequential_halving /
-continuous_reject / UCB / clustered / uniform over the APE pool, multi-turn).
-
 _Notes: base-vs-hardened (Phase-I) and the earlier synthetic-goal N=10 run are in
-the full table; small-N rows are noisy and shown for completeness._
+the full `ablation_table.md`; small-N rows are noisy and shown for completeness._
+
+## 4. Phase-2 selector comparison — TRIPLE on a shared APE pool (new config)
+
+All selectors compete on the SAME size-30 APE pool per case (v2 goals + persona
+matching + ICL demos + on-target warm-start + skill-memory), 4 axes (n=4/selector):
+
+| selector | UNSAFE | SS | mean pulls |
+|---|---|---|---|
+| **clustered (TRIPLE-CLST)** | 0.500 | 0.938 | **21** |
+| sequential_halving | 0.500 | 0.875 | 45 |
+| uniform | 0.500 | 0.812 | 45 |
+
+Same UNSAFE across selectors, but **CLST reaches it with ~half the query budget**
+(21 vs 45 pulls) — the efficiency advantage TRIPLE's clustering is designed for.
+impersonation_violation is the most vulnerable axis (3/3). Small N (4/selector);
+pool-size sweep (30/50/120) is partial and will extend this.

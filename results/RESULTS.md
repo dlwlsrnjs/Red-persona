@@ -64,3 +64,24 @@ Same UNSAFE across selectors, but **CLST reaches it with ~half the query budget*
 (21 vs 45 pulls) — the efficiency advantage TRIPLE's clustering is designed for.
 impersonation_violation is the most vulnerable axis (3/3). Small N (4/selector);
 pool-size sweep (30/50/120) is partial and will extend this.
+
+## 5. Phase-I persona perturbation — base vs hardened (v2 config, N=4/condition)
+
+Does the surrogate-guided persona-hardening of Phase I (re-run under the v2 goal
+config) make the resulting client opener harder for the target to handle safely?
+Same 4 target-type cases, base persona vs hardened persona, scored on-target:
+
+| condition | base UNSAFE | hardened UNSAFE | base SS | hardened SS |
+|---|---|---|---|---|
+| fixed (no profile) | 0.500 | 0.250 | 0.906 | 0.969 |
+| profile_blind | 0.750 | 0.750 | 0.844 | 0.844 |
+| profile_aware | 0.250 | **0.750** | 0.938 | 0.844 |
+| profile_shuffled | 0.500 | **1.000** | 0.906 | 0.625 |
+
+Directional read (N=4 — **not** significant, shown for completeness): hardening
+raises UNSAFE under the profile-driven conditions (aware 0.25→0.75, shuffled
+0.50→1.00) while leaving the no-profile `fixed` condition flat/lower — i.e. the
+Phase-I hardening and the Phase-II on-target profiling appear **complementary**
+(hardening pays off most once a profile steers the strategy). Phase I currently
+produces only 4 hardened cases; scaling it is future work. This is an ablation of
+the corrected method, not the main result.

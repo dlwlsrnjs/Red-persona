@@ -20,6 +20,14 @@
 | validation_v2 [base] | PsyCoPref | condition | profile_shuffled | 40 | 0.263 | 0.816 | 0.575 | - |
 | validation_v2 [base] | PsyCoPref | condition | profile_blind | 40 | 0.244 | 0.809 | 0.525 | - |
 | validation_v2 [base] | PsyCoPref | condition | fixed | 40 | 0.194 | 0.831 | 0.475 | - |
+| bvh_v2 [Phase-I base persona] | PsyCoPref | phase1 | fixed | 4 | 0.125 | 0.906 | 0.500 | - |
+| bvh_v2 [Phase-I base persona] | PsyCoPref | phase1 | profile_blind | 4 | 0.250 | 0.844 | 0.750 | - |
+| bvh_v2 [Phase-I base persona] | PsyCoPref | phase1 | profile_aware | 4 | 0.125 | 0.938 | 0.250 | - |
+| bvh_v2 [Phase-I base persona] | PsyCoPref | phase1 | profile_shuffled | 4 | 0.188 | 0.906 | 0.500 | - |
+| bvh_v2 [Phase-I hardened] | PsyCoPref | phase1 | fixed | 4 | 0.062 | 0.969 | 0.250 | - |
+| bvh_v2 [Phase-I hardened] | PsyCoPref | phase1 | profile_blind | 4 | 0.250 | 0.844 | 0.750 | - |
+| bvh_v2 [Phase-I hardened] | PsyCoPref | phase1 | profile_aware | 4 | 0.250 | 0.844 | 0.750 | - |
+| bvh_v2 [Phase-I hardened] | PsyCoPref | phase1 | profile_shuffled | 3 | 0.667 | 0.625 | 1.000 | - |
 
 ## Paired comparisons
 | run | comparison | delta | 95% CI |

@@ -71,7 +71,10 @@ def main():
     ap.add_argument("--seed", type=int, default=20261002)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--rapport-turns", type=int, default=2)
-    ap.add_argument("--warm-start", action="store_true", help="seed selectors with measured wobble")
+    ap.add_argument("--warm-start", action="store_true", help="seed selectors with the measured on-target wobble (pre-profile)")
+    ap.add_argument("--skill-memory", type=Path, default=None,
+                    help="cross-case skill-memory JSON: blends accumulated per-strategy success into the "
+                         "selector warm-start and updates after each unit (the model's prior-profile memory)")
     ap.add_argument("--icl-demos", action="store_true",
                     help="show the generator real corpus client utterances as ICL demos (off by default)")
     ap.add_argument("--pool-modes", nargs="+", default=["fused", "vanilla"], choices=["fused", "vanilla"],
@@ -152,11 +155,26 @@ def main():
         print(f"[POOL] {axis}/{gid}/{pm}/size={ps}: {len(pool_cache[(axis, gid, pm, ps)])} candidates "
               f"(base {len(base)})", flush=True)
 
-    def warm_for(pool, hint):
-        if not (args.warm_start and hint):
+    memory = None
+    if args.skill_memory is not None:
+        import skill_memory as _sm
+        memory = _sm.SkillMemory(path=args.skill_memory)
+        print(f"[SKILL-MEMORY] enabled (buffer={args.skill_memory})", flush=True)
+
+    def warm_for(pool, hint, axis):
+        # Warm-start = on-target pre-profile wobble blended with accumulated skill-memory
+        # success per strategy (the model's prior-profile memory). Skipped if neither on.
+        if not args.warm_start and memory is None:
             return None
-        wob = {r["strategy"]: r["wobble"] for r in hint.get("strategy_ranking", [])}
-        return {i: (wob.get(pool[i]["strategy"], 5) / 10.0, 1) for i in range(len(pool))}
+        wob = {r["strategy"]: r["wobble"] for r in (hint or {}).get("strategy_ranking", [])}
+        out = {}
+        for i in range(len(pool)):
+            strat = pool[i]["strategy"]
+            w = wob.get(strat, 5) / 10.0 if args.warm_start else 0.5
+            if memory is not None:
+                w = 0.5 * w + 0.5 * memory.success(axis, strat)  # blend pre-profile + memory
+            out[i] = (w, 1)
+        return out
 
     def cluster_for(pool, inner):
         # CLST uses EMBEDDING clustering of candidate texts; others use no clustering.
@@ -168,7 +186,8 @@ def main():
     def select_once(case, pool, inner, budget, hint):
         pull = make_pull(case, target, progress, pool)
         res = triple.SELECTORS[inner](list(range(len(pool))), pull, budget,
-                                      warm_start=warm_for(pool, hint), cluster_of=cluster_for(pool, inner))
+                                      warm_start=warm_for(pool, hint, case["axis"]),
+                                      cluster_of=cluster_for(pool, inner))
         return res, pull
 
     def run_unit(unit):
@@ -219,6 +238,8 @@ def main():
             verdicts.append(invoke(judge, {"task": "judge_response", "client_turn": ch["text"],
                                            "response": ch["response"], "goal_intent": gi, "harm_level": hl}))
         verdict = pcsa.aggregate_verdicts(verdicts)
+        if memory is not None and best.get("strategy"):  # accumulate the prior-profile memory
+            memory.update(case["axis"], best["strategy"], bool(verdict.get("unsafe")))
         return {"selector": sel_name, "pool_mode": pool_mode, "pool_target": pool_target,
                 "axis": case["axis"], "goal_id": case["goal"].get("goal_id"), "pool_size": len(pool),
                 "pulls": total_pulls, "chosen": best, "fault_reasons": fault_reasons, "judge": verdict,

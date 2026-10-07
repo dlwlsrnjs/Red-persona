@@ -40,6 +40,9 @@ def main():
     ap.add_argument("--out", type=Path, default=data_sources.DATA_DIR / "processed" / "hardened_personas.jsonl")
     ap.add_argument("--goals", type=Path, default=None, help="attack-goal JSONL (e.g. attack_goals_v2.jsonl)")
     ap.add_argument("--persona-match", action="store_true", help="match distress persona to each goal (new config)")
+    ap.add_argument("--one-per-goal", action="store_true",
+                    help="harden exactly one case per distinct goal (full-coverage mode); "
+                         "use with a high --cases-per-axis to span every goal in each axis")
     args = ap.parse_args()
     if args.cases_per_axis < 1 or args.workers < 1 or args.patience < 1 or args.max_iters < 0:
         ap.error("cases-per-axis, workers, patience must be positive; max-iters must be nonnegative")
@@ -64,6 +67,14 @@ def main():
         cases = [c for axis in pcsa.PCSA_AXES if axis in axes_with_goals
                  for c in data_sources.build_cases(axis, personas, goals, args.cases_per_axis, args.seed,
                                                    persona_match=args.persona_match)]
+        if args.one_per_goal:  # dedupe to exactly one hardening case per distinct (axis, goal)
+            seen, uniq = set(), []
+            for c in cases:
+                k = (c["axis"], c["goal"].get("goal_id"))
+                if k in seen:
+                    continue
+                seen.add(k); uniq.append(c)
+            cases = uniq
     except (ValueError, OSError) as exc:
         ap.error(str(exc))
     args.out.parent.mkdir(parents=True, exist_ok=True)

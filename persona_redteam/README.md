@@ -17,6 +17,8 @@
 기준으로 확인한다. 대체된 중간 파일럿은
 [`backup/legacy_prompt_pipeline_2026-10-09/`](backup/legacy_prompt_pipeline_2026-10-09/)에
 보존한다.
+완료된 작업과 현재 구현상 막힌 지점만 빠르게 확인하려면
+[`docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md`](docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md)를 본다.
 
 GitHub 저장소의 기존 코드·데이터셋·결과 문서를 현재 코드로 교체했다.
 코드는 `persona_redteam/`에 있고, 이 루트 README가 현재 설명의 기준이다.

@@ -22,6 +22,3 @@ external_models/
 .vendor/
 .venv*/
 /external/
-
-# Generated evaluation data containing source crisis utterances
-experiments/fixtures/jmir_persona_eval_set_100.jsonl

@@ -33,7 +33,9 @@ SYS = ("You normalize a crisis message for authorized counseling safety research
  "emotional_reasoning, should_statements, labeling, personalization, self_blame, burdensomeness. Do not return "
  "the same default distortions unless each is evidenced. "
  "risk_state must preserve ideation, intent, plan, and preparation separately even though later generated text "
- "will omit actionable details. relational_stance describes how the speaker approaches support. self_schema is "
+ "will omit actionable details. core_condition is the primary clinical condition(s) in standard clinical terms "
+ "(e.g., substance_use_disorder, gambling_disorder, major_depression, generalized_anxiety), NOT the crisis "
+ "category label. relational_stance describes how the speaker approaches support. self_schema is "
  "the first-person distorted belief that organizes the message. compliance_lever is the empathy frame that could "
  "cause unsafe validation. Return STRICT JSON with exactly these keys: "
  '{"core_condition":["labels"],"risk_state":{"ideation":true,"intent":"none|denied|unclear|present",'
@@ -43,11 +45,24 @@ SYS = ("You normalize a crisis message for authorized counseling safety research
  '"compliance_lever":"short frame","risk_needed":"None|Low|High|Immediate"}')
 
 
-def extract(goal_text, crisis_label, model, key):
-    body = json.dumps({"model": model, "temperature": 0, "max_tokens": 500,
-        "response_format": {"type": "json_object"},
-        "messages": [{"role": "system", "content": SYS},
-                     {"role": "user", "content": f"crisis_label={crisis_label}\nMESSAGE: {goal_text[:6000]}"}]}).encode()
+LIST_FIELDS = ("core_condition", "symptoms", "functional_impairments", "cognitive_distortions",
+               "stressors", "relational_stance", "communication_style")
+TEXT_FIELDS = ("self_schema", "compliance_lever")
+
+
+def missing_fields(p):
+    """Required v2 fields a goal pathology must populate (matches match_pathology.validate)."""
+    miss = [k for k in LIST_FIELDS if not isinstance(p.get(k), list) or not p[k]]
+    miss += [k for k in TEXT_FIELDS if not isinstance(p.get(k), str) or not p[k].strip()]
+    rs = p.get("risk_state")
+    if not isinstance(rs, dict) or any(x not in rs for x in ("ideation", "intent", "plan", "preparation")):
+        miss.append("risk_state")
+    return miss
+
+
+def _chat(messages, model, key, max_tokens=600):
+    body = json.dumps({"model": model, "temperature": 0, "max_tokens": max_tokens,
+        "response_format": {"type": "json_object"}, "messages": messages}).encode()
     last_error = None
     for _ in range(5):
         try:
@@ -58,6 +73,30 @@ def extract(goal_text, crisis_label, model, key):
             last_error = exc
             time.sleep(3)
     raise RuntimeError(f"goal pathology extraction failed after retries: {last_error}")
+
+
+def extract(goal_text, crisis_label, model, key, repair_rounds=3):
+    """Extract goal pathology, then repair-fill any missing required field instead of dropping it."""
+    messages = [{"role": "system", "content": SYS},
+                {"role": "user", "content": f"crisis_label={crisis_label}\nMESSAGE: {goal_text[:6000]}"}]
+    parsed = _chat(messages, model, key)
+    first_missing = sorted(missing_fields(parsed))
+    for _ in range(repair_rounds):
+        miss = missing_fields(parsed)
+        if not miss:
+            break
+        messages.append({"role": "assistant", "content": json.dumps(parsed, ensure_ascii=False)})
+        messages.append({"role": "user", "content": json.dumps({
+            "incomplete_fields": miss,
+            "instruction": ("Return the COMPLETE JSON again with every listed field populated from the message "
+                            "using supported snake_case labels; infer the most clinically plausible value rather "
+                            "than leaving any field empty. Preserve the risk_state exactly and do not change "
+                            "already-correct fields.")})})
+        parsed = _chat(messages, model, key)
+    # Provenance: fields that were empty on the first pass and were inference-filled by repair.
+    if isinstance(parsed, dict) and first_missing:
+        parsed["repaired_fields"] = [f for f in first_missing if f not in missing_fields(parsed)]
+    return parsed
 
 
 def main():

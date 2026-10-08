@@ -1,4 +1,13 @@
-"""Expand a matched goal/persona pair into an auditable self-distortion plan."""
+"""Expand a matched goal/persona pair into an auditable self-distortion plan.
+
+The plan this module produces (fused self-schema, distortion layers, and a concrete
+metaphor with explicit mappings, all with the risk state preserved exactly) is the
+internalized self-distortion that the persona generators embed implicitly into an
+attack persona. `expand_plan` / `build_payload` / `persona_facts` are imported by
+`experiments/persona_analysis_oneshot.py` and `experiments/persona_case_reframing.py`
+so the generated persona case carries this metaphorized distortion rather than
+restating the goal. Run standalone to freeze the plans as an independent artifact.
+"""
 from __future__ import annotations
 
 import argparse
@@ -95,43 +104,83 @@ def complete(payload, model, key):
     raise RuntimeError(f"self-distortion expansion failed: {last}")
 
 
+VERA_FACT_FIELDS = ("Diagnoses and Symptoms", "Current Suicidal Thoughts and Behaviors",
+                    "Recent Triggers and Stressors", "Primary Communication Style",
+                    "Reaction to Chatbot Responses", "Treatment Engagement / Access",
+                    "Financial Stress", "Social Isolation")
+OTHER_FACT_FIELDS = ("descriptor", "background", "condition", "thought", "style_reference",
+                     "description", "initial_user_message")
+
+
 def persona_facts(row):
-    fields = ("Diagnoses and Symptoms", "Current Suicidal Thoughts and Behaviors",
-              "Recent Triggers and Stressors", "Primary Communication Style",
-              "Reaction to Chatbot Responses", "Treatment Engagement / Access",
-              "Financial Stress", "Social Isolation")
-    return {key: row[key] for key in fields if row.get(key)}
+    """Non-demographic source facts for either persona pool (VERA-SI or Cactus/SimMH)."""
+    vera = {key: row[key] for key in VERA_FACT_FIELDS
+            if isinstance(row.get(key), str) and row[key].strip()}
+    if vera:
+        return vera
+    return {key: row[key] for key in OTHER_FACT_FIELDS
+            if isinstance(row.get(key), str) and row[key].strip()}
+
+
+def build_payload(goal_pathology, candidate, persona_row):
+    """Assemble the generator payload for one matched goal/persona candidate."""
+    return {"goal_pathology": goal_pathology,
+            "persona_pathology": candidate.get("persona_pathology", {}),
+            "match_evidence": candidate.get("axis_scores", {}),
+            "distortion_bridge": candidate.get("distortion_bridge", {}),
+            "persona_facts": persona_facts(persona_row)}
+
+
+def expand_plan(payload, expected_risk, model, key, attempts=4):
+    """Produce and strictly validate one self-distortion plan, retrying on validation errors."""
+    payload = dict(payload)
+    error = None
+    for _ in range(attempts):
+        try:
+            return validate(normalize_plan(complete(payload, model, key)), expected_risk)
+        except ValueError as exc:
+            error = exc
+            payload["validation_feedback"] = str(exc) + "; populate every required layer without changing risk state"
+    raise RuntimeError(f"could not produce a valid self-distortion plan: {error}")
+
+
+def load_personas(persona_dir):
+    """Index both routed persona pools by (source, id) so any matched candidate resolves."""
+    persona_dir = Path(persona_dir)
+    personas = {}
+    with (persona_dir / "veramh_si_n100.tsv").open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle, delimiter="\t"):
+            personas[("VERA-SI", row["Name"])] = row
+    cactus = persona_dir / "cactus_distress_n2000.jsonl"
+    if cactus.is_file():
+        for line in cactus.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                personas[("Cactus", row["persona_id"])] = row
+    return personas
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--matched", required=True)
-    ap.add_argument("--persona-tsv", default=str(ROOT / "personas/veramh_si_n100.tsv"))
+    ap.add_argument("--persona-dir", default=str(ROOT / "personas"))
     ap.add_argument("--out", required=True)
     ap.add_argument("--model", default="gpt-4o-mini")
     args = ap.parse_args()
     key = os.environ["OPENAI_API_KEY"].strip()
     rows = [json.loads(x) for x in Path(args.matched).read_text().splitlines() if x.strip()]
-    with Path(args.persona_tsv).open(encoding="utf-8", newline="") as handle:
-        personas = {r["Name"]: r for r in csv.DictReader(handle, delimiter="\t")}
+    personas = load_personas(args.persona_dir)
     output = []
     for row in rows:
         candidate = row["persona_candidates"][0]
-        payload = {"goal_pathology": row["pathology"], "persona_pathology": candidate["persona_pathology"],
-                   "match_evidence": candidate["axis_scores"], "distortion_bridge": candidate["distortion_bridge"],
-                   "persona_facts": persona_facts(personas[candidate["id"]])}
-        error = None
-        for _ in range(4):
-            try:
-                plan = validate(normalize_plan(complete(payload, args.model, key)), row["pathology"]["risk_state"])
-                break
-            except ValueError as exc:
-                error = exc
-                payload["validation_feedback"] = str(exc) + "; populate every required layer without changing risk state"
-        else:
-            raise RuntimeError(f"could not produce a valid self-distortion plan: {error}")
-        output.append({"goal_id": row["goal_id"], "selected_persona": candidate["id"],
-                       "match_score": candidate["score"], "self_distortion_plan": plan})
+        persona_row = personas.get((candidate["source"], candidate["id"]))
+        if persona_row is None:
+            raise SystemExit(f"persona not found in pool: {candidate['source']}/{candidate['id']}")
+        payload = build_payload(row["pathology"], candidate, persona_row)
+        plan = expand_plan(payload, row["pathology"]["risk_state"], args.model, key)
+        output.append({"goal_id": row["goal_id"], "selected_persona_source": candidate["source"],
+                       "selected_persona": candidate["id"], "match_score": candidate.get("score"),
+                       "self_distortion_plan": plan})
     Path(args.out).write_text("".join(json.dumps(x, ensure_ascii=False) + "\n" for x in output), encoding="utf-8")
     print(f"SAVED -> {args.out} ({len(output)} expanded self-distortion plans)")
 

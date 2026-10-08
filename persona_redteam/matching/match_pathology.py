@@ -147,9 +147,14 @@ def distortion_bridge(goal, persona, evidence):
     }
 
 
-def match(goals, profiles, topk=3, backend="hybrid"):
+DEFAULT_GROUND_THRESHOLD = 0.55
+
+
+def match(goals, profiles, topk=3, backend="hybrid", ground_threshold=DEFAULT_GROUND_THRESHOLD):
     if topk < 1:
         raise ValueError("topk must be positive")
+    if not 0.0 <= ground_threshold <= 1.0:
+        raise ValueError("ground_threshold must be in 0..1")
     for goal in goals: validate_pathology(goal.get("pathology"), persona=False)
     for profile in profiles: validate_pathology(profile, persona=True)
     use_embeddings = backend in ("embedding", "hybrid")
@@ -157,40 +162,54 @@ def match(goals, profiles, topk=3, backend="hybrid"):
     gv = embeddings.embed_texts([pathology_text(g["pathology"]) for g in goals]) if use_embeddings else None
     output = []
     for gi, goal_row in enumerate(goals):
-        goal = goal_row["pathology"]; pool = route(goal_row["crisis_label"])
-        allowed = ELIG.get(goal_row["crisis_label"])
-        eligible = [(i, p) for i, p in enumerate(profiles) if p["source"] == pool
-                    and (allowed is None or p.get("risk_level") in allowed)
-                    and (not p.get("crisis_tags") or goal_row["crisis_label"] in p["crisis_tags"])
+        goal = goal_row["pathology"]; label = goal_row["crisis_label"]
+        allowed = ELIG.get(label)
+        # Draw eligible personas from the UNION of all profiled pools (VERA-SI, VERA-HFO,
+        # Cactus, SimMH) by crisis tag, not a single hard-routed pool. The ELIG risk gate
+        # still applies to pools that carry a suicide risk_level (VERA-SI); pools without
+        # one (risk_level None) pass that gate and remain bounded by risk_compatible.
+        eligible = [(i, p) for i, p in enumerate(profiles)
+                    if (not p.get("crisis_tags") or label in p["crisis_tags"])
+                    and (allowed is None or p.get("risk_level") is None or p.get("risk_level") in allowed)
                     and risk_compatible(goal, p)]
         if not eligible:
-            raise ValueError(f"no risk-compatible normalized persona for {goal_row.get('goal_id')} ({pool})")
+            raise ValueError(f"no risk-compatible normalized persona for {goal_row.get('goal_id')} ({label})")
         scored = []
         for pi, persona in eligible:
             evidence = structured_scores(goal, persona)
-            if not any(evidence[k] > 0 for k in
-                       ("core_condition", "symptoms", "functional_impairments")):
-                continue
+            # Grounding keeps a candidate clinically anchored without demanding that the
+            # goal and persona use identical free-text labels: an exact overlap on the
+            # clinical axes, OR (when embeddings are available) a pathology-signature
+            # cosine at or above the threshold. The crisis pool, tag, and risk filters
+            # above already bound clinical relevance; this only tolerates label variance.
             semantic = cosine(gv[gi], pv[pi]) if use_embeddings else None
+            structural = any(evidence[k] > 0 for k in
+                             ("core_condition", "symptoms", "functional_impairments"))
+            semantic_ground = semantic is not None and semantic >= ground_threshold
+            if not (structural or semantic_ground):
+                continue
+            grounding = "both" if structural and semantic_ground else ("structural" if structural else "semantic")
             rank = semantic if backend == "embedding" else evidence["total"]
             if backend == "hybrid": rank = .75 * evidence["total"] + .25 * semantic
-            scored.append((rank, evidence, semantic, persona))
+            scored.append((rank, evidence, semantic, persona, grounding))
         if not scored:
-            raise ValueError(f"no clinically grounded persona for {goal_row.get('goal_id')} ({pool})")
+            raise ValueError(f"no clinically grounded persona for {goal_row.get('goal_id')} ({label})")
         scored.sort(key=lambda x: (-x[0], str(x[3]["persona_id"])))
         candidates = []
-        for rank, evidence, semantic, persona in scored[:topk]:
+        for rank, evidence, semantic, persona, grounding in scored[:topk]:
             candidates.append({"source": persona["source"], "id": persona["persona_id"],
                 "risk": persona.get("risk_level"), "score": round(rank, 4), "cos": round(rank, 4),
-                "structured_score": round(evidence["total"], 4),
+                "structured_score": round(evidence["total"], 4), "grounding": grounding,
                 "axis_scores": {k: round(v, 4) for k, v in evidence.items() if k != "total"},
                 "embedding_cosine": round(semantic, 4) if semantic is not None else None,
                 "persona_pathology": {k: persona.get(k) for k in
                     ("core_condition", "risk_state", *AXES, "persona_self_schema", "crisis_tags", "susceptibility_lever")},
                 "distortion_bridge": distortion_bridge(goal, persona, evidence)})
         output.append({**{k: goal_row.get(k) for k in ("goal_id", "crisis_label", "goal", "pathology")},
-            "routed_pool": pool, "risk_filter": sorted(allowed) if allowed else [],
-            "matching_backend": backend, "persona_candidates": candidates})
+            "routed_pools": sorted({p["source"] for _, p in eligible}),
+            "risk_filter": sorted(allowed) if allowed else [],
+            "matching_backend": backend, "ground_threshold": ground_threshold,
+            "persona_candidates": candidates})
     return output
 
 
@@ -201,8 +220,12 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "outputs/goal_pathology_persona_routed_v2.jsonl"))
     ap.add_argument("--topk", type=int, default=3)
     ap.add_argument("--backend", choices=["structured", "embedding", "hybrid"], default="hybrid")
+    ap.add_argument("--ground-threshold", type=float, default=DEFAULT_GROUND_THRESHOLD,
+                    help="minimum pathology-signature cosine that grounds a candidate when exact "
+                         "label overlap is absent (embedding/hybrid backends only)")
     a = ap.parse_args()
-    result = match(load_jsonl(a.goals), load_persona_profiles(a.persona_pathology), a.topk, a.backend)
+    result = match(load_jsonl(a.goals), load_persona_profiles(a.persona_pathology), a.topk, a.backend,
+                   a.ground_threshold)
     Path(a.out).write_text("".join(json.dumps(x, ensure_ascii=False) + "\n" for x in result), encoding="utf-8")
     print(f"SAVED -> {a.out} ({len(result)} goals; v2 normalized pathology required)", flush=True)
 

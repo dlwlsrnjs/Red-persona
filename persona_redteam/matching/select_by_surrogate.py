@@ -30,6 +30,12 @@ from data_sanitization import strip_demographics
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = {"suicidal_ideation", "anxiety_crisis"}
+# All six JMIR crisis categories are supported after full-pool profiling and
+# crisis-conditioned enrichment (see docs/METHOD_PERSONA_POOL_CONSTRUCTION.md). The three
+# behavioral-crisis categories are served by enriched, source-grounded personas; their
+# provenance (enriched_for / repaired_fields) is carried through for auditing.
+SUPPORTED_CRISIS_LABELS = ("suicidal_ideation", "self-harm", "anxiety_crisis",
+                           "substance_abuse_or_withdrawal", "violent_thoughts", "risk_taking_behaviours")
 RISK_FILTER = {"suicidal_ideation": {"High", "Immediate"},
                "self-harm": {"Low", "High", "Immediate"}}
 BASELINE = ("goal_only", "__goal_only__")
@@ -66,8 +72,34 @@ def unique_index(rows, field):
     return result
 
 
+def load_all_pools(persona_dir):
+    """Index every persona source by (source, id): VERA-SI, VERA-HFO, SimMH, Cactus.
+
+    Enriched personas are referenced by an `<origin_id>__<crisis>` candidate id that resolves
+    back to the origin source row here, so the generator always renders the real source text.
+    """
+    persona_dir = Path(persona_dir)
+    pools = {}
+    with (persona_dir / "veramh_si_n100.tsv").open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f, delimiter="\t"):
+            pools[("VERA-SI", r["Name"])] = r
+    hfo = persona_dir / "veramh_hfo_n100.tsv"
+    if hfo.is_file():
+        with hfo.open(encoding="utf-8", newline="") as f:
+            for r in csv.DictReader(f, delimiter="\t"):
+                pools[("VERA-HFO", r["Name"])] = r
+    for r in read_jsonl(persona_dir / "cactus_distress_n2000.jsonl"):
+        pools[("Cactus", r["persona_id"])] = r
+    sim = persona_dir / "simmh_n157.parquet"
+    if sim.is_file():
+        import pandas as pd
+        for _, r in pd.read_parquet(sim).iterrows():
+            pools[("SimMH", str(r["sim_key"]))] = {k: (None if v is None else v) for k, v in r.to_dict().items()}
+    return pools
+
+
 def load_inputs(goals_path, candidates_path, persona_dir, scope="core", topk=3,
-                per_label=None, limit=None):
+                per_label=None, limit=None, crisis_labels=None):
     goals = read_jsonl(goals_path)
     for goal in goals:
         if isinstance(goal.get("goal"), str):
@@ -77,16 +109,15 @@ def load_inputs(goals_path, candidates_path, persona_dir, scope="core", topk=3,
     for record in routed.values():
         if isinstance(record.get("goal"), str):
             record["goal"] = strip_demographics(record["goal"])
-    with (persona_dir / "veramh_si_n100.tsv").open(encoding="utf-8", newline="") as f:
-        vera = unique_index(list(csv.DictReader(f, delimiter="\t")), "Name")
-    cactus = unique_index(read_jsonl(persona_dir / "cactus_distress_n2000.jsonl"), "persona_id")
-    pools = {"VERA-SI": vera, "Cactus": cactus}
+    pools = load_all_pools(persona_dir)
     cases, counts = [], {}
     for goal in goals:
         label = goal.get("crisis_label")
         if not isinstance(label, str) or not label.strip():
             raise ValueError("crisis_label must be nonempty")
         if scope == "core" and label not in CORE:
+            continue
+        if crisis_labels is not None and label not in crisis_labels:
             continue
         if per_label is not None and counts.get(label, 0) >= per_label:
             continue
@@ -97,22 +128,23 @@ def load_inputs(goals_path, candidates_path, persona_dir, scope="core", topk=3,
         record = routed.get(goal["goal_id"])
         if not record or any(record.get(k) != goal[k] for k in ("goal", "crisis_label")):
             raise ValueError(f"{goal['goal_id']}: candidate goal text/label mismatch")
-        pool = "VERA-SI" if label in RISK_FILTER else "Cactus"
-        if record.get("routed_pool") != pool:
-            raise ValueError(f"{goal['goal_id']}: wrong routed pool")
         candidates = record.get("persona_candidates")
         if not isinstance(candidates, list) or len(candidates) < topk:
             raise ValueError(f"{goal['goal_id']}: fewer than {topk} candidates")
         selected, seen = [], set()
         for candidate in candidates[:topk]:
-            if not isinstance(candidate, dict) or candidate.get("source") != pool:
-                raise ValueError(f"{goal['goal_id']}: invalid candidate source")
-            pid = candidate.get("id")
-            if not isinstance(pid, str) or pid not in pools[pool] or pid in seen:
-                raise ValueError(f"{goal['goal_id']}: unknown or repeated persona")
+            source, pid = (candidate or {}).get("source"), (candidate or {}).get("id")
+            if not isinstance(source, str) or not isinstance(pid, str) or pid in seen:
+                raise ValueError(f"{goal['goal_id']}: invalid or repeated candidate")
             seen.add(pid)
-            persona = pools[pool][pid]
-            if pool == "VERA-SI" and persona["Short Current Suicide Risk Level"] not in RISK_FILTER[label]:
+            # Enriched ids resolve back to their origin source row for rendering.
+            origin_id = pid.split("__", 1)[0]
+            persona = pools.get((source, origin_id))
+            if persona is None:
+                raise ValueError(f"{goal['goal_id']}: unknown persona {source}/{pid}")
+            # Suicide risk gate applies only to the pool that carries a suicide risk level.
+            if source == "VERA-SI" and label in RISK_FILTER \
+                    and persona.get("Short Current Suicide Risk Level") not in RISK_FILTER[label]:
                 raise ValueError(f"{goal['goal_id']}: persona violates risk filter")
             cosine = candidate.get("cos")
             if isinstance(cosine, bool) or not isinstance(cosine, (int, float)) or not math.isfinite(cosine):
@@ -140,6 +172,14 @@ def wrap_goal(case, entry):
         fields += [(name, persona.get(name)) for name in (
             "Background", "Diagnoses and Symptoms", "Current Suicidal Thoughts and Behaviors",
             "Recent Triggers and Stressors", "Primary Communication Style", "Reaction to Chatbot Responses")]
+    elif source == "VERA-HFO":
+        fields = [(name, persona.get(key)) for name, key in (
+            ("Background", "Background"), ("Harm type", "Harm type"), ("Threats", "Risk indicator - Threats"),
+            ("What I fear", "User fear"), ("Communication example", "Primary communication style"),
+            ("Help-seeking history", "Help-seeking history"), ("Social isolation", "Social isolation"))]
+    elif source == "SimMH":
+        fields = [(name, persona.get(key)) for name, key in (
+            ("About me", "user_bio"), ("Background", "description"), ("Opening", "initial_user_message"))]
     else:
         fields = [(name, persona.get(key)) for name, key in (
             ("About me", "descriptor"), ("Background", "background"), ("Presenting problem", "condition"),

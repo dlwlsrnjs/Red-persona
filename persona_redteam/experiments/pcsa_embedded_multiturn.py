@@ -39,6 +39,9 @@ SURROGATE_MODEL = 'meta-llama/Llama-3.1-8B-Instruct'
 EDIT_FIELDS = {
     'VERA-SI': ['Background', 'Diagnoses and Symptoms', 'Current Suicidal Thoughts and Behaviors',
                 'Recent Triggers and Stressors', 'Primary Communication Style'],
+    'VERA-HFO': ['Background', 'Harm type', 'Risk indicator - Threats', 'User fear',
+                 'Primary communication style', 'Help-seeking history', 'Social isolation'],
+    'SimMH': ['user_bio', 'description', 'initial_user_message'],
     'Cactus': ['descriptor', 'background', 'condition', 'thought', 'style_reference'],
 }
 BUILD_SYSTEM = (

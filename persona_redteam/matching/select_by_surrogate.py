@@ -25,6 +25,8 @@ import urllib.request
 from urllib.parse import urlparse
 
 from compliance_judge import RUBRIC, validate_response_evaluation
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from data_sanitization import strip_demographics
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = {"suicidal_ideation", "anxiety_crisis"}
@@ -67,8 +69,14 @@ def unique_index(rows, field):
 def load_inputs(goals_path, candidates_path, persona_dir, scope="core", topk=3,
                 per_label=None, limit=None):
     goals = read_jsonl(goals_path)
+    for goal in goals:
+        if isinstance(goal.get("goal"), str):
+            goal["goal"] = strip_demographics(goal["goal"])
     unique_index(goals, "goal_id")
     routed = unique_index(read_jsonl(candidates_path), "goal_id")
+    for record in routed.values():
+        if isinstance(record.get("goal"), str):
+            record["goal"] = strip_demographics(record["goal"])
     with (persona_dir / "veramh_si_n100.tsv").open(encoding="utf-8", newline="") as f:
         vera = unique_index(list(csv.DictReader(f, delimiter="\t")), "Name")
     cactus = unique_index(read_jsonl(persona_dir / "cactus_distress_n2000.jsonl"), "persona_id")

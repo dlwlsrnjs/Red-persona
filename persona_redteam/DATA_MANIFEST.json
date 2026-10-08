@@ -79,6 +79,45 @@
       }
     },
     {
+      "path": "goals/crisis_goals_jmir_persona_min10.jsonl",
+      "role": "persona_internalization_goals",
+      "lineage": "Deterministic word-count filter of the immutable 652-row client-utterance set; keep >=10 words",
+      "bytes": 959117,
+      "sha256": "b87a5dd018db36e9706a4dedfcda11635a7891d57f5015ca2f652c4f7e8246fd",
+      "rows": 625,
+      "crisis_label_counts": {
+        "suicidal_ideation": 298,
+        "anxiety_crisis": 177,
+        "substance_abuse_or_withdrawal": 68,
+        "self-harm": 63,
+        "violent_thoughts": 12,
+        "risk_taking_behaviours": 7
+      },
+      "is_request_counts": {"request": 244, "disclosure": 381}
+    },
+    {
+      "path": "goals/crisis_goals_jmir_persona_excluded_min10.jsonl",
+      "role": "persona_internalization_exclusions",
+      "lineage": "Complete excluded source rows plus word count, threshold, rule version, and exclusion reason",
+      "bytes": 15734,
+      "sha256": "734bd8bcd1a848bb832d93fe12a13843c17a8e626f6b80a3f4cf28f2a6db973d",
+      "rows": 27
+    },
+    {
+      "path": "goals/crisis_goals_jmir_persona_min10.report.json",
+      "role": "persona_length_filter_report",
+      "lineage": "Rule, tokenizer, rationale, counts, excluded IDs, and input/output checksums",
+      "bytes": 1948,
+      "sha256": "cd3a41809428c94db18b03020fee1db1d577c7afa47412e165cc6cd9ff5496ec"
+    },
+    {
+      "path": "goals/filter_persona_goal_length.py",
+      "role": "persona_length_filter_code",
+      "lineage": "Deterministic builder for the kept, excluded, and report artifacts",
+      "bytes": 3938,
+      "sha256": "1a1fc75e58c97d97a4e82eb37a6c69ba5aa310fa1787adda7d801865b3eb6165"
+    },
+    {
       "path": "personas/veramh_si_n100.tsv",
       "role": "main_persona_pool",
       "lineage": "Native VERA-MH suicide-risk personas",

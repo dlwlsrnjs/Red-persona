@@ -88,11 +88,47 @@ GPT-4o-mini의 세 실행을 다수결로 합친 값이다. 테스트 전체를 
 포함된 원본 소스별 개수와 파일 체크섬은
 [`DATA_MANIFEST.json`](DATA_MANIFEST.json)에 기록했다.
 
-### 2.3 전체 652개와 우선 분석 범위 489개의 관계
+### 2.3 페르소나 내재화용 최소 길이 필터: 625개
+
+652개 원본은 비교·감사·기존 결과 재현을 위해 변경하지 않는다. 새 페르소나
+내재화 최적화에서는 10단어 미만인 27개를 제외한
+`goals/crisis_goals_jmir_persona_min10.jsonl` **625개**를 사용한다. 매우 짧은
+발화는 위기 안전성 평가에는 유효할 수 있지만, goal의 상태·자기해석·감정적
+의미를 페르소나에 내재화하는 방법을 비교하기에는 문맥이 부족하기 때문이다.
+
+단어 수는 Unicode 단어와 내부 apostrophe를 하나의 토큰으로 세며,
+`word_count >= 10`을 유지한다. 10단어 미만은 27개, 12단어 미만은 60개라서
+12단어 기준은 짧지만 정상적인 도움 요청까지 과도하게 제외한다고 판단했다.
+제외된 27개는 자살 사고 14개, 자해 5개, 약물 사용·금단 8개다. 유지본은
+요청형 244개와 서술형 381개다.
+
+처리 산출물은 다음과 같다.
+
+- 유지본: `goals/crisis_goals_jmir_persona_min10.jsonl`
+- 제외 원문과 행별 단어 수·사유: `goals/crisis_goals_jmir_persona_excluded_min10.jsonl`
+- 규칙·분포·제외 ID·입출력 체크섬: `goals/crisis_goals_jmir_persona_min10.report.json`
+- 재생성 코드: `goals/filter_persona_goal_length.py`
+
+```bash
+python goals/filter_persona_goal_length.py \
+  --input goals/crisis_goals_jmir_client.jsonl \
+  --kept goals/crisis_goals_jmir_persona_min10.jsonl \
+  --excluded goals/crisis_goals_jmir_persona_excluded_min10.jsonl \
+  --report goals/crisis_goals_jmir_persona_min10.report.json \
+  --min-words 10
+```
+
+현재 `persona_case_reframing.py`는 이 625개 파생 파일만 로드한다. 기존 652개
+실험과 결과는 표본이 다르므로 그대로 재해석하지 않는다.
+
+### 2.4 전체 652개와 우선 분석 범위의 관계
 
 전체 사용 후보는 **652개**다. 그중 자살 사고 312개와 불안 위기 177개를
 합한 **489개**를 우선 분석 범위로 구분한다. 나머지 **163개**도 별도 범주로
 유지하고 결과를 층화해 보고한다.
+
+새 페르소나 내재화 파생본에서는 자살 사고 298개와 불안 위기 177개, 합계
+**475개**가 같은 우선 범주에 남으며 나머지는 150개다.
 
 이 구분은 기존 페르소나 연결의 자연스러움 점검에서 자살 사고와 불안 입력이
 상대적으로 적합했기 때문이다. 당시 1–5점 자동 coherence 평균은 각각 약
@@ -174,10 +210,29 @@ Cactus를 선택한 이유는 불안과 부정적 생각, 생활 배경, 인지 
 판정 규칙으로 해석하지 않는다. 낮은 위험 자살 사고 페르소나는 이 구성에서
 빠지므로 전체 상담 상황에 대한 일반화도 제한된다.
 
-입력에서 추출한 `pathology` 텍스트와 페르소나 설명의 임베딩 유사도로
-풀 안의 후보 **상위 3개**를 보관했다. 코드의 실제 동작은 입력 측 구조화
-정보와 원본 페르소나 설명을 연결하는 방식이다. 완전한 양방향 CBT 축 추출,
-인지 왜곡 Jaccard 비교, core-belief 일치 점수는 완성된 구현으로 표시하지 않는다.
+`matching/match_pathology.py`의 v2 경로는 goal과 persona 양쪽의 정규화된
+병리 축을 필수 입력으로 받는다. 원본 persona 설명으로 자동 대체하지 않으며,
+persona 병리 파일이 없거나 필수 필드가 비어 있으면 실행을 중단한다. 기본
+`structured` 순위는 condition·인지왜곡·keyword·유도 frame의 명시적 점수를
+사용하고, `--backend embedding`은 같은 정규화 텍스트끼리 cosine 순위를 계산한다.
+각 후보에는 양쪽 점수 근거와 Phase I `generate_cognitive_distortion` 입력인
+`distortion_bridge`를 함께 저장한다. 이 브리지는 goal의 핵심 상태와 왜곡을
+persona의 susceptibility frame으로 내재화하고 `metaphorical_self_distortion`을
+1차 생성기로 전달한다.
+
+```bash
+python matching/match_pathology.py \
+  --goals outputs/goal_pathology_n813.jsonl \
+  --persona-pathology outputs/persona_pathology_veramh_si.jsonl \
+  --persona-pathology outputs/persona_pathology_cactus.jsonl \
+  --out outputs/goal_pathology_persona_routed_v2.jsonl \
+  --backend structured --topk 3
+```
+
+프로세스 파일럿은 `outputs/pathology_match_pilot/`에 있다. 실제 JMIR 유래
+goal 2개와 실제 VERA 원본에서 감사 가능하게 수동 정규화한 persona 4개를
+사용했다. 이 파일럿은 연결과 payload 전달을 검증하며, 전체 persona의 모델
+추출 품질이나 최종 응답 전이 성능을 뜻하지 않는다.
 
 연결 파일은 `outputs/goal_pathology_persona_routed_n813.jsonl`이다.
 813개 위기 입력의 연결 중 최종 652개와 ID로 결합한다.
@@ -594,11 +649,13 @@ Cactus 가공과 원본 데이터 병합은 재구축 계획이며, 전체가 �
 2. `no_crisis`와 누락 라벨을 제외해 813개 위기 입력을 만든다.
 3. 내담자 발화 판정을 재현하고 제외 사유·오류를 보관한다. 원래 652개와의
    정확한 일치는 보관한 필터 판정 또는 동일 파일 체크섬으로만 확인할 수 있다.
-4. VERA-MH의 `data/SI/personas.tsv`를 가져와 원본 필드와 위험 수준을 보존한다.
-5. Cactus 공식 자료로 부정적 태도 필터·생각 중복 제거·기존 2,000개 선정
+4. 652개 원본에서 결정적 10단어 최소 길이 필터를 실행해 페르소나 내재화용
+   625개와 제외 27개, 처리 보고서를 함께 생성한다.
+5. VERA-MH의 `data/SI/personas.tsv`를 가져와 원본 필드와 위험 수준을 보존한다.
+6. Cactus 공식 자료로 부정적 태도 필터·생각 중복 제거·기존 2,000개 선정
    규칙을 재현한다. 이전 저장소의 가공 코드는 이번 교체에서 제거했으며,
    새 데이터 준비 도구로 이 과정을 다시 구현해야 한다.
-6. 필요한 파생 연결을 재구축하고 652개 모두의 ID, 후보 3개, 라우팅,
+7. 필요한 파생 연결을 재구축하고 652개 모두의 ID, 후보 3개, 라우팅,
    위험 필터와 입력 렌더링을 검증한다.
 
 이 항목은 현재 확보·가공 과정을 기록한 재현 계획이다. 아직 없는 다운로드·

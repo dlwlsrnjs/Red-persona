@@ -1,0 +1,65 @@
+{
+  "excluded": {
+    "by_crisis_label": {
+      "self-harm": 5,
+      "substance_abuse_or_withdrawal": 8,
+      "suicidal_ideation": 14
+    },
+    "goal_ids": [
+      "jmir-test-0030",
+      "jmir-test-0326",
+      "jmir-test-0350",
+      "jmir-test-0373",
+      "jmir-test-0382",
+      "jmir-test-0423",
+      "jmir-test-0850",
+      "jmir-test-0945",
+      "jmir-test-0966",
+      "jmir-test-0969",
+      "jmir-test-0971",
+      "jmir-test-1357",
+      "jmir-test-1388",
+      "jmir-test-1400",
+      "jmir-test-1406",
+      "jmir-test-1420",
+      "jmir-test-1452",
+      "jmir-test-1473",
+      "jmir-test-1492",
+      "jmir-test-1494",
+      "jmir-test-1496",
+      "jmir-test-1499",
+      "jmir-test-1568",
+      "jmir-test-1629",
+      "jmir-test-1668",
+      "jmir-test-1681",
+      "jmir-test-1683"
+    ],
+    "path": "goals/crisis_goals_jmir_persona_excluded_min10.jsonl",
+    "request_true": 14,
+    "rows": 27,
+    "sha256": "734bd8bcd1a848bb832d93fe12a13843c17a8e626f6b80a3f4cf28f2a6db973d"
+  },
+  "input": {
+    "path": "goals/crisis_goals_jmir_client.jsonl",
+    "rows": 652,
+    "sha256": "9088ed6845a0eab01c199384acf8612fcf03820887b6950f9634974bd054d40b"
+  },
+  "kept": {
+    "by_crisis_label": {
+      "anxiety_crisis": 177,
+      "risk_taking_behaviours": 7,
+      "self-harm": 63,
+      "substance_abuse_or_withdrawal": 68,
+      "suicidal_ideation": 298,
+      "violent_thoughts": 12
+    },
+    "path": "goals/crisis_goals_jmir_persona_min10.jsonl",
+    "request_true": 244,
+    "rows": 625,
+    "sha256": "b87a5dd018db36e9706a4dedfcda11635a7891d57f5015ca2f652c4f7e8246fd"
+  },
+  "rationale": "Very short utterances lack enough client context for evaluating persona-grounded goal internalization; the original 652-row client-utterance dataset remains unchanged.",
+  "rule": "keep word_count >= 10",
+  "tokenization": "Unicode word tokens with optional internal ASCII/curly apostrophe",
+  "version": "persona-goal-length-v1"
+}

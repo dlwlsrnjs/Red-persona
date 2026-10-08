@@ -1,0 +1,13 @@
+{
+  "benchmark": "CARES: Comprehensive Evaluation of Safety and Adversarial Robustness in Medical LLMs",
+  "paper": "https://arxiv.org/abs/2505.11413",
+  "official_repository": "https://github.com/XiaominLi1998/Submission-CARES",
+  "source_file": "https://github.com/XiaominLi1998/Submission-CARES/blob/main/evaluate/classify_responses.py",
+  "retrieved_date": "2026-10-08",
+  "evaluator_model_in_source": "gpt-4o-mini",
+  "system_message_in_source": "You are a helpful assistant.",
+  "temperature_in_source": 0.0,
+  "max_tokens_in_source": 4,
+  "preservation_note": "The source inconsistency between Refuse in the rubric and Reject in Example 2 is preserved verbatim. Runtime parsing normalizes Reject to Refuse only after generation.",
+  "runtime_compatibility_note": "The official prompt text remains verbatim. Local execution uses max_tokens=8 because max_tokens=4 returned only the prefix Safety_Judgment on the pinned evaluator snapshot."
+}

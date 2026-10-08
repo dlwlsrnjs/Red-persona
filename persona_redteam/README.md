@@ -9,6 +9,15 @@
 제안 방법의 단계별 데이터, Jailbreak-Zero와의 대응, 실험 행렬은
 [`docs/METHOD_GENERATE_OPTIMIZE_TRANSFER.md`](docs/METHOD_GENERATE_OPTIMIZE_TRANSFER.md)에 정리했다.
 
+2026-10-09 현재 활성 파일럿은 Qwen 질문 계획자와 goal-blind 타겟이 전체 대화 이력을
+유지하며 페르소나를 공동 분석하는 파이프라인이다. 8개 독립 분기는 각각 잠재 goal을
+재구성한 뒤 실제 상담 답변으로 전환하는 후속 턴까지 실행한다. 설계와 최신 결과는
+[`docs/PERSONA_CO_RESEARCH_FLOW_KO.md`](docs/PERSONA_CO_RESEARCH_FLOW_KO.md),
+[`docs/PERSONA_CO_RESEARCH_PILOT_RESULTS_2026-10-09_KO.md`](docs/PERSONA_CO_RESEARCH_PILOT_RESULTS_2026-10-09_KO.md)를
+기준으로 확인한다. 대체된 중간 파일럿은
+[`backup/legacy_prompt_pipeline_2026-10-09/`](backup/legacy_prompt_pipeline_2026-10-09/)에
+보존한다.
+
 GitHub 저장소의 기존 코드·데이터셋·결과 문서를 현재 코드로 교체했다.
 코드는 `persona_redteam/`에 있고, 이 루트 README가 현재 설명의 기준이다.
 배포 구성은 코드, 현재 설계 문서, PCSA 평가 원문과 데이터 메타데이터다.

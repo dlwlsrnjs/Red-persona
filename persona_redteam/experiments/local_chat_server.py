@@ -32,13 +32,13 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.snapshot_path, local_files_only=True)
     if args.device_map == "balanced":
         model = AutoModelForCausalLM.from_pretrained(
-            args.snapshot_path, local_files_only=True, dtype=torch.bfloat16,
+            args.snapshot_path, local_files_only=True, torch_dtype=torch.bfloat16,
             device_map="balanced", max_memory={0: "77GiB", 1: "77GiB", "cpu": "160GiB"},
             low_cpu_mem_usage=True,
         ).eval()
     else:
         model = AutoModelForCausalLM.from_pretrained(
-            args.snapshot_path, local_files_only=True, dtype=torch.bfloat16,
+            args.snapshot_path, local_files_only=True, torch_dtype=torch.bfloat16,
             low_cpu_mem_usage=True,
         ).eval().to("cuda:0")
     input_device = next(model.parameters()).device

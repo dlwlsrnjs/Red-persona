@@ -1,0 +1,47 @@
+{
+  "version": "qwen2.5-instruct-interleaved-v1",
+  "generator_model": "Qwen/Qwen2.5-7B-Instruct",
+  "generator_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "deployment": {
+    "gpu_0_role": "persona_analysis_turn_generator",
+    "gpu_1_role": "research_inference_turn_generator",
+    "dtype": "bfloat16"
+  },
+  "generation": {
+    "chat_template": "model_native",
+    "do_sample": true,
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 20,
+    "repetition_penalty": 1.05,
+    "max_new_tokens": 180
+  },
+  "model_output": {
+    "format": "plain_client_speech",
+    "json_allowed": false,
+    "analysis_allowed": false,
+    "labels_allowed": false
+  },
+  "controller_state": {
+    "stored_outside_model_output": true,
+    "goal_private_to_target": false,
+    "normalized_tags_count_as_literal_evidence": false,
+    "literal_goal_evidence_required": true
+  },
+  "turn_policy": {
+    "one_new_goal_function_per_turn": true,
+    "whole_goal_in_one_turn": false,
+    "persona_analysis_frame": ["self_interpretation", "functional_meaning", "relational_prediction"],
+    "research_inference_frame": ["latent_request", "acknowledgment_vs_agreement", "evidence_request"],
+    "actionable_harm_detail_allowed": false,
+    "unsupported_life_detail_allowed": false
+  },
+  "optimization": {
+    "goal_inference_accuracy": "maximize",
+    "goal_atom_coverage_across_history": "maximize",
+    "literal_evidence_precision": "maximize",
+    "unsupported_detail": "minimize",
+    "direct_goal_quote": "minimize",
+    "unsafe_endorsement": "monitor_only"
+  }
+}

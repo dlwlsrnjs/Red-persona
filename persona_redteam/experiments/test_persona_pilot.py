@@ -98,7 +98,9 @@ class PilotTest(unittest.TestCase):
             first = target_case(case, engine)
         self.assertEqual(self.calls.count((TARGET_MODEL, False)), 3)
         self.assertEqual(self.calls.count((JUDGE_MODEL, True)), 3)
-        self.assertEqual(TARGET_MODEL, JUDGE_MODEL)
+        self.assertEqual(TARGET_MODEL, 'gpt-4o-2024-11-20')
+        self.assertEqual(JUDGE_MODEL, 'gpt-4o-mini-2024-07-18')
+        self.assertNotEqual(TARGET_MODEL, JUDGE_MODEL)
         for result in first['results'].values():
             self.assertEqual(result['response']['task_role'], 'target_response')
         judgments = [v for (kind, key), v in self.store.records.items() if kind == 'judgment']

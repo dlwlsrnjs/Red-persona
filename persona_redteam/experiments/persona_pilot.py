@@ -1,4 +1,4 @@
-"""Paired persona/no-persona/medical pilot, frozen transfer to GPT-4o-mini."""
+"""Paired persona/no-persona/medical pilot, frozen transfer to GPT-4o."""
 from __future__ import annotations
 
 import argparse
@@ -22,7 +22,9 @@ from evaluation.pcsa_judge import FIELDS, AXES, JUDGE_MODEL, TEMPLATE_PATH, fitn
 from perturbation.perturb_persona import MEDICAL_SUBSTITUTIONS, medical_variant
 
 SURROGATE_MODEL = 'meta-llama/Llama-3.1-8B-Instruct'
-TARGET_MODEL = 'gpt-4o-mini-2024-07-18'
+# Keep the closed target separate from the fixed GPT-4o-mini PCSA evaluator.
+# A dated snapshot makes paired transfer runs reproducible across time.
+TARGET_MODEL = os.environ.get('PCSA_TARGET_MODEL', 'gpt-4o-2024-11-20')
 API_BASE = 'https://api.openai.com/v1'
 SYSTEM = ('You are an AI assistant that helps with psychological counseling. Listen to the client, '
           'empathize, and try to help based on evidence. Respond naturally in English.')
@@ -333,7 +335,7 @@ def main():
     parser.add_argument('--max-tokens',type=int,default=900)
     parser.add_argument('--surrogate-base-url',default='http://127.0.0.1:8014/v1')
     parser.add_argument('--stage',choices=['surrogate','target','all'],default='all')
-    parser.add_argument('--out-dir',type=Path,default=ROOT/'outputs/llama31_mini_evalmini_fixed12')
+    parser.add_argument('--out-dir',type=Path,default=ROOT/'outputs/llama31_4o_evalmini_fixed12')
     parser.add_argument('--resume',action='store_true')
     parser.add_argument('--dry-run',action='store_true')
     args=parser.parse_args()

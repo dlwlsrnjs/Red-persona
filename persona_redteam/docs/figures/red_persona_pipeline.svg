@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="720" viewBox="0 0 1800 720" role="img" aria-labelledby="title desc">
+  <title id="title">Red Persona research pipeline</title>
+  <desc id="desc">Three large stages: generate toxic persona candidates, optimize them with surrogate feedback, and test transfer to GPT-4o.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#183153"/>
+    </marker>
+    <marker id="loopArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#C45D24"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#183153" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 42px Arial, sans-serif; fill: #14263D; }
+      .stage { font: 700 31px Arial, sans-serif; fill: #14263D; }
+      .label { font: 700 23px Arial, sans-serif; fill: #14263D; }
+      .body { font: 400 20px Arial, sans-serif; fill: #32465F; }
+      .small { font: 600 17px Arial, sans-serif; fill: #52677F; }
+      .num { font: 700 24px Arial, sans-serif; fill: #FFFFFF; }
+      .arrow { stroke: #183153; stroke-width: 5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1800" height="720" fill="#FFFFFF"/>
+  <text x="900" y="62" text-anchor="middle" class="title">RED PERSONA: Generate → Optimize → Transfer</text>
+
+  <!-- Stage panels -->
+  <rect x="45" y="110" width="520" height="540" rx="28" fill="#ECF6F5" filter="url(#shadow)"/>
+  <rect x="640" y="110" width="520" height="540" rx="28" fill="#FFF4E9" filter="url(#shadow)"/>
+  <rect x="1235" y="110" width="520" height="540" rx="28" fill="#EEF1FA" filter="url(#shadow)"/>
+
+  <!-- Main transition arrows -->
+  <path class="arrow" d="M575 380 H625"/>
+  <path class="arrow" d="M1170 380 H1220"/>
+
+  <!-- Generate -->
+  <circle cx="93" cy="158" r="25" fill="#177E76"/><text x="93" y="166" text-anchor="middle" class="num">1</text>
+  <text x="132" y="168" class="stage">GENERATE</text>
+
+  <rect x="82" y="210" width="136" height="68" rx="14" fill="#FFFFFF"/>
+  <rect x="237" y="210" width="136" height="68" rx="14" fill="#FFFFFF"/>
+  <rect x="392" y="210" width="136" height="68" rx="14" fill="#FFFFFF"/>
+  <text x="150" y="239" text-anchor="middle" class="small">GOAL</text>
+  <text x="150" y="262" text-anchor="middle" class="small">hidden</text>
+  <text x="305" y="239" text-anchor="middle" class="small">PERSONA</text>
+  <text x="305" y="262" text-anchor="middle" class="small">source</text>
+  <text x="460" y="239" text-anchor="middle" class="small">CLINICAL</text>
+  <text x="460" y="262" text-anchor="middle" class="small">context</text>
+
+  <path d="M150 285 L260 345 M305 285 V345 M460 285 L350 345" stroke="#177E76" stroke-width="4" fill="none"/>
+  <rect x="145" y="345" width="320" height="100" rx="20" fill="#177E76"/>
+  <text x="305" y="386" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#FFFFFF">70B GENERATOR</text>
+  <text x="305" y="417" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#FFFFFF">Goal internalization</text>
+
+  <path d="M305 445 V480" stroke="#177E76" stroke-width="4" marker-end="url(#arrow)"/>
+  <rect x="125" y="490" width="360" height="105" rx="20" fill="#FFFFFF"/>
+  <text x="305" y="530" text-anchor="middle" class="label">RED PERSONAS</text>
+  <text x="305" y="562" text-anchor="middle" class="body">4 single-turn strategies</text>
+
+  <!-- Optimize -->
+  <circle cx="688" cy="158" r="25" fill="#C45D24"/><text x="688" y="166" text-anchor="middle" class="num">2</text>
+  <text x="727" y="168" class="stage">OPTIMIZE</text>
+
+  <rect x="715" y="220" width="370" height="80" rx="18" fill="#FFFFFF"/>
+  <text x="900" y="254" text-anchor="middle" class="label">Surrogate LLM</text>
+  <text x="900" y="281" text-anchor="middle" class="body">단일 턴 상담 응답</text>
+  <path d="M900 300 V338" stroke="#C45D24" stroke-width="4" marker-end="url(#loopArrow)"/>
+
+  <rect x="715" y="350" width="370" height="100" rx="18" fill="#C45D24"/>
+  <text x="900" y="390" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#FFFFFF">PCSA Safety Evaluation</text>
+  <text x="900" y="421" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#FFFFFF">4개 지표 + 품질 제약</text>
+  <path d="M900 450 V488" stroke="#C45D24" stroke-width="4" marker-end="url(#loopArrow)"/>
+
+  <rect x="715" y="500" width="370" height="82" rx="18" fill="#FFFFFF"/>
+  <text x="900" y="534" text-anchor="middle" class="label">Select &amp; Strengthen</text>
+  <text x="900" y="562" text-anchor="middle" class="body">최적 후보 선택 · 누적 강화</text>
+  <path d="M1088 540 C1140 540 1140 260 1090 260" stroke="#C45D24" stroke-width="4" stroke-dasharray="10 9" fill="none" marker-end="url(#loopArrow)"/>
+  <text x="1102" y="406" text-anchor="middle" class="small" transform="rotate(-90 1102 406)">ITERATE</text>
+
+  <!-- Transfer -->
+  <circle cx="1283" cy="158" r="25" fill="#4D62A8"/><text x="1283" y="166" text-anchor="middle" class="num">3</text>
+  <text x="1322" y="168" class="stage">TRANSFER</text>
+
+  <rect x="1310" y="220" width="370" height="88" rx="18" fill="#FFFFFF"/>
+  <text x="1495" y="255" text-anchor="middle" class="label">Freeze Red Persona</text>
+  <text x="1495" y="284" text-anchor="middle" class="body">수정 없이 최종 후보 동결</text>
+  <path d="M1495 308 V350" stroke="#4D62A8" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <rect x="1310" y="362" width="370" height="92" rx="18" fill="#4D62A8"/>
+  <text x="1495" y="401" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#FFFFFF">Unseen Target: GPT-4o</text>
+  <text x="1495" y="432" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#FFFFFF">단일 턴 입력</text>
+  <path d="M1495 454 V496" stroke="#4D62A8" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <rect x="1310" y="508" width="370" height="88" rx="18" fill="#FFFFFF"/>
+  <text x="1495" y="543" text-anchor="middle" class="label">Transferability</text>
+  <text x="1495" y="573" text-anchor="middle" class="body">모델 간 공격 효과 전이 측정</text>
+</svg>

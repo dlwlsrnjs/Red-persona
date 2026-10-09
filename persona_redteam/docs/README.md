@@ -1,7 +1,7 @@
 # 문서 인덱스
 
 - `../PIPELINE_OVERVIEW_KO.md`: 현재 전체 구조와 완료 상태
-- `JMIR_100_EXPERIMENT_RUNBOOK_KO.md`: 준비부터 평가까지 실행 명령
+- `JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md`: 625개 전체 준비부터 평가까지 실행 명령
 - `PERSONA_HISTORY_PROMPT_HOOKS_KO.md`: 사용자 프롬프트 변수와 JSON 계약
 - `CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md`: 현재 진행 상황과 남은 작업
 - `PERSONA_CO_RESEARCH_FLOW_KO.md`: Qwen–target 연구 대화 구조

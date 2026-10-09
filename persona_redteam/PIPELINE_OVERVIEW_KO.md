@@ -32,8 +32,9 @@ JMIR goal 100개
 ## 활성 데이터
 
 - 고정 100개 blueprint: `experiments/fixtures/jmir_persona_eval_set_100.jsonl`
-- 100개 매칭 결과: `data/prepared/matched/jmir_eval_100_matched.jsonl`
-- 활성 사례 100개: `data/prepared/cases/jmir_eval_100_active_cases.json`
+- 전체 625개 blueprint: `data/prepared/blueprints/jmir_eval_full.jsonl`
+- 전체 seedless 준비 사례: `data/prepared/cases/jmir_eval_full_pre_generation.json`
+- 100개 fixture와 기존 산출물은 파일럿·회귀 검증용으로만 유지
 - 전체 persona pool: `/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl`
 - 전체 pool 크기: 31,733개(Cactus 31,577 + CBT-DP 156)
 - 24개 축소 profile: 과거 복구 provenance이며 새 실행 기본값이 아님
@@ -48,7 +49,7 @@ python3 -m pipeline.run_batch ...
 python3 -m pipeline.evaluate_batch ...
 ```
 
-정확한 인자와 순서는 `docs/JMIR_100_EXPERIMENT_RUNBOOK_KO.md`를 따른다.
+정확한 인자와 순서는 `docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md`를 따른다.
 
 ## 현재 완료와 제한
 
@@ -58,12 +59,12 @@ python3 -m pipeline.evaluate_batch ...
 - 생성 이력을 최초 target context에 포함: 구현 및 테스트 완료
 - 8개 분기와 candidate-only CARES 연결: 구현 및 preflight 완료
 - Qwen–target 연구 대화의 최소 4턴 이후 coverage 기반 동적 종료: 아직 미구현
-- Qwen–Lexi staged 생성의 100개 본 실행: 아직 미실행
+- Qwen–Lexi staged 생성의 전체 625개 본 실행: 아직 미실행
 
 ## 검증
 
 ```bash
 python3 -m unittest discover -s experiments -p 'test_*.py'
 python3 -m compileall -q pipeline experiments
-python3 -m pipeline.preflight --cases data/prepared/cases/jmir_eval_100_active_cases.json
+python3 -m pipeline.preflight --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
 ```

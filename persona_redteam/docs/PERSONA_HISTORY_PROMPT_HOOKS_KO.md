@@ -53,23 +53,23 @@ Qwen–타겟 실험에서 활성 `persona`가 된다. 각 턴의 세 필드가 
 
 ```bash
 python3 -m pipeline.prepare adapt \
-  --input data/prepared/matched/jmir_eval_100_matched.jsonl \
-  --output data/prepared/cases/jmir_eval_100_pre_generation.json
+  --input data/prepared/blueprints/jmir_eval_full.jsonl \
+  --output data/prepared/cases/jmir_eval_full_pre_generation.json
 ```
 
 그 다음 사용자가 작성한 두 프롬프트를 지정한다.
 
 ```bash
 python3 -m pipeline.generate_histories \
-  --cases data/prepared/cases/jmir_eval_100_pre_generation.json \
+  --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
   --profiles /home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl \
   --generation-prompt prompts/persona_history_generation.txt \
   --coverage-prompt prompts/persona_history_coverage.txt \
-  --plans data/prepared/plans/jmir_eval_100_qwen_plans.json \
+  --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
   --base-url http://127.0.0.1:8002/v1 \
   --min-turns 4 --max-turns 8 \
-  --output data/prepared/generated/jmir_eval_100_with_history.json
+  --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
 
 이 출력 파일을 `pipeline.run_batch --cases`에 전달하면 전체 과거 대화가 최초 타겟

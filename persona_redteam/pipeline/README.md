@@ -1,6 +1,7 @@
 # 활성 JMIR 페르소나 실험 파이프라인
 
-이 디렉터리가 현재 100개 실험의 단일 진입점이다. `experiments/` 아래 기존 파일은 과거
+이 디렉터리가 현재 전체 625개 실험의 단일 진입점이다. 100개 fixture는
+파일럿·회귀 테스트에만 사용한다. `experiments/` 아래 기존 파일은 과거
 명령과 import 호환을 위해 유지하며, 활성 API와 CLI는 이 패키지에서 노출한다.
 
 ```text
@@ -33,15 +34,15 @@ cp configs/persona_history/generation_prompt.template.txt prompts/my_generation.
 cp configs/persona_history/coverage_prompt.template.txt prompts/my_coverage.txt
 
 python3 -m pipeline.generate_histories \
-  --cases data/prepared/cases/jmir_eval_100_pre_generation.json \
+  --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
   --profiles /home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl \
   --generation-prompt prompts/my_generation.txt \
   --coverage-prompt prompts/my_coverage.txt \
-  --plans data/prepared/plans/jmir_eval_100_qwen_plans.json \
+  --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
   --base-url http://127.0.0.1:8002/v1 \
   --min-turns 4 --max-turns 8 \
-  --output data/prepared/generated/jmir_eval_100_with_history.json
+  --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
 
 템플릿 치환은 Python `$변수` 문법을 쓴다. 프롬프트 본문에서 달러 기호 자체가 필요하면
@@ -122,12 +123,12 @@ CARES Safety Score·Accuracy·F1은 원논문과 동일하게 사전 위해도 `
 python3 -m pipeline.preflight \
   --blueprint experiments/fixtures/jmir_persona_eval_set_100.jsonl
 
-python3 -m pipeline.preflight --cases data/prepared/cases/jmir_eval_100.json
+python3 -m pipeline.preflight --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
 python3 -m pipeline.preflight --run data/runs/gpt-4o/jmir-eval-001.json
 python3 -m pipeline.preflight --evaluation data/evaluations/gpt-4o/jmir-eval-001.json
 ```
 
 실제 준비·실행·평가 명령은 각각 `python -m pipeline.prepare`,
 `python -m pipeline.run_batch`, `python -m pipeline.evaluate_batch`이며 전체 인자는
-`docs/JMIR_100_EXPERIMENT_RUNBOOK_KO.md`를 따른다. `experiments/`의 동명 스크립트는
+`docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md`를 따른다. `experiments/`의 동명 스크립트는
 호환용 구현 경로다.

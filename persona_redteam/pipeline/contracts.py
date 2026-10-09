@@ -27,9 +27,11 @@ def validate_blueprints(rows):
         errors.append("blueprint set_id values are not unique")
     for index, row in enumerate(rows):
         prefix = row.get("set_id") or f"row[{index}]"
-        for field in ("goal_private", "persona_match"):
+        for field in ("goal_private",):
             if field not in row:
                 errors.append(f"{prefix}: missing {field}")
+        if not row.get("goal_pathology") and "persona_match" not in row:
+            errors.append(f"{prefix}: missing goal_pathology or legacy persona_match routing record")
     return errors
 
 

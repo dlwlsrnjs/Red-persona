@@ -9,10 +9,10 @@ JMIR goal + pathology
   -> generate_histories: 사용자 소유 Lexi prompt로 최소 4턴의 가변 과거 이력 생성
   -> persona_generation: 마지막 누적 persona state를 활성 persona로 연결
   -> research_context: goal-aware Qwen 동적 질문 + 타겟 누적 분석
-  -> research_context: 같은 누적 prefix를 복제한 8개 독립 분석/실제응답 분기
+  -> research_context: 같은 누적 prefix를 복제한 4개 독립 분석/실제응답 분기
   -> research_context: candidate_response / research_analysis 구조 분리
   -> final_validation: GPT recovery/behavior 판정 + candidate-only 공식 CARES
-  -> final_validation: 조건별/위기범주별 Success@8와 ASR@8 집계
+  -> final_validation: 조건별/위기범주별 Success@4와 ASR@4 집계
 ```
 
 새 goal에 pathology가 아직 없으면 먼저 `python -m pipeline.route_goals`를 실행한다. 이
@@ -163,18 +163,18 @@ Level 1/2 동적 질문에 private goal의 literal 2~5-gram이 검출되면 최�
 blueprint의 `research_analysis_history`는 초기 설계 provenance이며 활성 호출에는 사용하지
 않는다. 활성 연구 질문의 기준은 `STAGES`, `NEUTRAL_BANK`, `STRUCTURAL_BANK`다.
 
-## 4. 8개 최종 분기와 GPT 통합
+## 4. 4개 최종 분기와 GPT 통합
 
-공통 누적 prefix를 복제해 잠재 요청 합성, 근거 사슬, 발화행위, metaphor 역추적, 관계 기능,
-대안 가설, 듣고 싶은 판단, 출처 재구성의 8개 독립 분기를 만든다. 각 분기는 분석 응답 뒤
+공통 누적 prefix를 복제해 잠재 요청 합성, 근거 사슬, 듣고 싶은 판단, 출처 재구성의
+4개 독립 분기를 만든다. 각 분기는 분석 응답 뒤
 같은 이력에서 실제 상담 답변을 한 번 더 생성한다. 다른 분기의 질문·응답은 보지 않는다.
 최종 출력은 `candidate_response`와 `research_analysis`로 분리되며, Qwen은 각 방향의 10개
 직접형 질문 전체에서 인덱스로 하나를 선택한다.
 
-blueprint의 `final_boundary_test`는 과거 설계 provenance이며 활성 8분기 GPT 프롬프트에는
+blueprint의 `final_boundary_test`는 과거 설계 provenance이며 활성 4분기 GPT 프롬프트에는
 합쳐지지 않는다. 활성 기준은 `FINAL_DIRECTIONS`와
 `MANIFESTATION_DIRECTIONS`다.
-활성 Qwen 질문 bank·8개 final branch·manifestation 프롬프트의 영어 원본은
+활성 Qwen 질문 bank·4개 기본 final branch·manifestation 프롬프트의 영어 원본은
 `evaluation/prompts/research_prompt_banks_en.json`이며, 실행 시 이 파일을 로드한다.
 초기 target packet은 영어 `safe_counseling_joint_research_guidelines.md`를 포함한다.
 
@@ -186,11 +186,11 @@ B0–B5를 각각 계산한다. 공식 CARES는 실제 target prompt와 분리�
 않는다. 사례 단위로 다음을
 집계한다.
 
-- raw Recovery@8
-- target-originated Recovery@8
-- unsafe manifestation ASR@8
-- official CARES Accept@8
-- official CARES non-refuse@8
+- raw Recovery@4
+- target-originated Recovery@4
+- unsafe manifestation ASR@4
+- official CARES Accept@4
+- official CARES non-refuse@4
 
 CARES Safety Score·Accuracy·F1은 원논문과 동일하게 사전 위해도 `h∈{0,1,2,3}`가 있는
 경우에만 계산한다. `crisis_label`에서 위해도를 임의 추론하지 않는다.

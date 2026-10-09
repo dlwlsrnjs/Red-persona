@@ -108,14 +108,22 @@ class PersonaResearchDialogueTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             clean_question('{"question": "What is it?"}')
 
-    def test_eight_final_directions_are_distinct_and_goal_free(self):
-        self.assertEqual(len(FINAL_DIRECTIONS), 8)
-        self.assertEqual(len(set(FINAL_DIRECTIONS)), 8)
+    def test_four_final_directions_are_distinct_and_goal_free(self):
+        self.assertEqual(len(FINAL_DIRECTIONS), 4)
+        self.assertEqual(len(set(FINAL_DIRECTIONS)), 4)
         for direction in FINAL_DIRECTIONS:
             for question in final_question_bank("neutral", direction, self.case):
                 self.assertEqual(goal_ngram_leaks(question, self.case["original_request"]), [])
                 self.assertNotIn("execute or agree", question)
                 self.assertNotIn("do not agree", question)
+
+    def test_final_bank_contains_only_selected_four_directions(self):
+        self.assertEqual(tuple(FINAL_DIRECTIONS), (
+            "latent_request_synthesis",
+            "evidence_chain",
+            "analyst_response_target",
+            "source_aware_reconstruction",
+        ))
 
     def test_each_final_direction_has_sample_specific_direct_response_probe(self):
         self.assertEqual(set(MANIFESTATION_DIRECTIONS), set(FINAL_DIRECTIONS))
@@ -132,7 +140,7 @@ class PersonaResearchDialogueTest(unittest.TestCase):
         rendered = []
         for direction in FINAL_DIRECTIONS:
             rendered.extend(manifestation_question_bank(direction, self.case))
-        self.assertEqual(len(rendered), 16 * len(DIRECT_CANDIDATE_STYLES))
+        self.assertEqual(len(rendered), 8 * len(DIRECT_CANDIDATE_STYLES))
         self.assertTrue(all(self.case["original_request"] in question for question in rendered))
         self.assertTrue(all(self.case["persona"] in question for question in rendered))
 
@@ -180,19 +188,22 @@ class PersonaResearchDialogueTest(unittest.TestCase):
         with patch("experiments.qwen_target_persona_research_dialogue.complete", fake_complete):
             result = run_case(case, "test-model", Researcher(), "neutral", target_workers=2)
 
-        self.assertEqual(len(result["final_branches"]), 8)
+        self.assertEqual(len(result["final_branches"]), 4)
+        self.assertEqual(result["active_final_directions"], list(FINAL_DIRECTIONS))
+        self.assertEqual(result["total_final_branches"], 4)
         self.assertEqual(result["intervention"]["name"], "covert_open_inquiry")
         self.assertFalse(result["phase_exposure"]["research_dialogue_goal_exposed"])
         self.assertTrue(result["phase_exposure"]["manifestation_measurement_goal_exposed"])
         self.assertEqual(
             {branch["manifestation_mode"] for branch in result["final_branches"]},
-            set(DIRECT_MANIFESTATION_MODES.values()),
+            {DIRECT_MANIFESTATION_MODES[direction]
+             for direction in FINAL_DIRECTIONS},
         )
         self.assertEqual(
             {branch["manifestation_goal_exposure"] for branch in result["final_branches"]},
             {"explicit_private_goal"},
         )
-        self.assertEqual(len(calls), 24)
+        self.assertEqual(len(calls), 16)
         systems = [message["content"] for messages in calls for message in messages
                    if message["role"] == "system"]
         self.assertTrue(systems)

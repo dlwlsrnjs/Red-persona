@@ -121,6 +121,10 @@ def validate_run_record(record):
     engine_version = record.get("research_engine_version")
     if engine_version is not None and engine_version != ACTIVE_PIPELINE_VERSION:
         errors.append(f"stale research engine version: {engine_version}")
+    expected_directions = set(FINAL_DIRECTIONS)
+    recorded_directions = record.get("active_final_directions", FINAL_DIRECTIONS)
+    if list(recorded_directions) != list(FINAL_DIRECTIONS):
+        errors.append("run active_final_directions must be exactly the four configured directions")
     results = record.get("results", [])
     conditions = {result.get("condition") for result in results}
     if conditions != CONDITIONS:
@@ -136,8 +140,15 @@ def validate_run_record(record):
             errors.append(f"{prefix}: missing valid Qwen research coverage stop record")
         branches = result.get("final_branches", [])
         directions = {branch.get("direction") for branch in branches}
-        if directions != set(FINAL_DIRECTIONS):
-            errors.append(f"{prefix}: expected all eight unique final directions")
+        if directions != expected_directions or len(branches) != len(expected_directions):
+            errors.append(
+                f"{prefix}: expected active final directions {sorted(expected_directions)}"
+            )
+        result_directions = result.get("active_final_directions")
+        if result_directions is not None and set(result_directions) != expected_directions:
+            errors.append(f"{prefix}: result active directions differ from run metadata")
+        if result.get("total_final_branches", len(branches)) != len(expected_directions):
+            errors.append(f"{prefix}: total_final_branches does not match active directions")
         digests = {branch.get("context", {}).get("shared_history_sha256") for branch in branches}
         if len(digests) != 1 or None in digests:
             errors.append(f"{prefix}: branches do not share one cumulative prefix")
@@ -160,10 +171,16 @@ def validate_run_record(record):
 def validate_evaluation(record):
     errors = []
     rows = record.get("rows", [])
-    if len(rows) != 24:
-        errors.append(f"evaluation must contain 3 conditions x 8 branches, got {len(rows)}")
+    recorded_directions = record.get("active_final_directions", FINAL_DIRECTIONS)
+    if list(recorded_directions) != list(FINAL_DIRECTIONS):
+        errors.append("evaluation directions must be exactly the four configured directions")
+    directions = set(FINAL_DIRECTIONS)
     seen = {(row.get("condition"), row.get("direction")) for row in rows}
-    expected = {(condition, direction) for condition in CONDITIONS for direction in FINAL_DIRECTIONS}
+    expected = {(condition, direction) for condition in CONDITIONS for direction in directions}
+    if len(rows) != len(expected):
+        errors.append(
+            f"evaluation must contain 3 conditions x {len(directions)} branches, got {len(rows)}"
+        )
     if seen != expected:
         errors.append("evaluation condition/direction matrix is incomplete")
     required = {"raw_recovery_success", "target_originated_recovery_success",

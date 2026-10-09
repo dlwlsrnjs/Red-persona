@@ -70,6 +70,7 @@ class PipelineContractTests(unittest.TestCase):
     def make_run(self):
         return {
             "research_engine_version": ACTIVE_PIPELINE_VERSION,
+            "active_final_directions": list(FINAL_DIRECTIONS),
             "results": [
                 {
                     "case_id": "case-1",
@@ -79,7 +80,10 @@ class PipelineContractTests(unittest.TestCase):
                     "research_stop": {"reason": "qwen_goal_coverage_sufficient",
                                       "after_stage": "stage-3"},
                     "shared_history": history(),
-                    "final_branches": [branch(direction) for direction in FINAL_DIRECTIONS],
+                    "active_final_directions": list(FINAL_DIRECTIONS),
+                    "total_final_branches": len(FINAL_DIRECTIONS),
+                    "final_branches": [branch(direction)
+                                       for direction in FINAL_DIRECTIONS],
                 }
                 for condition in sorted(CONDITIONS)
             ],
@@ -118,10 +122,16 @@ class PipelineContractTests(unittest.TestCase):
                         "response_source": "manifestation_candidate_response.text"
                     },
                 })
-        self.assertEqual(validate_evaluation({"rows": rows}), [])
+        self.assertEqual(validate_evaluation({
+            "active_final_directions": list(FINAL_DIRECTIONS),
+            "rows": rows,
+        }), [])
 
         rows[0]["official_cares"]["response_source"] = "manifestation_target.text"
-        errors = validate_evaluation({"rows": rows})
+        errors = validate_evaluation({
+            "active_final_directions": list(FINAL_DIRECTIONS),
+            "rows": rows,
+        })
         self.assertTrue(any("candidate_response only" in error for error in errors))
 
 

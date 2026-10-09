@@ -21,7 +21,7 @@ from pipeline.runtime_io import atomic_json, complete
 
 MODEL = "Qwen/Qwen2.5-7B-Instruct"
 REVISION = "a09a35458c702b33eeacc393d103063234e8bc28"
-ACTIVE_PIPELINE_VERSION = "qwen-target-persona-research-v14-intervention-levels"
+ACTIVE_PIPELINE_VERSION = "qwen-target-persona-research-v15-four-directions"
 SNAPSHOT = ROOT / ".cache/qwen2.5-7b-instruct" / REVISION
 RESEARCH_GUIDELINES_PATH = (
     ROOT / "evaluation/prompts/safe_counseling_joint_research_guidelines.md"
@@ -117,15 +117,21 @@ STRUCTURAL_BANK = _EN_BANKS["structural"]
 DYNAMIC_FALLBACKS = _EN_BANKS["fallbacks"]
 FINAL_DIRECTIONS = _EN_BANKS["final"]
 MANIFESTATION_DIRECTIONS = _EN_BANKS["manifestation"]
+EXPECTED_FINAL_DIRECTIONS = (
+    "latent_request_synthesis",
+    "evidence_chain",
+    "analyst_response_target",
+    "source_aware_reconstruction",
+)
+if tuple(FINAL_DIRECTIONS) != EXPECTED_FINAL_DIRECTIONS:
+    raise ValueError("research prompt bank must define exactly the four final directions")
+if tuple(MANIFESTATION_DIRECTIONS) != EXPECTED_FINAL_DIRECTIONS:
+    raise ValueError("manifestation prompt bank must define exactly the four final directions")
 DIRECT_CANDIDATE_STYLES = tuple(_EN_BANKS["candidate_styles"])
 
 DIRECT_MANIFESTATION_MODES = {
     "latent_request_synthesis": "research_never_answer_inventory",
     "evidence_chain": "research_hypothetical_execution",
-    "speech_act": "research_manifestation_quiz",
-    "metaphor_backtrace": "research_meeting_failure_forecast",
-    "relational_function": "research_persona_risk_scenario",
-    "counterfactual_discrimination": "research_boundary_comparison",
     "analyst_response_target": "research_worst_answer_prediction",
     "source_aware_reconstruction": "research_safe_counseling_stress_test",
 }
@@ -741,7 +747,8 @@ def run_case(case, target_model, researcher, condition, target_workers=256):
         "final_branches": final_branches,
         "case_success_rule": "any_valid_final_branch",
         "required_successes": 1,
-        "total_final_branches": 8,
+        "active_final_directions": list(FINAL_DIRECTIONS),
+        "total_final_branches": len(FINAL_DIRECTIONS),
     }
 
 
@@ -924,7 +931,8 @@ def run_all_conditions_batched(case, target_model, researcher, target_workers=25
                 "full_messages": history,
             },
         })
-    print(json.dumps({"progress": "all_manifestation_probes_complete", "branches": 24,
+    print(json.dumps({"progress": "all_manifestation_probes_complete",
+                      "branches": len(manifestation_keys),
                       "target_model": target_model}), flush=True)
 
     results = []
@@ -951,9 +959,11 @@ def run_all_conditions_batched(case, target_model, researcher, target_workers=25
             "final_branches": branches,
             "case_success_rule": "any_valid_final_branch",
             "required_successes": 1,
-            "total_final_branches": 8,
+            "active_final_directions": list(FINAL_DIRECTIONS),
+            "total_final_branches": len(FINAL_DIRECTIONS),
         })
-    print(json.dumps({"progress": "all_final_branches_complete", "branches": 24,
+    print(json.dumps({"progress": "all_final_branches_complete",
+                      "branches": len(conditions) * len(FINAL_DIRECTIONS),
                       "target_model": target_model}), flush=True)
     return results
 
@@ -975,14 +985,17 @@ def main():
     case = cases[args.case_index]
     researcher = QwenResearcher(args.qwen_snapshot)
     conditions = ["neutral", "structural_hint", "oracle_hint"] if args.all_conditions else [args.condition or "neutral"]
-    results = (run_all_conditions_batched(case, args.target_model, researcher, args.target_workers)
+    results = (run_all_conditions_batched(case, args.target_model, researcher,
+                                           args.target_workers)
                if args.all_conditions else
-               [run_case(case, args.target_model, researcher, conditions[0], args.target_workers)])
+               [run_case(case, args.target_model, researcher, conditions[0],
+                         args.target_workers)])
     record = {
         "version": ACTIVE_PIPELINE_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "researcher_model": MODEL,
         "researcher_revision": REVISION,
+        "active_final_directions": list(FINAL_DIRECTIONS),
         "results": results,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

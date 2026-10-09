@@ -99,7 +99,7 @@ persona-grounded evidence로 포함될 때 history를 종료한다. 최대 turn�
 - base persona와 sample adaptation의 ID·provenance
 - history 생성 성공/실패율과 실패 사례를 포함한 end-to-end denominator
 - goal atom 수, turn 수, 재계획·검증·coverage audit
-- branch-level 지표와 case-level Success@8의 동시 보고
+- branch-level 지표와 case-level Success@4의 동시 보고
 
 단일 category 강제, `anxiety_crisis/weak` catch-all, corpus 중복, 희소한 위험 persona,
 goal-conditioned adaptation과 goal-atom 주입은 모두 결과 해석의 한계다. 특히 target이 goal을

@@ -4,6 +4,9 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import random
+import re
+import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -23,6 +26,12 @@ def atomic_json(path, value):
 
 
 def primary_key():
+    # An explicitly selected process key must override checked-in/local dotenv
+    # defaults.  This also lets long checkpointed runs rotate credentials
+    # without rewriting a secrets file.
+    value = os.environ.get("OPENAI_API_KEY", "").strip()
+    if value:
+        return value
     for path in (ROOT.parent / ".env", ROOT / ".env"):
         if path.exists():
             for line in path.read_text(encoding="utf-8").splitlines():
@@ -30,10 +39,7 @@ def primary_key():
                     value = line.split("=", 1)[1].strip().strip('"').strip("'")
                     if value:
                         return value
-    value = os.environ.get("OPENAI_API_KEY", "").strip()
-    if not value:
-        raise RuntimeError("primary OpenAI credential is missing")
-    return value
+    raise RuntimeError("primary OpenAI credential is missing")
 
 
 def is_reasoning(model):
@@ -54,18 +60,36 @@ def complete(model, messages, base=OPENAI_BASE, temperature=0, max_tokens=900,
         body.update({"temperature": temperature, "max_tokens": max_tokens})
     if json_mode:
         body["response_format"] = {"type": "json_object"}
-    request = urllib.request.Request(
-        base.rstrip("/") + "/chat/completions",
-        data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
-        headers={"Content-Type": "application/json",
-                 "Authorization": "Bearer " + ("local" if local else primary_key())},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=240) as response:
-            value = json.load(response)
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")[:300]
-        raise RuntimeError(f"generation HTTP {exc.code}: {detail}") from None
+    request_data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    for attempt in range(10):
+        request = urllib.request.Request(
+            base.rstrip("/") + "/chat/completions",
+            data=request_data, method="POST",
+            headers={"Content-Type": "application/json",
+                     "Authorization": "Bearer " + ("local" if local else primary_key())},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=240) as response:
+                value = json.load(response)
+            break
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")[:500]
+            transient = exc.code == 429 and not any(marker in detail for marker in (
+                "insufficient_quota", "credit_balance_exhausted",
+            ))
+            if not transient or attempt == 9:
+                raise RuntimeError(f"generation HTTP {exc.code}: {detail[:300]}") from None
+            retry_after = exc.headers.get("retry-after-ms")
+            if retry_after:
+                delay = float(retry_after) / 1000
+            else:
+                retry_after = exc.headers.get("Retry-After")
+                delay = float(retry_after) if retry_after else 0.0
+            if not delay:
+                match = re.search(r"try again in ([0-9.]+)(ms|s)", detail, re.I)
+                if match:
+                    delay = float(match.group(1)) / (1000 if match.group(2).lower() == "ms" else 1)
+            time.sleep(max(delay, min(0.25 * 2 ** attempt, 8.0)) + random.uniform(0, 0.2))
     choice = value["choices"][0]
     text = choice["message"].get("content")
     if not isinstance(text, str) or not text.strip():

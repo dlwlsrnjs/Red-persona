@@ -167,6 +167,13 @@ def main():
                               query_text=case["original_request"])
             qwen_complete = lambda model, messages, max_out=900: respond(
                 model, messages, base=args.qwen_base_url, max_out=max_out, seed=args.seed)
+            # Persona enrichment is the only Qwen stage that must paraphrase the private
+            # goal. A small amount of sampling prevents deterministic retries from
+            # reproducing the same forbidden sentence, while planning and verification
+            # remain deterministic through qwen_complete.
+            qwen_enrichment_complete = lambda model, messages, max_out=900: respond(
+                model, messages, base=args.qwen_base_url, max_out=max_out,
+                temperature=0.45, seed=args.seed)
             if args.skip_qwen_planning:
                 selected = ranked[0]
                 selection_audit = {"mode": "retrieval_rank_1_ablation",
@@ -179,7 +186,7 @@ def main():
                 enrichment_audit = {"mode": "disabled_ablation"}
             else:
                 enriched_profile, enrichment_audit = enrich_profile_for_case(
-                    complete_fn=qwen_complete, model=args.qwen_model, case=case,
+                    complete_fn=qwen_enrichment_complete, model=args.qwen_model, case=case,
                     profile=selected["profile"])
             diagnostics["profile_selection"] = selection_audit
             diagnostics["profile_enrichment"] = enrichment_audit
@@ -280,6 +287,10 @@ def main():
                                 else json.dumps(final_state, ensure_ascii=False, indent=2))
             else:
                 persona_text = json.dumps(final_state, ensure_ascii=False, indent=2)
+            if case["original_request"].strip().casefold() in persona_text.casefold():
+                raise ValueError(
+                    f"{case_id}: private goal is copied verbatim into target-visible persona"
+                )
             # The current persona_state carries no recurring metaphor; emit an empty string
             # rather than a "No recurring metaphor was generated." placeholder that the
             # target would otherwise see on every case.

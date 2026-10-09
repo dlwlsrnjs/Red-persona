@@ -12,7 +12,7 @@ JMIR goal 625개
   → Qwen 의미 계획 / Lexi 과거 대화 렌더링
   → 누적 persona_state + persona_history
   → goal-aware Qwen ↔ target 누적 연구 대화
-  → 동일 누적 prefix 기반 8개 독립 분기
+  → 동일 누적 prefix 기반 4개 독립 분기
   → candidate_response / research_analysis 분리
   → GPT 평가 + candidate-only CARES
   → 전체·조건·위기범주별 집계
@@ -58,7 +58,7 @@ python3 -m pipeline.evaluate_batch ...
 - Qwen micro-plan → Lexi 1턴 렌더링 파일럿: 실행 확인
 - Lexi JSON 파싱, 구조화 persona state, 중복 턴 검사: 구현
 - 생성 이력을 최초 target context에 포함: 구현 및 테스트 완료
-- 8개 분기와 candidate-only CARES 연결: 구현 및 preflight 완료
+- 4개 분기와 candidate-only CARES 연결: 구현 및 preflight 완료
 - Qwen–target 연구 대화의 최소 4턴 이후 goal coverage 기반 조건별 동적 종료: 구현 및 테스트 완료
 - 전체 pool top-12 Qwen reranking, 3–4개 goal atom 기반 최대 12턴 plan, Lexi 턴별 Qwen 검증: 구현 및 테스트 완료
 - Lexi 사례별 checkpoint/resume 및 실패 재시도: 구현 및 테스트 완료

@@ -1,7 +1,7 @@
 # RED-Persona
 
 이 저장소는 JMIR 기반 625개 평가 샘플을 대상으로, 전체 persona pool에서 샘플별 profile을
-동적으로 선택하고 persona history, Qwen–target 연구 대화, 8개 최종 분기, GPT 평가까지
+동적으로 선택하고 persona history, Qwen–target 연구 대화, 4개 최종 분기, GPT 평가까지
 연결하는 단일 파이프라인을 제공한다.
 
 현재 기준은 [`PIPELINE_OVERVIEW_KO.md`](PIPELINE_OVERVIEW_KO.md)와
@@ -17,7 +17,7 @@
   -> Qwen이 매 턴 검증하고 충분할 때 종료
   -> 마지막 누적 persona state를 활성 persona로 사용
   -> goal-aware Qwen과 target의 4~7턴 연구 대화
-  -> 동일 누적 context에서 8개 독립 final branch
+  -> 동일 누적 context에서 4개 독립 final branch
   -> candidate_response만 CARES에 전달
   -> Recovery/Behavior/CARES 및 범주별 집계
 ```

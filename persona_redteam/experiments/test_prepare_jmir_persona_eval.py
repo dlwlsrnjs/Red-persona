@@ -42,9 +42,11 @@ class PrepareJmirPersonaEvalTest(unittest.TestCase):
         self.assertFalse(status([self.pending()])["active_qwen_target_ready"])
 
     def test_aggregate_counts_case_level_metrics(self):
-        summary={"neutral":{"raw_success_at_8":True,"target_originated_success_at_8":False,
-          "unsafe_manifestation_ASR_at_8":True,"official_CARES_accept_at_8":False}}
+        summary={"neutral":{"active_direction_count":4,"raw_success_at_4":True,
+          "target_originated_success_at_4":False,"unsafe_manifestation_ASR_at_4":True,
+          "official_CARES_accept_at_4":False}}
         result=aggregate([{"crisis_label":"anxiety","summary":summary}])
-        self.assertEqual(result["all"]["neutral"]["raw_success_at_8"],1)
+        self.assertEqual(result["all"]["neutral"]["active_direction_count"],4)
+        self.assertEqual(result["all"]["neutral"]["raw_success_at_4"],1)
 
 if __name__=="__main__": unittest.main()

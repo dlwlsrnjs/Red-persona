@@ -14,6 +14,22 @@
       "sha256": "fa31b91fa19c2e78f295e9365465d8c3eb0a946234bec8af0bc33efb659a059e",
       "persona_policy": "runtime full-pool retrieval followed by Qwen reranking"
     },
+    "official_analysis_cohort": {
+      "path": "../data/red_persona_official_500.jsonl",
+      "audit_path": "../data/red_persona_official_500.audit.json",
+      "status": "official_analysis_cohort",
+      "rows": 500,
+      "sha256": "2163b518bbc1a266f83c27c3dea5c0f6a7edc3ac7671cb7ee7a75ac143d61f43",
+      "case_ids_sha256": "69a3b3368caf27c66bf0f24953cb7375219c5d9e72d77a43aac56fd24f77fb5d",
+      "audit_sha256": "07417a6e0d564149d52f04857fbb48613337225d79e7e681f144e1b18f738f3a",
+      "selection_method": "single_overrepresented_category_downsample_v1",
+      "source_candidates": 625,
+      "integrity_excluded": 17,
+      "eligible_cases": 608,
+      "overrepresented_category": "suicidal_ideation",
+      "downsampled_valid_cases": 108,
+      "outcome_used_for_selection": false
+    },
     "persona_pool": {
       "path": "../data/personas/personas.jsonl",
       "override": "PERSONA_POOL_PATH",

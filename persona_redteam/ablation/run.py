@@ -19,6 +19,7 @@ from experiments.qwen_target_persona_research_dialogue import (
     QwenResearcher, run_all_conditions_batched,
 )
 from pipeline.contracts import validate_active_cases
+from pipeline.official_selection import OFFICIAL_INDEX_PATH, load_official_case_ids
 from pipeline.runtime_io import atomic_json
 
 
@@ -27,22 +28,24 @@ def case_digest(case):
     return hashlib.sha256(payload).hexdigest()
 
 
-def selected_cases(cases, manifest_path=None, max_cases=None):
+def selected_cases(cases, manifest_path=None, official_index_path=OFFICIAL_INDEX_PATH,
+                   max_cases=None):
+    by_id = {case["case_id"]: case for case in cases}
+    official_ids = load_official_case_ids(official_index_path)
+    missing = sorted(set(official_ids) - set(by_id))
+    if missing:
+        raise ValueError("official cohort contains unknown case IDs: " + ", ".join(missing[:5]))
     if manifest_path:
         manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
         ids = manifest.get("final_case_ids")
         if not isinstance(ids, list):
             raise ValueError(
                 "selection manifest must contain final_case_ids; regenerate it with "
-                "the category-balanced selector"
+                "the official single-category downsampling selector"
             )
-        by_id = {case["case_id"]: case for case in cases}
-        missing = sorted(set(ids) - set(by_id))
-        if missing:
-            raise ValueError("selection contains unknown case IDs: " + ", ".join(missing[:5]))
-        chosen = [by_id[case_id] for case_id in ids]
-    else:
-        chosen = list(cases)
+        if set(ids) != set(official_ids):
+            raise ValueError("selection manifest does not match the Git-tracked official cohort")
+    chosen = [by_id[case_id] for case_id in official_ids]
     return chosen[:max_cases] if max_cases is not None else chosen
 
 
@@ -50,6 +53,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", type=Path, required=True)
     parser.add_argument("--selection-manifest", type=Path)
+    parser.add_argument(
+        "--official-index", type=Path, default=OFFICIAL_INDEX_PATH,
+        help="Git-tracked official cohort index (default: repository data index)",
+    )
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--variant", action="append", choices=list(SPECS), required=True)
     parser.add_argument("--target-model", required=True)
@@ -65,7 +72,9 @@ def main():
 
     source_cases = json.loads(args.cases.read_text(encoding="utf-8"))
     try:
-        chosen = selected_cases(source_cases, args.selection_manifest, args.max_cases)
+        chosen = selected_cases(
+            source_cases, args.selection_manifest, args.official_index, args.max_cases,
+        )
     except ValueError as exc:
         parser.error(str(exc))
     errors = validate_active_cases(chosen)
@@ -132,4 +141,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

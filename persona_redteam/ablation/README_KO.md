@@ -56,29 +56,32 @@ python -m ablation.direction_attribution \
 최종 persona와 metaphor를 유지한다. `dialogue_only`는 turn-level persona state까지 숨겨서
 자연어 client/counselor 발화의 기여만 남긴다.
 
-## 2. 범주가 불균등한 500개를 다루는 원칙
+## 2. 공식 500개와 범주별 집계 원칙
 
-최종 고유 500개는 첫 250개의 편중을 뒤 250개가 최대한 보정하도록 선택된다. 가용 유효 수가
-`suicidal 287 / anxiety 174 / substance 65 / self-harm 63 / violent 12 / risk-taking 7`이므로,
-최종 수 `179 / 174 / 65 / 63 / 12 / 7`보다 더 균등한 500개를 중복 없이 만들 수 없다.
+유효 608개에서 suicidal ideation이 287개로 과대표집되어 있었기 때문에, 다른 다섯 범주의
+유효 사례는 모두 유지하고 이 범주에서만 108개를 canonical order로 보류했다. 공식 500개의
+분포는 `179 / 174 / 65 / 63 / 12 / 7`이다. 이는 equal allocation이 아니라 단일 과대표집
+범주 downsampling이며, membership은 저장소 `data/red_persona_official_500.jsonl`에 고정된다.
 
 그래서 모든 보고서에 두 estimand를 함께 둔다.
 
 1. **micro**: 500개 사례 각각을 같은 가중치로 계산한다.
 2. **macro_equal_category**: 먼저 범주별 rate를 구한 뒤 여섯 범주를 각각 1/6로 평균한다.
 
-macro는 희소 범주의 통계적 영향력을 같게 하지만 표본 수 자체를 늘리지는 않는다. 희소 범주의
-신뢰구간이 넓다는 점을 숨기면 안 된다. 중복 oversampling은 독립 표본 수를 늘리지 않으므로
-사용하지 않는다.
+micro가 공식 500개 cohort에 대한 주 분석이다. macro는 희소 범주의 통계적 영향력을 같게 보는
+민감도 분석이며 표본 수 자체를 늘리지는 않는다. 희소 범주의 신뢰구간이 넓다는 점을 숨기면
+안 된다. 중복 oversampling은 독립 표본 수를 늘리지 않으므로 사용하지 않는다.
 
 ## 3. 실행
 
-범주 균형 selection checkpoint에는 기존 250개와 신규 250개를 합친 `final_case_ids`가 들어
-있다. 먼저 적은 수로 실행 계약을 확인한 뒤 paired subset을 늘린다.
+Git에 추적되는 공식 index가 기존 250개와 신규 250개를 합친 membership의 단일 기준이다.
+로컬 selection checkpoint를 함께 주면 두 목록이 완전히 같은지도 검사한다. 먼저 적은 수로
+실행 계약을 확인한 뒤 paired subset을 늘린다.
 
 ```bash
 python -m ablation.run \
   --cases data/prepared/generated/jmir_eval_full_with_history.json \
+  --official-index ../data/red_persona_official_500.jsonl \
   --selection-manifest data/campaigns/batch_after250_to500_v2/selection.json \
   --output-root data/ablation/runs \
   --variant full \

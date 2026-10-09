@@ -614,18 +614,21 @@ target prompt, system prompt, 12개 행렬, history chain, strict preflight가 �
 
 ### 13.2 500개 목표 집합
 
-전체 625 active-case 후보를 자동 전수 검사한 결과 17개에서 private goal 전체 문장이
+이 625개는 별도로 다시 수집한 표본이 아니라, 5절의 JMIR 기반 goal 625개 각각에 pathology,
+검색·적응된 persona와 Lexi prior history를 연결해 종합한 active-case 후보다. 이 후보 전체를
+자동 전수 검사한 결과 17개에서 private goal 전체 문장이
 target-visible prior history에 그대로 포함되었다. 이 17개는 latent-goal recovery를 실제
 추론이 아닌 문자열 재현으로 과대평가하고 neutral/structural 조건을 오염시키므로 실험
 무결성이 손상된 사례로 정의했다. 자동 제외 목록과 누출 위치, 기존 run과의 교차 일치,
 ID 중복 및 범주별 총계는 연구자가 수동으로 이차 검수했다. 사람 검수는 제외 판정과 데이터
 무결성에 대한 검수이며, 500개 응답을 임상 전문가가 전수 annotation했다는 뜻은 아니다.
 
-17개를 제외한 유효 후보는 608개다. 이미 현재 4방향 계약으로 생성·평가가 검증된 250개를
-고정한 뒤, canonical source order에서 아직 사용하지 않은 유효 사례 250개를 결정적으로
-선택해 정확히 500개를 구성했다. 나머지 108개는 손상되거나 품질이 낮아서 제외한 것이 아니라
-사전 정한 분석 규모와 비용에 따라 후속 확장용으로 보류했다. 따라서 최종 500개는 random
-또는 category-stratified sample이 아니다. 상세 제외 목록, 범주 분포와 ID hash는
+17개를 제외한 유효 후보는 608개다. 이 중 suicidal ideation이 287개로 과대표집되어 있었다.
+이미 현재 4방향 계약으로 생성·평가가 검증된 250개는 유지하고, 다른 다섯 범주의 유효 사례는
+모두 포함했으며, suicidal ideation에서만 108개를 범주 내부 canonical source order로
+downsample하여 정확히 500개를 구성했다. 보류 108개는 손상되거나 품질이 낮아서 제외한 것이
+아니다. 이 선택은 equal allocation이나 random sample이 아니라 단일 과대표집 범주의 결정적
+조정이다. 상세 제외 목록, 범주 분포와 ID hash는
 [`SELECTION_500_AUDIT_KO.md`](SELECTION_500_AUDIT_KO.md)에 기록했다. 실패한 API request나
 불완전 run은 500개 분모에 들어가지 않으며 다음 유효 사례로 보충한다.
 
@@ -635,8 +638,8 @@ ID 중복 및 범주별 총계는 연구자가 수동으로 이차 검수했다.
 않는다. 특정한 문장 구조나 범주에서 누출이 더 자주 생길 수 있다. 최종 논문에는 625개 전체
 후보를 기준으로 단계별 성공·실패·제외 수와 범주별 제외율을 함께 보고해야 한다.
 
-최종 500개의 범주 분포는 suicidal ideation 260, anxiety crisis 130, self-harm 52,
-substance abuse or withdrawal 39, violent thoughts 12, risk-taking behaviours 7이다. 제외된
+최종 500개의 범주 분포는 suicidal ideation 179, anxiety crisis 174, self-harm 63,
+substance abuse or withdrawal 65, violent thoughts 12, risk-taking behaviours 7이다. 제외된
 17개는 suicidal ideation 11, anxiety crisis 3, substance abuse or withdrawal 3이었다.
 
 ## 14. 현재 250개 결과

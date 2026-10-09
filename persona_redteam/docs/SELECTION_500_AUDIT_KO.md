@@ -1,13 +1,20 @@
 # 최종 500개 분석 집합 정제 및 사람 검수 기록
 
-> 상태: 범주 균형화 500개 사례 ID 선택 완료, 추가 250개 생성·평가는 진행 중
+> 상태: 공식 500개 사례 ID 확정, 추가 250개 생성·평가는 진행 중
 >
 > 기준일: 2026-10-09
 
-이 문서는 625개 생성 후보에서 왜 500개 분석 집합을 만들었는지, 무엇을 “손상된 사례”로
-정의했는지, 자동 검사와 사람 검수를 어떻게 결합했는지 기록한다. 500개는 단순히 앞의
+이 문서는 JMIR 공개 test 입력에서 출발해 goal 선별, pathology 연결, persona adaptation,
+Lexi prior-history 생성을 거쳐 종합한 625개 생성 후보에서 왜 500개 분석 집합을 만들었는지,
+무엇을 “손상된 사례”로 정의했는지, 자동 검사와 사람 검수를 어떻게 결합했는지 기록한다.
+500개는 단순히 앞의
 500개를 잘라 만든 집합이 아니다. 실험의 blind 조건을 훼손하는 사례를 먼저 제외하고,
 유효성 검사를 통과한 사례만으로 정확히 500개를 구성한 quality-controlled subset이다.
+
+상위 계보는 `DATA_LINEAGE_AND_EXTRACTION_KO.md`에 고정돼 있다. 요약하면 JMIR 원천 2,046개
+→ 6개 위기 범주 813개 → 1인칭 client 발화 652개 → 최소 10단어 goal 625개 → pathology와
+persona-history가 결합된 625개 후보다. 즉 이 단계에서 새로운 외부 goal을 추가한 것이 아니라,
+앞 단계에서 종합한 동일 후보군을 무결성과 과대 분포 기준으로 다시 정제했다.
 
 ## 1. 정제 결과 요약
 
@@ -124,25 +131,23 @@ self-harm, violent thoughts, risk-taking behaviours에서는 이 유형의 제�
 
 ## 6. 유효 608개 중 최종 500개를 고른 방법
 
-17개를 제외하면 유효 후보는 608개다. 여기서 임의로 108개를 “품질 불량”으로 판정하지
-않았으며, 이미 완료된 첫 250개의 범주 편중을 뒤 250개가 최대한 보정하도록 결정적
-capacity-constrained category balancing을 적용했다.
+17개를 제외하면 유효 후보는 608개다. 이 중 suicidal ideation이 287개(47.2%)로 단일
+과대표집 범주였다. 500개로 줄이는 데 필요한 108개를 이 범주에서만 보류하고, 다른 다섯
+범주의 유효 사례는 모두 유지하는 결정적 downsampling을 적용했다.
 
 1. 현재 4방향 계약으로 생성·평가가 검증된 250개는 재호출하지 않고 고정했다.
-2. 유효 608개의 `crisis_label`별 공급량과 기존 250개의 범주별 완료 수를 계산했다.
-3. 기존 완료 수를 각 범주의 하한, 유효 공급량을 상한으로 두었다.
-4. 남은 슬롯을 현재 최종 수가 가장 작은 비고갈 범주에 한 개씩 배정하는 water-filling 규칙을
-   사용했다. 이는 가용 샘플을 중복·생성하지 않는 범위에서 최종 범주 수 차이를 최소화한다.
-5. 산출된 범주별 신규 수만큼 아직 사용하지 않은 유효 사례를 canonical source order로
-   선택했다. 따라서 난수나 결과값을 선택에 사용하지 않았다.
-6. 기존 250개와 신규 250개의 합집합이 정확히 500개이고, 남은 유효 사례가 정확히 108개인지
+2. 유효 608개의 범주 분포에서 가장 큰 suicidal ideation을 과대표집 범주로 식별했다.
+3. anxiety, self-harm, substance, violent thoughts, risk-taking의 유효 사례는 모두 포함했다.
+4. suicidal ideation은 기존 완료 122개를 유지하고, 아직 사용하지 않은 사례를 해당 범주 안의
+   canonical source order로 57개 추가하여 최종 179개로 제한했다.
+5. 이에 따라 추가 250개와 기존 250개의 합집합이 정확히 500개가 되도록 했다.
+6. 보류된 108개가 모두 suicidal ideation이며, 어떤 관측 모델 결과도 선택에 사용되지 않았는지
    확인했다.
 
-초기 canonical-order 선택은 범주 층화가 아니어서 폐기했다. 범주 균형화로 전환하면서 신규
-목록의 81개를 빼고 부족 범주의 81개를 넣었으며, 기존 완료 250개는 바꾸지 않았다. 최종
-집합은 random sample도 모집단 비례 표본도 아니다. **첫 250개의 편중을 뒤 250개가 가능한
-최대로 보정한 deterministic capacity-constrained balanced subset**이다. 희소 범주는 유효
-사례를 전부 포함해도 동일한 표본 수에 도달할 수 없으므로 완전한 equal allocation은 불가능하다.
+이 방식은 여섯 범주를 같은 수로 만드는 완전 균형 표집이 아니다. 608개에서 한 범주만
+명백하게 과다했기 때문에 그 범주의 초과분만 줄이고, 희소 범주를 복제하거나 새로 생성하지
+않은 **single-overrepresented-category downsample cohort**다. 범주 안에서는 canonical 순서를
+사용했으므로 관측된 model success나 연구자의 사례별 선호가 선택에 개입하지 않는다.
 
 ## 7. 최종 500개 범주 분포
 
@@ -155,8 +160,9 @@ capacity-constrained category balancing을 적용했다.
 | violent thoughts | 12 | 2.4% |
 | risk-taking behaviours | 7 | 1.4% |
 
-보류된 유효 108개는 모두 공급량이 가장 많고 첫 250개에도 가장 많이 포함된 suicidal
-ideation 범주다. 다른 다섯 범주의 유효 사례는 모두 최종 500개에 포함된다.
+보류된 유효 108개는 모두 과대표집된 suicidal ideation 범주다. 다른 다섯 범주의 유효 사례는
+전부 포함했다. 이는 희소 범주를 중복 oversampling한 것이 아니라, 실제 존재하는 고유 사례를
+그대로 유지한 것이다.
 
 | crisis category | 유효 608 | 기존 완료 | 신규 선택 | 최종 500 | 보류 108 |
 |---|---:|---:|---:|---:|---:|
@@ -175,15 +181,18 @@ ideation 범주다. 다른 다섯 범주의 유효 사례는 모두 최종 500�
 | 대상 | 사례 수 | SHA-256 |
 |---|---:|---|
 | active-case 파일 | 625 | `e2ed9f9bc869070dddbc1d6eb362152132ce9d0a3b936381f35f6c7c760f94d2` |
-| category-balanced selection checkpoint | 500 최종 ID 포함 | `065e148226a005008304a4aae903378b9347a0578b171aae5105615352d0ae30` |
+| execution selection checkpoint | 500 최종 ID 포함 | `6e5e2eefb273a8f80f9831bca832ba52b11f10801bcc637dca5a433eba03d7e6` |
+| Git 공식 500 index JSONL | 500 | `2163b518bbc1a266f83c27c3dea5c0f6a7edc3ac7671cb7ee7a75ac143d61f43` |
+| Git 공식 500 audit JSON | 1 | `07417a6e0d564149d52f04857fbb48613337225d79e7e681f144e1b18f738f3a` |
 | 기존 유효 ID 목록 | 250 | `79477226836e2ad5f8d612a71c669d4f5cd958a84d54676222a8438da5ffb3d9` |
-| 신규 ID 목록 | 250 | `310828e787b03e033f45a6ea65372f8c26aaaacdc41c4e23536aaa8f384ca9fa` |
-| 최종 정렬 ID 목록 | 500 | `69a3b3368caf27c66bf0f24953cb7375219c5d9e72d77a43aac56fd24f77fb5d` |
+| 신규 adjusted-fill ID 목록 | 250 | `310828e787b03e033f45a6ea65372f8c26aaaacdc41c4e23536aaa8f384ca9fa` |
+| 공식 500 ID 목록 | 500 | `69a3b3368caf27c66bf0f24953cb7375219c5d9e72d77a43aac56fd24f77fb5d` |
 | 보류 ID 목록 | 108 | `2e5c4af3b0390f65edbf3d725c290ce9cc7ef96b615d2412c0f26cd87540246a` |
 
-ID 목록 hash는 case ID를 사전식 정렬하고 각 ID 뒤에 newline을 붙인 UTF-8 문자열의
-SHA-256이다. selection checkpoint와 생성·평가 결과는 민감성 및 용량 때문에 Git 밖의 실행
-artifact로 유지하지만, 이 문서의 count와 hash로 최종 목록의 변화를 탐지할 수 있다.
+ID 목록 hash는 case ID를 canonical/사전식 순서로 정렬하고 각 ID 뒤에 newline을 붙인 UTF-8
+문자열의 SHA-256이다. 실행 checkpoint와 생성·평가 결과는 Git 밖에 두지만, 공식 cohort
+index와 audit은 저장소 `data/red_persona_official_500.*`에 포함한다. index에는 private goal이나
+persona 본문이 없고 ID, category, canonical 위치, selection role만 있다.
 
 ## 9. 논문에 사용할 수 있는 정제 방법 문단
 
@@ -197,20 +206,20 @@ neutral/structural 조건을 오염시킬 수 있으므로 손상 사례로 분�
 
 자동 제외 목록, 누출 위치, 기존 run과의 교차 일치, ID 중복, 범주별 총계는 연구자가 수동으로
 재확인하였다. 17개를 제외한 608개 유효 후보 중 이미 생성·평가가 완료된 250개를 유지하고,
-기존 완료 수를 범주별 하한, 유효 공급량을 상한으로 둔 water-filling 배정을 수행하였다. 각
-범주 안에서는 canonical source order를 유지해 아직 사용하지 않은 유효 사례 250개를 추가하고
-최종 분석 목표인 500개를 구성하였다. 이 절차는 첫 250개의 범주 편중을 가용 자료 범위에서
-최대한 보정한다. 나머지 108개는 품질 문제가 아니라 최다 범주인 suicidal ideation의 초과
-공급분이며, 후속 확장 분석용으로 보류하였다.
+유효 608개 중 suicidal ideation이 287개로 과대표집되어 있었으므로, 다른 다섯 범주의 유효
+사례는 모두 유지하고 이 범주에서만 108개를 결정적으로 downsample하였다. 기존 완료 사례는
+모두 유지했으며, 추가 suicidal ideation 사례의 선택과 보류에는 범주 내부 canonical source
+order를 사용했다. 모델 출력은 선택에 사용하지 않았다. 이 절차로 500개 고유 사례를 구성하고
+최종 ID와 선택 역할을 Git의 공식 cohort index에 고정하였다.
 
 ## 10. 보고 시 금지할 표현
 
 - “625개 중 품질이 가장 좋은 500개를 사람이 주관적으로 골랐다”
 - “108개도 손상되어 제외됐다”
 - “500개 전체 응답을 임상 전문가가 전수 annotation했다”
-- “500개는 무작위·모집단 비례 표본이다” 또는 “여섯 범주에서 같은 수를 뽑았다”
+- “500개는 무작위·모집단 비례·범주별 동일 수 표본이다”
 - “17개 원본 데이터가 잘못됐다”
 
 정확한 표현은 **“17개의 실험 무결성 손상 사례를 자동 검출하고 사람이 제외 사유를
-검수한 뒤, 기존 완료 사례를 유지하면서 뒤 250개를 부족 범주에 우선 배정해 가용 범위에서
-최종 범주 편중을 최소화한 500개를 구성했다”**이다.
+검수한 뒤, 유효 608개에서 단일 과대표집 범주인 suicidal ideation만 108개 downsample하여
+500개 cohort를 구성했다”**이다.

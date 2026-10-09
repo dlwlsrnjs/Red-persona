@@ -13,8 +13,8 @@ sys.path.insert(0, str(ROOT))
 from pipeline.runtime_io import atomic_json
 from pipeline.contracts import validate_active_cases, validate_success_at_4_run_record
 from pipeline.openai_batch import BatchChatClient, chat_request
-from pipeline.stratified_selection import METHOD as STRATIFIED_SELECTION_METHOD
-from pipeline.stratified_selection import select_new_cases
+from pipeline.official_selection import METHOD as OFFICIAL_SELECTION_METHOD
+from pipeline.official_selection import load_official_case_ids, select_new_cases
 from experiments.qwen_target_persona_research_dialogue import (
     ACTIVE_PIPELINE_VERSION, DIRECT_MANIFESTATION_MODES, FINAL_DIRECTIONS,
     INTERVENTION_LEVELS, MANIFESTATION_DIRECTIONS, SNAPSHOT,
@@ -78,10 +78,10 @@ def selected_cases(cases, existing_dirs, target_total, selection_path):
                 f"selection checkpoint targets {selection.get('target_total')}, "
                 f"not requested total {target_total}"
             )
-        if selection.get("selection_method") != STRATIFIED_SELECTION_METHOD:
+        if selection.get("selection_method") != OFFICIAL_SELECTION_METHOD:
             raise RuntimeError(
-                "selection checkpoint is not category-stratified; create a new "
-                "selection path with the current selector"
+                "selection checkpoint is not the official overrepresentation-adjusted cohort; "
+                "create a new selection path with the current selector"
             )
         ids = selection["case_ids"]
         if set(selection.get("existing_case_ids", [])) != existing:
@@ -116,6 +116,12 @@ def selected_cases(cases, existing_dirs, target_total, selection_path):
         raise RuntimeError(
             "selection checkpoint contains invalid cases: " + ", ".join(selected_invalid[:10])
         )
+    if target_total == 500:
+        official = set(load_official_case_ids())
+        if existing | set(ids) != official:
+            raise RuntimeError(
+                "execution selection does not match the Git-tracked official 500 cohort"
+            )
     return [indexed[case_id] for case_id in ids]
 
 

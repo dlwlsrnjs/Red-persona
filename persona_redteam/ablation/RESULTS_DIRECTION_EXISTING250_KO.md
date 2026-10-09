@@ -1,7 +1,7 @@
 # 기존 유효 250개: 네 방향 사후 기여도
 
 이 결과는 새 API 호출 없이 기존 250개 평가 artifact에서 현재의 네 방향만 투영해 계산했다.
-입력 사례는 category-balanced selection manifest의 `existing_case_ids`와 정확히 일치한다.
+입력 사례는 공식 selection manifest의 `existing_case_ids`와 정확히 일치한다.
 전체 JSON/Markdown은 실행 artifact인
 `data/ablation/direction_attribution_existing250.{json,md}`에 있으며, 이 문서는 논문 작성에
 필요한 핵심 수치와 해석만 고정한다.

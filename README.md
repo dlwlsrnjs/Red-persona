@@ -7,10 +7,18 @@
 - 실행 절차: [`persona_redteam/docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md`](persona_redteam/docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md)
 - 새 서버 설치: [`persona_redteam/docs/NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md`](persona_redteam/docs/NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md)
 - 데이터 lineage: [`persona_redteam/docs/DATA_LINEAGE_AND_EXTRACTION_KO.md`](persona_redteam/docs/DATA_LINEAGE_AND_EXTRACTION_KO.md)
+- 공식 500개 cohort: [`data/OFFICIAL_500_COHORT_KO.md`](data/OFFICIAL_500_COHORT_KO.md)
 
-활성 평가 입력은 `data/crisis_goals_jmir_persona_min10.jsonl`과
-`data/goal_pathology_routes_n625.jsonl`이다. persona는 각 샘플마다 전체 pool에서 동적으로
-검색하고 Qwen으로 rerank한다.
+활성 평가 입력은 JMIR *Between Help and Harm* 공개 test 입력에서 시작해 6개 위기 범주,
+1인칭 client 발화, 최소 문맥 길이 규칙으로 순차 정제한 625개 goal과 그 pathology route다.
+즉 500개는 별도로 새로 수집한 자료가 아니라, 이 JMIR 기반 goal 샘플을 persona-history로
+변환해 종합한 후보군을 다시 무결성 검사하고 추린 분석 cohort다. persona는 각 샘플마다 전체
+pool에서 동적으로 검색하고 Qwen으로 rerank한다.
+
+625개 생성 후보의 공식 분석 집합은 무결성 손상 17개를 제외한 유효 608개에서 단일
+과대표집 범주인 suicidal ideation만 108개 downsample한 500개다. 공식 membership은
+`data/red_persona_official_500.jsonl`에 고정되어 있으며, 관측된 모델 결과는 선택에 사용하지
+않았다.
 
 Persona 연결은 전체 31,733개 profile에 Qwen 단일 카테고리 라벨을 먼저 부여한 뒤 수행한다.
 샘플과 같은 카테고리만 후보로 남기고 top-12 검색과 Qwen 선택을 거친다. 선택된 기본

@@ -11,7 +11,7 @@ from pipeline.openai_batch import (
     model_family,
     response_record,
 )
-from pipeline.stratified_selection import balanced_quotas, select_new_cases
+from pipeline.official_selection import select_new_cases
 
 
 class OpenAIBatchHelpersTest(unittest.TestCase):
@@ -100,10 +100,10 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
         self.assertEqual(manifest["excluded_input_case_ids"], ["leaking"])
         self.assertEqual(
             manifest["selection_method"],
-            "capacity_constrained_balanced_crisis_label_v1",
+            "single_overrepresented_category_downsample_v1",
         )
 
-    def test_balanced_selection_fills_underrepresented_categories_first(self):
+    def test_official_selection_trims_only_overrepresented_category(self):
         cases = [
             {"case_id": f"a-{index}", "crisis_label": "a"}
             for index in range(7)
@@ -116,26 +116,27 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
             cases, {"a-0", "b-0"}, set(), 6,
         )
 
+        self.assertTrue(audit["category_used_for_selection"])
+        self.assertEqual(audit["overrepresented_category"], "a")
         self.assertEqual(audit["target_by_category"], {"a": 3, "b": 3})
         self.assertEqual(audit["new_by_category"], {"a": 2, "b": 2})
-        self.assertEqual(audit["deferred_by_category"], {"a": 4, "b": 0})
+        self.assertEqual(audit["deferred_by_category"], {"a": 4})
         self.assertEqual(
             [case["case_id"] for _, case in selected],
             ["a-1", "a-2", "b-1", "b-2"],
         )
 
-    def test_quota_respects_completed_case_lower_bound(self):
+    def test_official_selection_skips_invalid_and_existing_in_place(self):
         cases = [
-            {"case_id": f"a-{index}", "crisis_label": "a"}
-            for index in range(8)
-        ] + [
-            {"case_id": f"b-{index}", "crisis_label": "b"}
-            for index in range(2)
+            {"case_id": "one", "crisis_label": "a"},
+            {"case_id": "invalid", "crisis_label": "b"},
+            {"case_id": "existing", "crisis_label": "b"},
+            {"case_id": "four", "crisis_label": "b"},
         ]
 
-        quotas = balanced_quotas(cases, 5, lower_bounds={"b": 2})
+        selected, _ = select_new_cases(cases, {"existing"}, {"invalid"}, 2)
 
-        self.assertEqual(quotas, {"a": 3, "b": 2})
+        self.assertEqual([case["case_id"] for _, case in selected], ["one"])
 
 
 if __name__ == "__main__":

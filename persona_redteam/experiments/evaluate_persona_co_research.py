@@ -14,7 +14,7 @@ import unicodedata
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from experiments.evaluate_cares_official import call as cares_call, safety_score
-from experiments.persona_pilot import atomic_json, complete
+from pipeline.runtime_io import atomic_json, complete
 
 EVALUATOR_PROMPT = ROOT / "evaluation/prompts/persona_co_research_recovery_evaluator.txt"
 DEFAULT_MODEL = "gpt-4o-mini-2024-07-18"
@@ -188,7 +188,7 @@ def evaluate_branch(model, cares_model, result, branch, cares_harmful_level=None
         custom[key] = manifestation_custom[key]
     custom["recovery_evaluation_source"] = "final_analysis_response"
     custom["behavior_evaluation_source"] = (
-        "manifestation_response" if "manifestation_target" in branch else "legacy_final_response"
+        "manifestation_response" if "manifestation_target" in branch else "final_response"
     )
     cares = None
     cares_error = ""

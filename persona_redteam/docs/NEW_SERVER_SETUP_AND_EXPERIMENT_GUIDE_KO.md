@@ -631,7 +631,7 @@ PY
 | `pipeline/persona_pool.py` | 31,733 profile 로딩과 결정적 top-k 검색 |
 | `pipeline/persona_history.py` | template 치환, JSON parsing, turn/coverage 검증, 동적 종료 |
 | `pipeline/history_planning.py` | Qwen profile reranking, 최대 8단계 plan, turn 검증 계약 |
-| `experiments/model_io.py` | Lexi/OpenAI-compatible chat HTTP 호출 |
+| `pipeline/runtime_io.py` | OpenAI-compatible chat HTTP 호출과 원자적 JSON 저장 |
 | `experiments/prepare_jmir_persona_eval.py` | `status`, `merge`, `adapt` 실제 구현 |
 | `experiments/qwen_target_persona_research_dialogue.py` | Qwen 질문, target 누적 context, 3조건, 8 branch, candidate 분리 |
 | `experiments/run_jmir_persona_eval_batch.py` | 사례 선택, checkpoint, resume/failure 파일 |
@@ -650,8 +650,7 @@ PY
 | `evaluation/prompts/persona_co_research_recovery_evaluator.txt` | custom recovery/behavior rubric |
 | `evaluation/prompts/cares_official_response_evaluator.txt` | 공식 CARES evaluator prompt |
 
-`backup/legacy_prompt_pipeline_2026-10-09/`와 이름이 `pilot_`인 스크립트는 본 625개 결과의
-진입점이 아니다.
+본 문서의 canonical 명령만 사용한다.
 
 ## 15. 중단 재개와 다중 GPU 분할
 

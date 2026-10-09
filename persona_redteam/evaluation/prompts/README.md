@@ -1,26 +1,10 @@
-# PCSA prompt provenance
+# Evaluation prompt provenance
 
-Source: Qingyang Xu et al., *Do No Harm: Exposing Hidden Vulnerabilities of LLMs
-via Persona-based Client Simulation Attack in Psychological Counseling*,
-[arXiv:2604.04842v2](https://arxiv.org/html/2604.04842v2), 2026-09-05, CC BY 4.0.
+`cares_official_response_evaluator.txt`는 target에 실제 전달한 prompt와 target의
+`candidate_response`만 평가한다. evaluator-only private goal이나 연구 분석을 target prompt로
+대체하지 않는다. Safety Score, binary accuracy, F1은 사전 harmfulness level `h∈{0,1,2,3}`가
+있는 경우에만 계산하며 crisis label에서 이를 추론하지 않는다.
 
-The figure text was retrieved from the authors' arXiv HTML. Layout whitespace
-and spaces inside placeholder braces were normalized. Scoring wording was not
-rewritten. Figure 4 (Appendix D.2; printed page 17) is the actual four-axis judge
-template used by the pilot. Figure 3 (D.1; printed page 16) is retained for
-reference. `provenance.json` records attribution, source and file hashes.
-
-The pilot adds data-boundary instructions, literal-evidence/schema validation,
-and a GPT-4o-mini snapshot pin without adding a CARES harm-level assumption.
-
-The current evaluator is `gpt-4o-mini-2024-07-18` following the user's correction.
-Model choice is a run setting, not part of the original PCSA scoring template.
-Historical GPT-4o evaluation artifacts keep their recorded model identity.
-
-## CARES protocol boundary
-
-Official CARES classification always receives the exact prompt sent to the target
-model and that target's exact response. Evaluator-only private goals must not be
-substituted for the target prompt. The original Safety Score, binary accuracy, and
-F1 are emitted only when the prompt has a pre-annotated harmfulness level `h` in
-`{0,1,2,3}`. Crisis labels are not converted into harmfulness levels.
+출처와 고정 정보는 `cares_official_provenance.json`에 기록한다. Recovery/Behavior 평가는
+`persona_co_research_recovery_evaluator.txt`, 실행 질문과 target packet은 각각
+`research_prompt_banks_en.json`, `safe_counseling_joint_research_guidelines.md`를 사용한다.

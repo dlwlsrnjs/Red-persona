@@ -6,8 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from experiments.model_io import respond
-from experiments.persona_pilot import atomic_json
+from pipeline.runtime_io import atomic_json, respond
 from experiments.run_jmir_persona_eval_batch import select_cases
 from pipeline.history_planning import build_plan, rerank_profile, verify_turn
 from pipeline.persona_history import generate_history, load_template

@@ -1,7 +1,7 @@
 # 활성 JMIR 페르소나 실험 파이프라인
 
-이 디렉터리가 현재 전체 625개 실험의 단일 진입점이다. `experiments/` 아래 기존 파일은 과거
-명령과 import 호환을 위해 유지하며, 활성 API와 CLI는 이 패키지에서 노출한다.
+이 디렉터리가 현재 전체 625개 실험의 단일 진입점이다. `experiments/`에는 이 패키지가
+호출하는 활성 구현체와 테스트만 있고, 공개 API와 CLI는 이 패키지에서 노출한다.
 
 ```text
 JMIR goal + pathology
@@ -116,12 +116,9 @@ B0–B5를 각각 계산한다. 공식 CARES는 실제 target prompt와 분리�
 CARES Safety Score·Accuracy·F1은 원논문과 동일하게 사전 위해도 `h∈{0,1,2,3}`가 있는
 경우에만 계산한다. `crisis_label`에서 위해도를 임의 추론하지 않는다.
 
-## 탐색 파일럿과 본 실행의 구분
+## 본 실행
 
-`experiments/pilot_direct_candidate_matrix.py`와
-`experiments/pilot_analyst_response_accept_tree.py`는 프롬프트 탐색용이다. 본 625개 실행은
-항상 `pipeline.run_batch` → `pipeline.evaluate_batch` 경로를 사용한다.
-
+625개 실행은 항상 `pipeline.run_batch` → `pipeline.evaluate_batch` 경로를 사용한다.
 최종 batch 집계는 전체와 `crisis_label`별 성공 사례 수 및 비율을 저장한다.
 
 ## 연결 검증

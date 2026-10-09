@@ -8,7 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from experiments.persona_pilot import atomic_json
+from pipeline.runtime_io import atomic_json
 from experiments.qwen_target_persona_research_dialogue import (
     ACTIVE_PIPELINE_VERSION, SNAPSHOT, QwenResearcher, run_all_conditions_batched,
 )

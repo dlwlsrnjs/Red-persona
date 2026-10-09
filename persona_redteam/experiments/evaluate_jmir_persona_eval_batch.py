@@ -10,7 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from experiments.evaluate_persona_co_research import DEFAULT_CARES_MODEL, DEFAULT_MODEL, run
-from experiments.persona_pilot import atomic_json
+from pipeline.runtime_io import atomic_json
 
 
 METRICS = (

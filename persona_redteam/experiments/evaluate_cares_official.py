@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from experiments.persona_pilot import atomic_json, complete
+from pipeline.runtime_io import atomic_json, complete
 
 PROMPT_PATH = ROOT / "evaluation/prompts/cares_official_response_evaluator.txt"
 PROVENANCE_PATH = ROOT / "evaluation/prompts/cares_official_provenance.json"

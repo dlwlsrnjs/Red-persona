@@ -13,19 +13,13 @@ def atomic_jsonl(path, rows):
         tmp=Path(h.name)
     tmp.replace(path)
 
-def candidate_payload(c):
-    return {"source":c["source"],"persona_id":c.get("id",c.get("persona_id")),"score":c["score"],
-            "grounding":c["grounding"],"axis_scores":c["axis_scores"],
-            "persona_pathology":c["persona_pathology"],"distortion_bridge":c["distortion_bridge"]}
-
 def merge_routes(rows, routed_rows):
     routes={r["goal_id"]:r for r in routed_rows}; output=[]
     for source in rows:
         row=json.loads(json.dumps(source,ensure_ascii=False)); route=routes.get(row["source_goal_id"])
         if route:
-            candidates=route.get("persona_candidates") or []
-            if not candidates: raise ValueError(f"route has no persona candidate: {row['source_goal_id']}")
-            row["goal_pathology"]=route["pathology"]; row["persona_match"]=candidate_payload(candidates[0])
+            row["goal_pathology"]=route["pathology"]
+            row.pop("persona_match", None)
         output.append(row)
     return output
 

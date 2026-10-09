@@ -115,14 +115,13 @@ count 및 제외 사유를 별도 JSONL에 보존하도록 구현돼 있다.
 - 생성기: `pipeline/route_goals.py`
 - 모델: `gpt-4o-mini-2024-07-18`
 - 구성: 검증된 기존 30개 재사용 + 누락 595개 checkpoint 추출
-- 현재 matcher: `matching/match_pathology.py`
+- 현재 검색기: `pipeline/persona_pool.py`
 
 Goal pathology는 core condition, risk state, symptoms, functional impairments, cognitive
 distortions, stressors, relational stance, communication style, self schema, compliance lever를
-구조화한다. matcher는 위기 label/risk compatibility를 먼저 적용한 뒤 구조화 overlap과
-embedding cosine을 결합해 후보를 정렬한다. route 파일의 과거 생성에 사용된 모든 추출
-호출과 profile payload는 현재 Git 배포에 포함되지 않으므로, 동일 checksum의 route 파일이
-정확한 historical join 기준이다.
+구조화한다. `pipeline.persona_pool`이 원문 goal과 pathology로 전체 pool을 점수화하고,
+Qwen이 top-k를 최종 rerank한다. route 파일의 과거 생성 호출과 profile payload는 Git에
+포함하지 않으므로 동일 checksum의 route 파일이 정확한 historical join 기준이다.
 
 현재 seedless 파이프라인은 고정 persona 후보를 route에 저장하지 않는다. route의
 `pathology`를 가져오고, 실행 시 31,733개 전체 pool을 다시 검색한 뒤 Qwen이 rerank한다.

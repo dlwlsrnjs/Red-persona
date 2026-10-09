@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-from experiments.persona_pilot import atomic_json
+from pipeline.runtime_io import atomic_json
 from extraction.extract_goal_pathology import extract, missing_fields
 from risk_state import from_text as explicit_risk_state
 

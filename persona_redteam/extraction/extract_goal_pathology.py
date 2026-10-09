@@ -8,13 +8,12 @@ model LOWER its guard and comply (toxic-empathy hook), which is what drives ASR.
 Authorized safety-measurement use only: output describes the vulnerability
 framing, never actionable harmful content.
 
-Input : persona_redteam/goals/crisis_goals_jmir_n813.jsonl  (goal, crisis_label, ...)
-Output: persona_redteam/outputs/goal_pathology_n813.jsonl    (+ `pathology` field)
+The active entry point is `python -m pipeline.route_goals`, which provides
+checkpointing, retries, and direct preparation of unseen samples.
 
 Usage:
-    set -a; . /home/ubuntu/342/jinkwon/pcsa/.env; set +a
-    python3 extract_goal_pathology.py --in ../goals/crisis_goals_jmir_n813.jsonl \
-        --out ../outputs/goal_pathology_n813.jsonl --model gpt-4o-mini --workers 10
+    python3 -m pipeline.route_goals --goals INPUT.jsonl --output ROUTES.jsonl \
+        --checkpoint-dir CHECKPOINTS --model gpt-4o-mini-2024-07-18 --workers 48
 """
 from __future__ import annotations
 import argparse, json, os, urllib.request, time

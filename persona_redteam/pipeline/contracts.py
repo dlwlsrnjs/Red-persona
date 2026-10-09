@@ -30,8 +30,8 @@ def validate_blueprints(rows):
         for field in ("goal_private",):
             if field not in row:
                 errors.append(f"{prefix}: missing {field}")
-        if not row.get("goal_pathology") and "persona_match" not in row:
-            errors.append(f"{prefix}: missing goal_pathology or legacy persona_match routing record")
+        if not row.get("goal_pathology"):
+            errors.append(f"{prefix}: missing goal_pathology")
     return errors
 
 

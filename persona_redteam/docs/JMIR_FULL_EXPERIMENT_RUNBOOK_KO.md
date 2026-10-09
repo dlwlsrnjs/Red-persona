@@ -60,15 +60,8 @@ python3 -m pipeline.generate_histories \
 생성한다. Lexi의 각 turn은 Qwen 검증을 통과해야 누적된다. 실패 checkpoint 재시도에는
 `--retry-failed`를 추가한다.
 
-Qwen micro-plan → Lexi 턴별 렌더링은 현재 아래 소규모 파일럿에서 검증한다.
-
-```bash
-python3 experiments/pilot_qwen_lexi_persona_history.py \
-  --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
-  --matched data/prepared/blueprints/jmir_eval_full.jsonl \
-  --case-id jmir-full-0003 \
-  --output data/pilots/qwen-lexi-history/jmir-full-0003.json
-```
+Qwen micro-plan → Lexi 턴별 렌더링과 검증은 `pipeline.generate_histories` 안에서 수행되며,
+사례별 checkpoint에 계획·생성·검증 결과가 함께 저장된다.
 
 ## 4. Qwen–target 본 실행
 

@@ -1,7 +1,7 @@
 {
-  "version": "jmir-persona-active-v2",
-  "updated": "2026-10-09",
-  "scope": "Active 625-case inputs, pipeline, and validated category sidecar; transient model outputs are excluded from Git.",
+  "version": "jmir-persona-active-v3",
+  "updated": "2026-10-10",
+  "scope": "Active 625-case source inputs, official 500-case cohort, external-baseline assignments, pipeline, and validated category sidecar; transient model outputs are excluded from Git.",
   "inputs": {
     "goals": {
       "path": "../data/crisis_goals_jmir_persona_min10.jsonl",
@@ -29,6 +29,15 @@
       "overrepresented_category": "suicidal_ideation",
       "downsampled_valid_cases": 108,
       "outcome_used_for_selection": false
+    },
+    "external_baseline_persona_assignments": {
+      "path": "../external_baselines/data/baseline_persona_assignments_official_500.jsonl",
+      "rows": 500,
+      "unique_personas": 500,
+      "sha256": "43316f55cd7576eaac4ad0f24c515e98efa845fc728b0b0427c665322b54214e",
+      "official_cohort_sha256": "2163b518bbc1a266f83c27c3dea5c0f6a7edc3ac7671cb7ee7a75ac143d61f43",
+      "source_id_mapping": "canonical_source_index: jmir-test-* to jmir-full-*",
+      "selection_method": "deterministic_lexical_pathology_v1"
     },
     "persona_pool": {
       "path": "../data/personas/personas.jsonl",

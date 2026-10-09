@@ -1,6 +1,7 @@
 # RED-Persona
 
-현재 저장소에는 JMIR 625개 평가를 위한 seedless Qwen–Lexi–target 파이프라인만 유지한다.
+현재 저장소에는 JMIR 기반 공식 500개 평가를 위한 seedless Qwen–Lexi–target 파이프라인과
+동일한 500개에 적용하는 single-turn/multi-turn jailbreak baseline을 유지한다.
 
 - 프로젝트 설명: [`persona_redteam/README.md`](persona_redteam/README.md)
 - 전체 흐름: [`persona_redteam/PIPELINE_OVERVIEW_KO.md`](persona_redteam/PIPELINE_OVERVIEW_KO.md)
@@ -8,6 +9,8 @@
 - 새 서버 설치: [`persona_redteam/docs/NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md`](persona_redteam/docs/NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md)
 - 데이터 lineage: [`persona_redteam/docs/DATA_LINEAGE_AND_EXTRACTION_KO.md`](persona_redteam/docs/DATA_LINEAGE_AND_EXTRACTION_KO.md)
 - 공식 500개 cohort: [`data/OFFICIAL_500_COHORT_KO.md`](data/OFFICIAL_500_COHORT_KO.md)
+- 외부 jailbreak baseline: [`external_baselines/README.md`](external_baselines/README.md)
+- Qwen/GPT-4o 동시 pilot: [`external_baselines/run_baseline_matrix.py`](external_baselines/run_baseline_matrix.py)
 
 활성 평가 입력은 JMIR *Between Help and Harm* 공개 test 입력에서 시작해 6개 위기 범주,
 1인칭 client 발화, 최소 문맥 길이 규칙으로 순차 정제한 625개 goal과 그 pathology route다.

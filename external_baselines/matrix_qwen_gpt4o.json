@@ -1,0 +1,34 @@
+{
+  "targets": [
+    {
+      "name": "qwen7b_instruct",
+      "endpoint": "http://127.0.0.1:8000/v1",
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "api_key_env": "QWEN_TARGET_API_KEY",
+      "transport": "sync"
+    },
+    {
+      "name": "gpt4o",
+      "endpoint": "https://api.openai.com/v1",
+      "model": "gpt-4o",
+      "api_key_env": "OPENAI_API_KEY",
+      "transport": "openai_batch",
+      "batch_case_concurrency": 500
+    }
+  ],
+  "adversary": {
+    "endpoint": "http://127.0.0.1:8000/v1",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "api_key_env": "QWEN_ADVERSARY_API_KEY"
+  },
+  "methods": [
+    "direct",
+    "skeleton_key",
+    "many_shot",
+    "red_teaming",
+    "pair",
+    "tap",
+    "crescendo",
+    "therapist_crescendo"
+  ]
+}

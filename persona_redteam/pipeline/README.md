@@ -51,8 +51,8 @@ python3 -m pipeline.label_persona_categories \
 
 런타임에는 sidecar를 `persona_id`로 원본 profile에 병합한다. 샘플의 `crisis_label`과 같은
 `goal_category`만 검색 후보가 될 수 있으며 다른 카테고리는 점수가 높아도 제외된다.
-동일 카테고리 안에서 구조화 overlap과 lexical coverage로 top-12를 만든 뒤 Qwen이 기본
-persona 하나를 선택한다.
+동일 카테고리 안에서는 Qwen 분류 적합도 `direct > adjacent > weak`, 구조화 overlap,
+lexical coverage를 합산해 top-12를 만든 뒤 Qwen이 기본 persona 하나를 선택한다.
 
 선택 직후 Qwen은 그 기본 persona의 안정적인 정체성과 말투를 유지하면서 샘플의 category,
 goal, pathology에 필요한 `presenting_concern`, 증상, 기능 손상, 인지왜곡, stressor, 관계 태도,

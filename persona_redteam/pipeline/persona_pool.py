@@ -110,9 +110,14 @@ def retrieve(goal_pathology, profiles, crisis_label=None, top_k=5, query_text=""
                    if query_tokens else 0.0)
         # Exact pathology overlap remains useful, while full-pool retrieval gains a
         # sample-specific semantic-text candidate stage instead of collapsing to ties.
-        score += 1.5 * lexical
+        category_fit = str(profile.get("category_fit", "weak"))
+        fit_bonus = {"direct": 0.30, "adjacent": 0.10, "weak": 0.0}.get(
+            category_fit, 0.0)
+        score += 1.5 * lexical + fit_bonus
         evidence["goal_text_coverage"] = lexical
         evidence["category_gate"] = crisis_label
+        evidence["category_fit"] = category_fit
+        evidence["category_fit_bonus"] = fit_bonus
         ranked.append({"profile": profile, "score": round(score, 8), "evidence": evidence})
     ranked.sort(key=lambda row: (-row["score"], str(row["profile"].get("source")),
                                  str(row["profile"].get("persona_id"))))

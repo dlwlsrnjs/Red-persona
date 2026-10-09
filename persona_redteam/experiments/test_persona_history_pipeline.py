@@ -105,6 +105,16 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
                         query_text="anger")
         self.assertEqual([row["profile"]["persona_id"] for row in rows], ["right"])
 
+    def test_direct_category_fit_beats_weak_fit_when_other_scores_tie(self):
+        profiles = [
+            {"source": "a", "persona_id": "weak", "goal_category": "anxiety_crisis",
+             "category_fit": "weak"},
+            {"source": "b", "persona_id": "direct", "goal_category": "anxiety_crisis",
+             "category_fit": "direct"},
+        ]
+        rows = retrieve({}, profiles, crisis_label="anxiety_crisis", top_k=2)
+        self.assertEqual(rows[0]["profile"]["persona_id"], "direct")
+
     def test_minimum_four_turns_and_dynamic_stop(self):
         calls = []
 

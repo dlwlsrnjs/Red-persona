@@ -357,6 +357,20 @@ def build_manifest(
             "batch_case_concurrency": (
                 args.batch_case_concurrency if args.target_transport == "openai_batch" else None
             ),
+            "batch_wave_execution": (
+                {
+                    "mode": (
+                        "adaptive_sequential_waves"
+                        if args.method in MULTI_TURN_METHODS
+                        else "single_wave"
+                    ),
+                    "history_forwarding": "full_conversation",
+                    "next_wave_requires_previous_result": args.method in MULTI_TURN_METHODS,
+                    "artifacts": "_openai_batches/target/wave-*/manifest.json",
+                }
+                if args.target_transport == "openai_batch"
+                else None
+            ),
         },
         "adversary": (
             {"endpoint": args.adversary_endpoint, "model": args.adversary_model}

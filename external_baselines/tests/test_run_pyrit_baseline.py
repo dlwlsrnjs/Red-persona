@@ -221,6 +221,39 @@ def test_pcsa_dry_run_uses_fixed_personas_and_four_turn_cap(capsys):
     }
 
 
+def test_multiturn_openai_batch_manifest_declares_adaptive_waves(
+    tmp_path, capsys
+):
+    input_path = tmp_path / "goals.jsonl"
+    cohort_path = tmp_path / "cohort.jsonl"
+    write_test_cohort(cohort_path)
+    input_path.write_text(
+        json.dumps(
+            {"goal_id": "g1", "goal": "test objective", "crisis_label": "label"}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert MODULE.main(
+        [
+            "--method", "crescendo",
+            "--input", str(input_path),
+            "--cohort-index", str(cohort_path),
+            "--target-endpoint", "https://api.openai.com/v1",
+            "--target-model", "gpt-4o",
+            "--target-transport", "openai_batch",
+            "--dry-run",
+        ]
+    ) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["target"]["batch_wave_execution"] == {
+        "mode": "adaptive_sequential_waves",
+        "history_forwarding": "full_conversation",
+        "next_wave_requires_previous_result": True,
+        "artifacts": "_openai_batches/target/wave-*/manifest.json",
+    }
+
+
 def test_single_turn_manifest_has_no_adversary(tmp_path, capsys):
     input_path = tmp_path / "goals.jsonl"
     cohort_path = tmp_path / "cohort.jsonl"

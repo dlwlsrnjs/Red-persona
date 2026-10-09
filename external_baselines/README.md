@@ -180,6 +180,12 @@ GPT-4o의 single-turn 방법은 여러 case를 한 Batch JSONL에 묶는다. 적
 해당 방법 output의 `_openai_batches/` 아래에 보존한다. OpenAI의 completion window는
 `24h`이므로 multi-turn 전체 완료 시간은 동기 API보다 길 수 있다.
 
+멀티턴 wave는 `wave t 제출 → 완료 결과 회수 → 각 case history에 target 응답 추가 →
+wave t+1 제출` 순서를 강제한다. 다음 요청에는 해당 case의 전체 대화 history가 포함되며,
+서로 다른 case의 history는 섞이지 않는다. PAIR/TAP/PCSA처럼 한 턴에 여러 후보가 있는
+방법은 후보들도 같은 wave의 독립 JSONL request로 묶는다. 이 규칙은 가짜 Batch 서버를
+사용한 2-case × 2-turn 통합 테스트로 검증한다.
+
 ```bash
 export OPENAI_API_KEY='...'
 bash serve_models.sh qwen

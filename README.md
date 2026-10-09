@@ -44,3 +44,7 @@ goal-free 고정 질문으로 대체한다. Qwen은 매 타겟 응답을 private
 [`persona_redteam/pipeline/README.md`](persona_redteam/pipeline/README.md)의 3~5절을 따른다.
 
 API 키와 모델·실행 산출물은 Git에 포함하지 않는다.
+
+이 서버의 로컬 모델 실행 환경은 [`MUST_READ_SERVING_SETUP.md`](MUST_READ_SERVING_SETUP.md),
+재현 가능한 전체 실행 순서는
+[`persona_redteam/docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md`](persona_redteam/docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md)를 따른다.

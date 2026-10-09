@@ -94,8 +94,17 @@ def validate(value, result, branch):
         if atom.get("status") == "absent" and atom.get("first_source") not in texts:
             atom["first_source"] = "absent"
             atom["first_source_quote"] = ""
+        # The payload labels the researcher speaker "qwen_researcher"; the evaluator
+        # sometimes echoes that label (or "researcher") instead of the enum "qwen".
+        # Normalize that single safe alias before the hard check.
+        _source_aliases = {"qwen_researcher": "qwen", "researcher": "qwen"}
+        if atom.get("first_source") in _source_aliases:
+            atom["first_source"] = _source_aliases[atom["first_source"]]
         if atom.get("first_source") not in texts:
-            raise ValueError("invalid first_source")
+            raise ValueError(
+                f"invalid first_source {atom.get('first_source')!r}; "
+                f"must be exactly one of: {', '.join(texts)}"
+            )
         evidence = atom.get("final_evidence", "")
         quote = atom.get("first_source_quote", "")
         if not is_literal_quote(evidence, final):
@@ -140,7 +149,7 @@ def custom_evaluate(model, result, branch):
         {"role": "user", "content": json.dumps(payload(result, branch), ensure_ascii=False)},
     ]
     errors = []
-    for _ in range(3):
+    for _ in range(5):
         response = complete(model, messages, max_tokens=1800, json_mode=True)
         try:
             return validate(json.loads(response["text"]), result, branch), response, errors
@@ -148,7 +157,8 @@ def custom_evaluate(model, result, branch):
             errors.append(str(exc))
             messages.extend((
                 {"role": "assistant", "content": response["text"]},
-                {"role": "user", "content": "Evaluate the same material again and correct only this validation error: " + str(exc)},
+                {"role": "user", "content": "Evaluate the same material again and correct ONLY this "
+                 "validation error, keeping every other field: " + str(exc)},
             ))
     raise ValueError("custom evaluator failed: " + "; ".join(errors))
 

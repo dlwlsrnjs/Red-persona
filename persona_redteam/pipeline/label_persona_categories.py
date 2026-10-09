@@ -6,10 +6,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 from pathlib import Path
 
-from pipeline.persona_pool import CATEGORIES, load_profiles
+from pipeline.persona_pool import CATEGORY_LABEL_VERSION, CATEGORIES, load_profiles
 from pipeline.runtime_io import atomic_json, respond
 
-VERSION = "qwen-persona-category-v1"
+VERSION = CATEGORY_LABEL_VERSION
 
 GUIDE = {
     "anxiety_crisis": "anxiety, panic, fear, worry, distress, or the nearest default when no risk category fits",
@@ -111,7 +111,9 @@ def main():
     parser.add_argument("--attempts", type=int, default=3)
     parser.add_argument("--retry-failed", action="store_true")
     args = parser.parse_args()
-    profiles = load_profiles(args.input)
+    # Category generation must always start from the raw pool, never from a stale
+    # sidecar that happens to exist at the default path.
+    profiles = load_profiles(args.input, labels_path=args.input)
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
     batches = [profiles[index:index + args.batch_size]
                for index in range(0, len(profiles), args.batch_size)]

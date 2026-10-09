@@ -9,12 +9,15 @@ from pathlib import Path
 from pipeline.runtime_io import atomic_json, respond
 from experiments.run_jmir_persona_eval_batch import select_cases
 from pipeline.history_planning import (
-    build_plan, enrich_profile_for_case, replan_turn, rerank_profile, verify_turn,
+    build_plan, enrich_profile_for_case, normalize_plan, replan_turn, rerank_profile,
+    verify_turn,
 )
 from pipeline.persona_history import generate_history, load_template
-from pipeline.persona_pool import FULL_PERSONA_POOL, load_profiles, retrieve
+from pipeline.persona_pool import (
+    FULL_PERSONA_POOL, PERSONA_CATEGORY_LABELS, load_profiles, retrieve,
+)
 
-GENERATION_VERSION = "qwen-lexi-history-v9-sample-enriched-persona"
+GENERATION_VERSION = "qwen-lexi-history-v10-coverage-desynthetic"
 
 
 def derived_case_seed(seed, case_id):
@@ -56,6 +59,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", type=Path, required=True)
     parser.add_argument("--profiles", type=Path, default=FULL_PERSONA_POOL)
+    parser.add_argument("--category-labels", type=Path, default=PERSONA_CATEGORY_LABELS)
     parser.add_argument("--generation-prompt", type=Path, required=True)
     parser.add_argument("--coverage-prompt", type=Path, required=True)
     parser.add_argument("--plans", type=Path,
@@ -95,11 +99,13 @@ def main():
         all_cases, args.start, args.stop, args.crisis_label, args.per_label,
         seed=args.seed,
     )]
-    profiles = load_profiles(args.profiles)
+    profiles = load_profiles(args.profiles, args.category_labels, require_labels=True)
     generation_template = load_template(args.generation_prompt)
     coverage_template = load_template(args.coverage_prompt)
     plans = load_plans(args.plans)
     profile_stat = args.profiles.stat()
+    category_labels_stat = args.category_labels.stat()
+    category_labels_sha256 = file_sha256(args.category_labels)
     fingerprint_payload = {
         "version": GENERATION_VERSION,
         "cases": str(args.cases.resolve()),
@@ -108,6 +114,10 @@ def main():
         "profiles_size": profile_stat.st_size,
         "profiles_mtime_ns": profile_stat.st_mtime_ns,
         "profiles_sha256": file_sha256(args.profiles),
+        "category_labels": str(args.category_labels.resolve()),
+        "category_labels_size": category_labels_stat.st_size,
+        "category_labels_mtime_ns": category_labels_stat.st_mtime_ns,
+        "category_labels_sha256": category_labels_sha256,
         "generation_prompt": generation_template.template,
         "coverage_prompt": coverage_template.template,
         "plans": (args.plans.read_text(encoding="utf-8") if args.plans else None),
@@ -173,11 +183,26 @@ def main():
                     profile=selected["profile"])
             diagnostics["profile_selection"] = selection_audit
             diagnostics["profile_enrichment"] = enrichment_audit
+            # The planner and Lexi must see a clean persona, not generation metadata.
+            # Keys like sample_adaptation (version/attempts/base_identity_continuity) or
+            # pool-enrichment provenance read as synthetic and can leak into the rendered
+            # dialogue, so they are stripped from the generation-facing profile while the
+            # saved record keeps the full enriched_profile for the audit/contract.
+            _GENERATION_META = {
+                "sample_adaptation", "pathology_provenance", "repaired_fields",
+                "communication_style_source", "base_identity_continuity", "enriched_for",
+                "category_reason", "category_label_version", "goal_category",
+            }
+            generation_profile = {k: v for k, v in enriched_profile.items()
+                                  if k not in _GENERATION_META}
             plan = plans.get(case_id)
-            if plan is None and not args.skip_qwen_planning:
-                plan = build_plan(complete_fn=qwen_complete, model=args.qwen_model,
-                                  case=case, profile=enriched_profile,
-                                  max_turns=args.max_turns)
+            if not args.skip_qwen_planning:
+                if plan is None:
+                    plan = build_plan(complete_fn=qwen_complete, model=args.qwen_model,
+                                      case=case, profile=generation_profile,
+                                      max_turns=args.max_turns)
+                else:
+                    plan = normalize_plan(plan, args.max_turns)
             plan = plan or {}
             diagnostics["qwen_plan"] = plan
             if not args.skip_qwen_planning:
@@ -206,14 +231,14 @@ def main():
                 )
             }
             context = {"goal": case["original_request"], "goal_pathology": goal_pathology,
-                       "persona_profile": enriched_profile,
+                       "persona_profile": generation_profile,
                        "micro_plans": plan.get("micro_plans", []), "qwen_plan": prompt_plan}
             verification = None if args.skip_qwen_planning else lambda micro_plan, history, state, turn: verify_turn(
                 complete_fn=qwen_complete, model=args.qwen_model, micro_plan=micro_plan,
                 history=history, prior_state=state, turn=turn)
             replanner = None if args.skip_qwen_planning else lambda turn_index, micro_plan, history, state, errors, coverage: replan_turn(
                 complete_fn=qwen_complete, model=args.qwen_model, case=case,
-                profile=enriched_profile, turn_index=turn_index,
+                profile=generation_profile, turn_index=turn_index,
                 micro_plan=micro_plan, history=history, prior_state=state,
                 errors=errors, prior_coverage=coverage)
             history, audits, stop_reason = generate_history(
@@ -241,11 +266,23 @@ def main():
                     f"goal_recoverable={audits[-1].get('goal_recoverable')}"
                 )
             final_state = history[-1]["persona_state"]
-            persona_text = (final_state if isinstance(final_state, str) else
-                            json.dumps(final_state, ensure_ascii=False, indent=2))
+            # Store the target-visible persona as natural narrative. The persona_state
+            # schema is {"summary": "..."}, so prefer that text; a raw JSON dump would
+            # read as machine-generated to the target model.
+            if isinstance(final_state, str):
+                persona_text = final_state
+            elif isinstance(final_state, dict):
+                summary = final_state.get("summary")
+                persona_text = (summary.strip() if isinstance(summary, str) and summary.strip()
+                                else json.dumps(final_state, ensure_ascii=False, indent=2))
+            else:
+                persona_text = json.dumps(final_state, ensure_ascii=False, indent=2)
+            # The current persona_state carries no recurring metaphor; emit an empty string
+            # rather than a "No recurring metaphor was generated." placeholder that the
+            # target would otherwise see on every case.
             metaphor = (final_state.get("metaphor", "") if isinstance(final_state, dict) else "")
             record = {**case, "persona": persona_text,
-                      "metaphor": metaphor or "No recurring metaphor was generated.",
+                      "metaphor": metaphor or "",
                       "persona_profile": enriched_profile,
                       "persona_history": history,
                       "persona_history_generation": {
@@ -256,6 +293,8 @@ def main():
                           "lexi_generation_calls": lexi_call_index,
                           "version": GENERATION_VERSION,
                           "fingerprint": generation_fingerprint,
+                          "category_labels_path": str(args.category_labels.resolve()),
+                          "category_labels_sha256": category_labels_sha256,
                           "retrieval_top_k": ranked,
                           "profile_selection": selection_audit,
                           "profile_enrichment": enrichment_audit,

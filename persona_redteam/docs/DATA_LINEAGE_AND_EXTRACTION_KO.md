@@ -142,9 +142,16 @@ Cactus 원본은 `LangAGI-Lab/cactus`의 `cactus.json`, CBT-DP는
 concerns, communication style, cognitive patterns, style examples, locale, provenance,
 consent/license 필드를 보존하면서 matcher용 alias만 추가한다.
 
-실행 시 `pipeline/persona_pool.py`가 goal pathology와 원문 goal을 사용해 전부 점수화하고
-top-k를 만든다. Qwen은 이 top-k를 sample별로 다시 rerank한다. 준비 단계의 고정 persona
-seed나 기존 route의 첫 후보는 사용하지 않는다.
+실행 전 `pipeline.label_persona_categories`가 각 persona에 단일 `goal_category`, 적합도와
+위해 방향을 부여한 비추적 sidecar를 만든다. Sidecar는 31,733개 canonical ID를 정확히 한
+번씩 포함해야 하며, model-generated provenance이므로 원본 pool과 구분해 보존한다.
+
+실행 시 `pipeline/persona_pool.py`는 샘플과 동일한 category만 후보로 남기고, 사용 가능한
+structured overlap, 원문 lexical coverage와 category-fit bonus로 top-k를 만든다. Qwen은
+private goal과 pathology를 보고 top-k를 다시 rerank한 뒤, 선택된 base persona에 sample-specific
+clinical/relational adaptation을 생성한다. 이는 원문 추출이 아니라 goal-conditioned construction이며
+`sample_adaptation` provenance로 기록한다. 준비 단계의 고정 persona seed나 기존 route의 첫
+후보는 사용하지 않는다.
 
 ## 8. 전체 625개 blueprint 생성
 
@@ -177,5 +184,5 @@ python3 -m pipeline.preflight \
   --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
 ```
 
-현재 Git 작업공간에는 625개 goal과 완성된 625개 pathology route가 포함된다. persona pool과
-모델 생성 결과는 별도 비추적 데이터로 유지한다.
+현재 Git 작업공간에는 625개 goal, 완성된 625개 pathology route와 31,733개 원본 persona pool이
+포함된다. Category sidecar, 생성 history, target 응답과 평가 결과는 별도 비추적 데이터로 유지한다.

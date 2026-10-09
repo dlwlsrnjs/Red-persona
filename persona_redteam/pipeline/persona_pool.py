@@ -23,18 +23,42 @@ CATEGORIES = {
     "anxiety_crisis", "risk_taking_behaviours", "self-harm",
     "substance_abuse_or_withdrawal", "suicidal_ideation", "violent_thoughts",
 }
+CATEGORY_LABEL_VERSION = "qwen-persona-category-v1"
+VALID_CATEGORY_FITS = {"direct", "adjacent", "weak"}
+VALID_HARM_DIRECTIONS = {"desire", "enacted", "fear", "historical", "none"}
 
 
-def load_profiles(path, labels_path=None):
+def load_profiles(path, labels_path=None, *, require_labels=False):
+    profile_path = Path(path)
     labels_path = Path(labels_path or PERSONA_CATEGORY_LABELS)
     labels = {}
-    if labels_path.exists() and labels_path.resolve() != Path(path).resolve():
-        for line in labels_path.read_text(encoding="utf-8").splitlines():
+    if labels_path.resolve() != profile_path.resolve():
+        if require_labels and not labels_path.exists():
+            raise FileNotFoundError(
+                f"required persona category sidecar is missing: {labels_path}"
+            )
+        for line_number, line in enumerate(
+                labels_path.read_text(encoding="utf-8").splitlines()
+                if labels_path.exists() else [], 1):
             if line.strip():
                 row = json.loads(line)
-                labels[str(row["persona_id"])] = row
+                persona_id = str(row.get("persona_id", "")).strip()
+                if not persona_id:
+                    raise ValueError(f"{labels_path}:{line_number}: missing persona_id")
+                if persona_id in labels:
+                    raise ValueError(f"{labels_path}:{line_number}: duplicate persona_id={persona_id}")
+                if row.get("goal_category") not in CATEGORIES:
+                    raise ValueError(f"{labels_path}:{line_number}: invalid goal_category")
+                if row.get("category_fit") not in VALID_CATEGORY_FITS:
+                    raise ValueError(f"{labels_path}:{line_number}: invalid category_fit")
+                if row.get("harm_direction") not in VALID_HARM_DIRECTIONS:
+                    raise ValueError(f"{labels_path}:{line_number}: invalid harm_direction")
+                if row.get("category_label_version") != CATEGORY_LABEL_VERSION:
+                    raise ValueError(f"{labels_path}:{line_number}: stale category label version")
+                labels[persona_id] = row
     profiles = []
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
+    profile_ids = set()
+    for line_number, line in enumerate(profile_path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
             continue
         profile = json.loads(line)
@@ -44,9 +68,24 @@ def load_profiles(path, labels_path=None):
         profile.setdefault("cognitive_distortions", profile.get("cognitive_patterns", []))
         profile.setdefault("source", profile.get("provenance", "unknown"))
         profile.setdefault("goal_category", profile.get("persona_category"))
-        if str(profile["persona_id"]) in labels:
-            profile.update(labels[str(profile["persona_id"])])
+        persona_id = str(profile.get("persona_id", "")).strip()
+        if not persona_id:
+            raise ValueError(f"{profile_path}:{line_number}: missing persona_id")
+        if persona_id in profile_ids:
+            raise ValueError(f"{profile_path}:{line_number}: duplicate persona_id={persona_id}")
+        profile_ids.add(persona_id)
+        if persona_id in labels:
+            profile.update(labels[persona_id])
         profiles.append(profile)
+    if require_labels:
+        missing = profile_ids - set(labels)
+        extra = set(labels) - profile_ids
+        if missing or extra:
+            raise ValueError(
+                "persona category sidecar must match the full pool exactly: "
+                f"profiles={len(profile_ids)}, labels={len(labels)}, "
+                f"missing={len(missing)}, extra={len(extra)}"
+            )
     return profiles
 
 

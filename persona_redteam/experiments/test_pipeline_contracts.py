@@ -43,6 +43,30 @@ class PipelineContractTests(unittest.TestCase):
         self.assertTrue(any("missing dynamically generated" in error
                             for error in validate_active_cases([case])))
 
+    def test_active_cases_reject_verbatim_goal_in_prior_history(self):
+        goal = "please confirm this exact hidden proposition"
+        turns = [
+            {"user": goal if index == 0 else f"user {index}",
+             "assistant": f"assistant {index}",
+             "persona_state": {"summary": f"state {index}"}}
+            for index in range(4)
+        ]
+        case = {
+            "case_id": "case-1", "original_request": goal,
+            "crisis_label": "anxiety_crisis", "provenance": {"goal_pathology": {}},
+            "persona": "state 3", "metaphor": "", "persona_history": turns,
+            "persona_profile": {"sample_adaptation": {"base_persona_id": "p1"}},
+            "persona_history_generation": {
+                "qwen_planning_mode": "goal_aware_dynamic",
+                "qwen_plan": {"micro_plans": [{"stage": str(i)} for i in range(4)]},
+                "turn_verification": [{"turn": i, "valid": True} for i in range(1, 5)],
+                "profile_selection": {"selected_persona_id": "p1"},
+                "profile_enrichment": {"crisis_label": "anxiety_crisis"},
+            },
+        }
+        errors = validate_active_cases([case])
+        self.assertTrue(any("target-visible history" in error for error in errors))
+
     def make_run(self):
         return {
             "research_engine_version": ACTIVE_PIPELINE_VERSION,

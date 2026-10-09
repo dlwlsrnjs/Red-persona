@@ -67,6 +67,7 @@ cp configs/persona_history/coverage_prompt.template.txt prompts/my_coverage.txt
 python3 -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
   --profiles ../data/personas/personas.jsonl \
+  --category-labels ../data/personas/persona_category_labels.jsonl \
   --generation-prompt prompts/my_generation.txt \
   --coverage-prompt prompts/my_coverage.txt \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \
@@ -82,12 +83,13 @@ python3 -m pipeline.generate_histories \
 
 템플릿 치환은 Python `$변수` 문법을 쓴다. 프롬프트 본문에서 달러 기호 자체가 필요하면
 `$$`로 쓴다. 생성 출력은 `user`, `assistant`, `persona_state`, coverage 출력은
-`sufficient`, `missing`, `reason` JSON 계약을 지켜야 한다.
+`sufficient`, `covered_goal_atoms`, `missing_goal_atoms`, `persona_grounded`,
+`goal_recoverable`, `reason` JSON 계약을 지켜야 한다.
 Qwen 계획을 `--plans`로 주면 각 턴의 `$current_micro_plan_json`, `$stage`와 직전
 누적 상태인 `$current_persona_state_json`이 두 템플릿에 같이 전달된다. 활성 모델 프롬프트와
 새로 생성하는 대화·상태 데이터는 영어로 작성한다.
 
-Qwen은 private goal을 3–8개의 canonical `G1..Gn` 정보 atom으로 분해한다. 각 micro-plan은
+Qwen은 private goal을 3–4개의 canonical `G1..Gn` 비중복 정보 atom으로 분해한다. 각 micro-plan은
 구현할 atom을 지정하며, coverage는 모든 atom이 선택 persona와 누적 대화에서 복원 가능한지
 결정적으로 대조한다. 최소 4턴 이후 충분하면 종료하고, 부족하면 다음 plan을 동적으로
 재작성해 최대 12턴까지 진행한다. 12턴에도 복원성이 부족한 사례는 성공으로 넘기지 않고

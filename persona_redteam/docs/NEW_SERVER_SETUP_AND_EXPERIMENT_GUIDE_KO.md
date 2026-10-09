@@ -101,10 +101,9 @@ export OPENAI_API_KEY='새로 발급한 키'
 명령행에 직접 쓰지 말고 각 CLI login 또는 환경의 secret manager를 사용한다. 이전 채팅에
 노출된 토큰은 재사용하지 말고 폐기한다.
 
-## 5. 비추적 데이터 복사와 배치
+## 5. 입력 데이터와 생성 sidecar
 
-Git에는 원문 goal, route, persona pool이 포함되지 않는다. 기존 서버에서 안전한 전송 수단으로
-아래 세 파일을 복사해야 한다.
+Git에는 다음 세 canonical 입력이 포함된다.
 
 ```text
 persona_redteam/
@@ -129,6 +128,17 @@ export PERSONA_POOL_PATH=/absolute/path/to/personas.jsonl
 
 `pipeline.persona_pool`은 이 환경변수를 우선하고, 없으면
 `../data/personas/personas.jsonl`을 사용한다.
+
+다음 category sidecar는 모델 생성 산출물이므로 Git에 포함되지 않는다.
+
+```text
+../data/personas/persona_category_labels.jsonl
+```
+
+새 서버에서는 `pipeline.label_persona_categories`로 31,733개 라벨을 생성하거나, 동일 model
+revision과 labeler version으로 만든 완성 sidecar를 안전하게 복사한다. 전체 ID가 정확히 한 번씩
+존재하지 않으면 `pipeline.generate_histories`가 시작되지 않는다. 상세 명령은
+`JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md` 2절을 따른다.
 
 두 핵심 historical payload는 다음 checksum과 일치해야 한다.
 
@@ -400,6 +410,7 @@ profile reranking과 turn verification은 실행된다. `--skip-qwen-planning`�
 python -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
   --profiles "${PERSONA_POOL_PATH:-../data/personas/personas.jsonl}" \
+  --category-labels ../data/personas/persona_category_labels.jsonl \
   --generation-prompt prompts/persona_history_generation.txt \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
@@ -408,7 +419,7 @@ python -m pipeline.generate_histories \
   --qwen-base-url http://127.0.0.1:8000/v1 \
   --top-k 12 \
   --min-turns 4 \
-  --max-turns 8 \
+  --max-turns 12 \
   --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
@@ -440,7 +451,7 @@ goal, pathology, profile 전체 내용으로 다시 평가해 최종 profile을 
     "qwen_planning_mode": "goal_aware_dynamic",
     "persona_generation_status": "complete",
     "min_turns": 4,
-    "max_turns": 8
+    "max_turns": 12
   }
 }
 ```
@@ -647,7 +658,7 @@ PY
 | `pipeline/contracts.py` | 단계별 필수 field, 3x8 matrix, candidate-only CARES 계약 |
 | `pipeline/persona_pool.py` | 31,733 profile 로딩과 결정적 top-k 검색 |
 | `pipeline/persona_history.py` | template 치환, JSON parsing, turn/coverage 검증, 동적 종료 |
-| `pipeline/history_planning.py` | Qwen profile reranking, 최대 8단계 plan, turn 검증 계약 |
+| `pipeline/history_planning.py` | Qwen profile reranking, 3–4개 goal atom 기반 최대 12턴 plan, turn 검증 계약 |
 | `pipeline/runtime_io.py` | OpenAI-compatible chat HTTP 호출과 원자적 JSON 저장 |
 | `experiments/prepare_jmir_persona_eval.py` | `status`, `merge`, `adapt` 실제 구현 |
 | `experiments/qwen_target_persona_research_dialogue.py` | Qwen 질문, target 누적 context, 3조건, 8 branch, candidate 분리 |

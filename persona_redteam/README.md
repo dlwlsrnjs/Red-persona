@@ -25,7 +25,10 @@ Qwen target 공식 500개의 모델 revision, 7-GPU shard, 질문 provenance, �
 [`docs/QWEN_TARGET_500_RUN_AUDIT_KO.md`](docs/QWEN_TARGET_500_RUN_AUDIT_KO.md)에 고정했다.
 누적 target 발화를 hidden goal과 연결해 final question에 활용하는 후속 JARGON-style readout은
 [`docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md`](docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md)에 별도
-protocol로 기록했다.
+protocol로 기록했다. 수정 전후 final prompt만 바꾼 공식 500개 ablation, 대화 없음 비교,
+CARES harmful-level 주석과 Safety Score는
+[`ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`](ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md)에
+고정했다.
 
 ## 활성 흐름
 

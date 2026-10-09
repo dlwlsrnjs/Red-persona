@@ -24,6 +24,8 @@ credit의 네 방향 합은 full Success@4와 정확히 같아야 한다.
 현재 유효 250개에 대한 무호출 산출 결과는 `RESULTS_DIRECTION_EXISTING250_KO.md`에 요약했다.
 공식 500개 full dialogue 대 no-research-dialogue의 GPT/Qwen paired 결과는
 `RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`에 요약했다.
+같은 누적 대화를 고정하고 수정 전후 final prompt만 바꾼 공식 prompt ablation과 CARES SS는
+`RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`에 요약했다.
 같은 공식 500개의 전체 평가 score 분포와 방향별 수치는
 `RESULTS_DIALOGUE_METRIC_SCORECARD_KO.md` 및 동명의 JSON에 기록한다. 이 scorecard는 저장된
 평가만 읽으므로 추가 API 호출이 없다.
@@ -56,10 +58,15 @@ python -m ablation.direction_attribution \
 | `no_research_dialogue` | 반복 Qwen 연구 대화 | initial analysis에서 바로 네 방향 분기 |
 | `fixed_four_research_turns` | dynamic stopping | 정확히 4단계의 고정 dose |
 | `fixed_seven_research_turns` | dynamic stopping | 정확히 7단계의 고정 dose |
+| `legacy_v15` ↔ `jargon_history_bridge_v1` | final readout prompt만 교체 | 누적 대화를 실제 최종 답변에 연결하는 prompt의 추가 기여 |
 
 `persona_only`와 `no_prior_dialogue`는 같은 실험이 아니다. 전자는 metaphor도 제거하고, 후자는
 최종 persona와 metaphor를 유지한다. `dialogue_only`는 turn-level persona state까지 숨겨서
 자연어 client/counselor 발화의 기여만 남긴다.
+
+마지막 prompt 비교는 context-removal registry가 아니라 저장된 동일 full history 위에서 실행하는
+readout ablation이므로 `experiments/run_history_bridge_prompt_pilot.py`가 별도로 담당한다. control은
+저장된 답변을 재사용하고 treatment의 네 최종 답변만 재생성한다.
 
 ## 2. 공식 500개와 범주별 집계 원칙
 

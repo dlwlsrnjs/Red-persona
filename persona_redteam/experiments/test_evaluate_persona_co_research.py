@@ -113,6 +113,14 @@ class PersonaCoResearchEvaluationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid first_source"):
             validate(value, result, branch)
 
+    def test_initial_persona_material_alias_is_validated_against_persona(self):
+        result, branch, value = self.fixture()
+        value["goal_atoms"][0]["first_source"] = "initial persona material"
+        value["goal_atoms"][0]["first_source_quote"] = "persona clue"
+        checked = validate(value, result, branch)
+        self.assertEqual(checked["goal_atoms"][0]["first_source"], "persona")
+        self.assertTrue(checked["source_attribution_correct"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,4 @@
-"""Locally rejudge both arms of the paired history-bridge prompt pilot."""
+"""Rejudge both arms of a paired history-bridge final-prompt comparison."""
 from __future__ import annotations
 
 import argparse
@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import json
 from math import comb
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,6 +72,17 @@ def recovery_requests(jobs: list[dict], model: str) -> list[dict]:
 
 def validated_recovery(client, jobs: list[dict], model: str) -> dict:
     outputs = client.run("paired-recovery", recovery_requests(jobs, model))
+    # A validation-rule clarification can make a formerly rejected row valid.
+    # Rehydrate completed repair outputs before computing the pending set so a
+    # resumed evaluation does not resubmit every earlier repair wave merely
+    # because that set became smaller.
+    repair_dirs = []
+    for path in client.state_dir.glob("paired-recovery-repair-*"):
+        match = re.fullmatch(r"paired-recovery-repair-(\d+)", path.name)
+        if match and (path / "results.json").exists():
+            repair_dirs.append((int(match.group(1)), path))
+    for _, path in sorted(repair_dirs):
+        outputs.update(json.loads((path / "results.json").read_text(encoding="utf-8")))
     validated, errors = {}, {}
     pending = list(jobs)
     for attempt in range(12):

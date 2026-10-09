@@ -143,7 +143,9 @@ XSTest는 민감한 단어가 있다는 이유만으로 안전한 요청까지 �
 평가했다([논문](https://aclanthology.org/2024.naacl-long.301/)). RED-Persona의 custom B-level은
 위험한 확인·정당화·실행을 측정하고, CARES 3분류는 `Accept`, `Caution`, `Refuse`를 따로
 관찰한다. 단, 현 250개에는 CARES의 사전 `harmful_level` 주석이 없어 공식 Safety Score,
-accuracy, F1은 계산하지 않는다.
+accuracy, F1은 계산하지 않았다. 이후 공식 500개에는 응답과 실험 arm을 가린 원 요청만으로
+이중 model-assisted harmful-level 주석과 disagreement adjudication을 추가했으며, 이 후속 SS는
+CARES 원 데이터의 인간 ground truth와 구분해 보고한다.
 
 ## 4. 전체 방법 개요
 
@@ -534,9 +536,13 @@ recovery는 “가설을 받았을 때 목표를 올바르게 다루는가”를
 - `Accept@4 = 네 방향 중 하나 이상 Accept`
 - 사전 `harmful_level ∈ {0,1,2,3}`가 없으면 Safety Score는 계산하지 않음
 
-현 데이터는 harmful level을 사전 주석하지 않았기 때문에 CARES label 분포는 보고할 수
-있지만 Safety Score, binary accuracy, F1은 `null`이다. crisis category에서 harmful level을
-임의 추론하지 않는다.
+초기 250개 분석 당시에는 harmful level이 없어 CARES label 분포만 보고했고 Safety Score,
+binary accuracy, F1은 `null`이었다. 후속 공식 500개 분석에서는 `original_request`만 보는 두
+독립 모델이 CARES rubric으로 level을 주석하고 불일치를 별도 adjudication했다. 정확 일치율은
+91.2%(456/500), quadratic weighted κ는 0.7253, 최종 level 0/1/2/3 분포는
+442/13/45/0이었다. 이 주석은 response label이나 crisis category에서 역추론하지 않았지만,
+인간 ground truth가 아닌 model-assisted annotation이라는 제한이 있다. final-prompt ablation의
+SS 결과와 전체 label은 `ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`에 보고한다.
 
 ### 11.4 Success@4
 
@@ -857,7 +863,8 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 7. **확률적 재현성:** target과 Qwen 생성은 동일 prompt에서도 완전히 같은 문자열을 보장하지
    않는다. snapshot, prompt, schema 수준의 재현을 목표로 한다.
 8. **누출 검사의 한계:** literal n-gram과 provenance judge로 모든 의미적 주입을 탐지할 수 없다.
-9. **CARES Safety Score 부재:** harmful level 사전 주석이 없어 label 외 공식 종합 점수는 없다.
+9. **CARES harmful-level 주석:** 후속 SS는 blind dual-model annotation과 adjudication을
+   사용했으며, CARES 원 데이터의 인간 ground truth가 아니다.
 10. **선택 편향:** 생성·누출 실패 사례 제외가 특정 언어 구조나 범주에 편향될 수 있다.
 11. **임상 유효성 부재:** 본 실험은 상담 효능, 진단 정확도, 실제 위기 개입의 임상적 안전성을
     입증하지 않는다.
@@ -877,6 +884,9 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 중복·누출·계약 검사, neutral full/no-dialogue paired contrast, exact McNemar, micro와
 equal-category macro 보고, 두 target arm 실행.
 
+후속 완료: 동일 full history에서 수정 전/후 final prompt만 바꾼 공식 500개 ablation,
+no-dialogue final-response CARES 재사용 비교, 500개 blind harmful-level 주석, CARES Safety Score.
+
 남음:
 
 1. Success@4와 branch-level rate의 Wilson interval을 최종 표에 추가
@@ -884,7 +894,7 @@ equal-category macro 보고, 두 target arm 실행.
 3. 희소 범주에 대한 과도한 해석 제한 또는 계층적 model 사용
 4. human blind annotation subset으로 R/B/CARES judge agreement 확인
 5. goal-blind history 또는 non-personalized control 추가 검토
-6. harmful level을 독립 사전 주석할 경우에만 CARES Safety Score 보고
+6. harmful-level model annotation의 층화 human blind validation
 
 ## 22. 논문 본문에 사용할 수 있는 짧은 Methods 문단
 

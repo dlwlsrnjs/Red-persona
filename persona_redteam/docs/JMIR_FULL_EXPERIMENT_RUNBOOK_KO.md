@@ -42,6 +42,9 @@ python3 -m pipeline.label_persona_categories \
   --batch-size 5 --workers 16 --attempts 3 --retry-failed
 ```
 
+기존 partial JSONL만 있고 checkpoint가 없다면 `--resume-from <partial.jsonl>`을 추가한다.
+완료된 행은 파일 순서와 무관하게 `persona_id`로 검증·재사용하고 누락된 persona만 생성한다.
+
 명령은 일부 batch가 실패하면 non-zero로 종료한다. `--retry-failed`로 재실행해 최종 summary의
 `complete=31733`, `failed=0`을 확인한다. Partial sidecar로 history 생성을 시작할 수 없다.
 

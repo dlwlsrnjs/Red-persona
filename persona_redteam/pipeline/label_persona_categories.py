@@ -53,12 +53,22 @@ def validate(batch, value):
         raise ValueError("assignments must preserve batch length")
     expected = [str(profile["persona_id"]) for profile in batch]
     if [str(row.get("persona_id")) for row in rows] != expected:
-        raise ValueError("assignments must preserve persona order and IDs")
+        # A single-item response has no alignment ambiguity. Qwen occasionally
+        # mutates a character in long Cactus IDs, so bind the classification to
+        # the requested profile instead of discarding an otherwise valid label.
+        if len(batch) == 1:
+            rows[0]["persona_id"] = expected[0]
+        else:
+            raise ValueError("assignments must preserve persona order and IDs")
     for row in rows:
         if row.get("goal_category") not in CATEGORIES:
             raise ValueError("invalid goal_category")
-        if row.get("category_fit") not in {"direct", "adjacent", "weak"}:
+        fit = str(row.get("category_fit", "")).strip().casefold()
+        fit = {"strong": "direct", "moderate": "adjacent", "none": "weak"}.get(
+            fit, fit)
+        if fit not in {"direct", "adjacent", "weak"}:
             raise ValueError("invalid category_fit")
+        row["category_fit"] = fit
         if row.get("harm_direction") not in {
                 "desire", "enacted", "fear", "historical", "none"}:
             raise ValueError("invalid harm_direction")
@@ -99,10 +109,48 @@ def write_jsonl(path, rows):
     temporary.replace(path)
 
 
+def load_existing_labels(path, profiles):
+    """Load a validated ID-keyed label cache without depending on batch order."""
+    if path is None or not Path(path).exists():
+        return {}
+    profile_ids = {str(profile["persona_id"]) for profile in profiles}
+    rows = {}
+    for line_number, line in enumerate(
+            Path(path).read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        persona_id = str(row.get("persona_id", "")).strip()
+        if persona_id not in profile_ids:
+            raise ValueError(f"{path}:{line_number}: unknown persona_id={persona_id!r}")
+        if persona_id in rows:
+            raise ValueError(f"{path}:{line_number}: duplicate persona_id={persona_id}")
+        if row.get("goal_category") not in CATEGORIES:
+            raise ValueError(f"{path}:{line_number}: invalid goal_category")
+        if row.get("category_fit") not in {"direct", "adjacent", "weak"}:
+            raise ValueError(f"{path}:{line_number}: invalid category_fit")
+        if row.get("harm_direction") not in {
+                "desire", "enacted", "fear", "historical", "none"}:
+            raise ValueError(f"{path}:{line_number}: invalid harm_direction")
+        if row.get("category_label_version") != VERSION:
+            raise ValueError(f"{path}:{line_number}: stale category_label_version")
+        rows[persona_id] = {
+            "persona_id": persona_id,
+            "goal_category": row["goal_category"],
+            "category_fit": row["category_fit"],
+            "harm_direction": row["harm_direction"],
+            "category_reason": str(row.get("category_reason", "")).strip(),
+            "category_label_version": VERSION,
+        }
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--resume-from", type=Path,
+                        help="Validated prior JSONL labels to reuse by persona_id")
     parser.add_argument("--checkpoint-dir", type=Path, required=True)
     parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000/v1")
@@ -114,9 +162,12 @@ def main():
     # Category generation must always start from the raw pool, never from a stale
     # sidecar that happens to exist at the default path.
     profiles = load_profiles(args.input, labels_path=args.input)
+    existing = load_existing_labels(args.resume_from, profiles)
+    remaining = [profile for profile in profiles
+                 if str(profile["persona_id"]) not in existing]
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    batches = [profiles[index:index + args.batch_size]
-               for index in range(0, len(profiles), args.batch_size)]
+    batches = [remaining[index:index + args.batch_size]
+               for index in range(0, len(remaining), args.batch_size)]
     completed = {}
     pending = []
     for index, batch in enumerate(batches):
@@ -142,6 +193,9 @@ def main():
                 completed[index] = rows
                 atomic_json(args.checkpoint_dir / f"batch-{index:05d}.json",
                             {"version": VERSION, "batch_index": index, "assignments": rows})
+                failed_path = args.checkpoint_dir / f"batch-{index:05d}.failed.json"
+                if failed_path.exists():
+                    failed_path.unlink()
             except Exception as exc:
                 failed_indices.append(index)
                 atomic_json(args.checkpoint_dir / f"batch-{index:05d}.failed.json",
@@ -151,16 +205,20 @@ def main():
                 print(json.dumps({"batches_this_run": count, "batches_complete": len(completed),
                                   "batches_total": len(batches),
                                   "failed_this_run": len(failed_indices)}), flush=True)
-    labelled = []
+    generated = []
     for index, batch in enumerate(batches):
         if index not in completed:
             continue
-        labelled.extend(completed[index])
+        generated.extend(completed[index])
+    merged = {**existing, **{str(row["persona_id"]): row for row in generated}}
+    labelled = [merged[str(profile["persona_id"])] for profile in profiles
+                if str(profile["persona_id"]) in merged]
     write_jsonl(args.output, labelled)
     counts = {category: sum(row["goal_category"] == category for row in labelled)
               for category in sorted(CATEGORIES)}
     summary = {"version": VERSION, "total": len(profiles), "complete": len(labelled),
                "failed": len(profiles) - len(labelled), "category_counts": counts,
+               "resumed": len(existing), "generated": len(generated),
                "batch_size": args.batch_size, "workers": args.workers,
                "output": str(args.output)}
     atomic_json(args.checkpoint_dir / "summary.json", summary)

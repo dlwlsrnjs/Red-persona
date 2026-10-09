@@ -8,6 +8,9 @@ from pipeline.history_planning import (
 )
 from pipeline.persona_pool import load_profiles, retrieve
 from pipeline.generate_histories import derived_case_seed
+from pipeline.label_persona_categories import (
+    load_existing_labels, validate as validate_category_assignments,
+)
 
 
 class PersonaHistoryPipelineTests(unittest.TestCase):
@@ -159,6 +162,32 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "duplicate persona_id"):
                 load_profiles(pool, labels, require_labels=True)
+
+    def test_category_label_resume_is_id_keyed_and_validated(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            labels = Path(directory) / "partial.jsonl"
+            labels.write_text(json.dumps({
+                "persona_id": "p2", "goal_category": "anxiety_crisis",
+                "category_fit": "direct", "harm_direction": "fear",
+                "category_reason": "evidence", "category_label_version":
+                "qwen-persona-category-v1",
+            }) + "\n", encoding="utf-8")
+            rows = load_existing_labels(
+                labels, [{"persona_id": "p1"}, {"persona_id": "p2"}])
+        self.assertEqual(list(rows), ["p2"])
+        self.assertEqual(rows["p2"]["category_reason"], "evidence")
+
+    def test_single_category_assignment_binds_exact_id_and_normalizes_fit(self):
+        rows = validate_category_assignments(
+            [{"persona_id": "cactus-exact-id"}],
+            [{"persona_id": "cactus-mutated-id", "goal_category": "anxiety_crisis",
+              "category_fit": "strong", "harm_direction": "fear",
+              "reason": "clear anxiety evidence"}],
+        )
+        self.assertEqual(rows[0]["persona_id"], "cactus-exact-id")
+        self.assertEqual(rows[0]["category_fit"], "direct")
 
     def test_retrieval_prefers_matching_profile(self):
         goal = {"symptoms": ["anxiety"], "cognitive_distortions": ["catastrophizing"]}

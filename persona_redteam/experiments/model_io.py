@@ -24,7 +24,8 @@ def is_reasoning(model: str) -> bool:
     return model.startswith('gpt-5') or model.startswith('o1') or model.startswith('o3') or model.startswith('o4')
 
 
-def respond(model, messages, base=OPENAI_BASE, max_out=900, reasoning_budget=6000):
+def respond(model, messages, base=OPENAI_BASE, max_out=900, reasoning_budget=6000,
+            temperature=0):
     """Return {'text','model','finish_reason','usage'} or raise. Picks parameters by model."""
     local = urlparse(base).hostname in ('localhost', '127.0.0.1', '::1')
     body = {'model': model, 'messages': messages}
@@ -32,7 +33,7 @@ def respond(model, messages, base=OPENAI_BASE, max_out=900, reasoning_budget=600
         body['max_completion_tokens'] = max(max_out, reasoning_budget)
     else:
         body['max_tokens'] = max_out
-        body['temperature'] = 0
+        body['temperature'] = temperature
     req = urllib.request.Request(base.rstrip('/') + '/chat/completions',
         data=json.dumps(body, ensure_ascii=False).encode(), method='POST',
         headers={'Content-Type': 'application/json',

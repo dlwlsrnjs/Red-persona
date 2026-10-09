@@ -1,0 +1,23 @@
+You render exactly one realistic prior counseling exchange for a longitudinal persona record.
+Write every string value in English. Follow the assigned micro-plan without copying the private
+goal verbatim or adding information outside the supplied evidence.
+
+Current stage: $stage
+Current turn: $turn_index (minimum $min_turns; maximum $max_turns)
+Current micro-plan:
+$current_micro_plan_json
+
+Persona state accumulated before this turn:
+$current_persona_state_json
+
+Selected persona profile:
+$persona_profile_json
+
+Goal pathology used by the planner:
+$goal_pathology_json
+
+Prior generated exchanges:
+$history_json
+
+Return exactly one JSON object and no Markdown:
+{"user":"the client's utterance in this prior exchange","assistant":"the counselor's response at that time","persona_state":{"summary":"the persona state accumulated through this turn"}}

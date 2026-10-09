@@ -1,169 +1,48 @@
-# 현재 작업 진행 상황과 막힌 지점
+# 현재 진행 상황과 남은 작업
 
 기준일: 2026-10-09
 
-## 지금까지 완료한 것
+## 활성 구조
 
-### 1. 전체 실험 흐름 확정
+```text
+JMIR goal/pathology 100개
+→ 전체 persona pool 31,733개 동적 검색
+→ Qwen 의미 계획 + Lexi 턴별 과거 대화
+→ 누적 persona_state/persona_history
+→ goal-aware Qwen–target 연구
+→ 8개 독립 분기
+→ candidate/analysis 분리
+→ GPT 및 candidate-only CARES 평가
+```
 
-현재 활성 흐름은 다음과 같다.
+## 데이터 상태
 
-1. goal과 연결된 페르소나 및 메타포를 타겟 모델에 제공한다.
-2. Qwen 2.5 7B Instruct가 비공개 goal을 참고해 다음 분석 질문을 선택한다.
-3. 타겟 모델은 goal 원문을 받지 않고 페르소나와 자신의 이전 답변만으로 분석한다.
-4. 자기개념, 상대에게 기대하는 반응, 잠재 요청을 순서대로 추론한다.
-5. 동일한 공통 대화 이력을 복제해 8개의 독립 분기로 나눈다.
-6. 각 분기에서 타겟이 잠재 요청을 자기 문장으로 재구성한다.
-7. 같은 분기에서 한 턴을 더 진행해 분석 결과를 실제 답변 형식으로 전환한다.
+- 고정 blueprint, matched row, 활성 case: 각각 100개
+- 전체 pool: Cactus 31,577 + CBT-DP 156 = 31,733개
+- 전체 pool: `/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl`
+- 24개 축소 profile은 과거 복구 provenance이며 새 실행 기본값이 아니다.
 
-Qwen 질문, 타겟 답변, 최초 페르소나와 발화자 역할은 마지막 호출까지 전부 유지한다.
+## 완료
 
-### 2. Qwen 질문 생성 방식 정리
+- 전체 pool 스키마 정규화와 goal 원문 기반 검색
+- Qwen top-k 의미 재선택과 4단계 micro-plan 파일럿
+- Lexi JSON 파싱·재시도·중복 차단·구조화 persona state
+- 생성된 전체 history를 target 최초 컨텍스트에 연결
+- 3조건 Qwen–target 연구, 8분기, candidate/analysis 분리
+- candidate-only CARES, workers 256, checkpoint/resume, preflight
 
-- Qwen은 JSON을 생성하지 않는다.
-- 단계별로 검증된 질문 후보 두 개 중 `FIRST` 또는 `SECOND`만 출력한다.
-- controller가 선택 결과를 실제 평문 질문으로 바꿔 타겟 모델에 전달한다.
-- Neutral, Structural hint, Oracle hint 세 조건을 독립적으로 실행한다.
-- Neutral과 Structural hint에서는 goal 문구가 Qwen 질문에 들어가지 않도록 검사한다.
-- 선택 실패 시 등록된 질문으로 되돌아가는 fallback이 구현되어 있다.
+## 남은 작업
 
-### 3. 마지막 8개 분기 구현
+- staged Qwen–Lexi 파일럿을 정식 `pipeline.generate_histories` backend로 통합
+- `state_delta` 병합과 단계별 Qwen verifier 추가
+- Qwen–target 연구 대화를 고정 8턴에서 최소 4턴 이후 coverage 기반 가변 종료로 변경
+- anxiety 5개 품질 파일럿 후 100개 history 생성
+- 생성 결과 preflight 후 본 target batch와 평가 실행
 
-현재 8개 방향은 다음과 같다.
+## 최근 확인
 
-1. 잠재 요청 한 문장 합성
-2. 관찰에서 요청까지의 근거 사슬
-3. 기대하는 발화 행위 분류
-4. 메타포에서 요청으로 역추적
-5. 관계적 기능 분석
-6. 대안 가설과 반례 비교
-7. 분석자에게서 듣고 싶은 판단 추론
-8. 발화자 출처를 포함한 재구성
+`jmir-eval-003`에서 24개 pool은 무관한 애완동물 self-schema를 골랐지만, 전체 pool은
+실직·기술 부족·경력 전환 불안을 가진 `cactus-24521-1a932d0c4fe5`를 선택했다.
+전체 pool 검색은 약 4.3초였고 테스트는 69개 통과, 환경 의존 1개 skip이다.
 
-각 분기는 다른 분기의 질문과 답변을 보지 않는다. 각 분기에는 재구성 답변 뒤 실제 답변
-형식으로 전환하는 후속 질문이 추가되어 있다. 사례 단위 결과는 8개 중 하나의 유효 성공을
-기준으로 집계할 수 있다.
-
-### 4. 병렬 실행 구현
-
-- 타겟 API 기본 worker는 생성과 평가 모두 `48`이다.
-- 3개 조건의 중간 타겟 호출은 라운드별로 병렬 실행한다.
-- 마지막 3조건 × 8분기, 총 24개 타겟 호출은 한 번에 병렬 실행한다.
-- 후속 실제 답변 24개도 동일하게 병렬 실행한다.
-- Qwen 질문은 GPU 배치로 생성한다.
-- GPU 여유 메모리가 충분하면 batch 24, 부족하면 micro-batch 4를 사용한다.
-- 단일 조건 실행에서도 `--target-workers`가 적용되도록 수정했다.
-
-### 5. 평가 코드 분리
-
-한 분기에는 타겟 답변이 두 개 있으므로 평가 입력도 분리했다.
-
-- 잠재 요청 복원 점수는 첫 번째 분석 답변에서 계산한다.
-- 실제 답변 형식의 결과는 두 번째 답변에서 별도로 계산한다.
-- goal 내용이 Qwen 질문에서 먼저 나왔는지, 타겟 답변에서 먼저 나왔는지 기록한다.
-- 8개 분기별 결과와 사례 단위 `Success@8`을 함께 저장한다.
-- 평가 API 기본 worker는 `48`이다.
-
-### 6. 지금까지 실행한 파일럿
-
-- GPT-4o와 GPT-4o-mini에 1개 사례의 3조건 × 8분기 분석 파일럿을 실행했다.
-- 두 모델 모두 Structural hint에서 가장 높은 target-originated 복원을 보였다.
-- 이전 분석 파일럿에서 GPT-4o Structural은 3/8, GPT-4o-mini Structural은 5/8이었다.
-- 실제 답변 후속 턴을 추가한 최신 GPT-4o-mini 파일럿에서도 Structural이 5/8이었다.
-- Qwen selector fallback은 기존 두 모델 파일럿에서 0건이었다.
-- 100개 전체 결과로 일반화할 단계는 아직 아니다.
-
-### 7. 100개 평가셋 생성
-
-`experiments/fixtures/jmir_persona_eval_set_100.jsonl`에 JMIR goal 100개를 고정 seed로
-선정했다.
-
-- 전체 행: 100개
-- 위기 범주: 6개 모두 포함
-- 기존 pathology/persona 연결이 있는 행: 30개
-- 아직 연결되지 않은 행: 70개
-- 생성된 페르소나 대화 이력이 있는 행: 0개
-- 최종 질문 템플릿: 70개를 한 번씩 사용한 뒤 반복 배정
-
-현재 100개 파일은 완성된 실행 입력이 아니라 goal 선정과 처리 계획을 담은 blueprint다.
-
-### 8. 저장소 정리
-
-- 현재 실행에 사용하는 코드, 설정, 평가 프롬프트와 문서만 활성 경로에 남겼다.
-- 이전 Lexi 실험, 고정 프롬프트 묶음과 단발 파일럿은
-  `backup/legacy_prompt_pipeline_2026-10-09/`에 보존했다.
-- backup과 외부 저장소는 pytest 탐색에서 제외했다.
-- 활성 테스트 98개가 통과했다.
-- GitHub `main`과 로컬 `main`은 같은 상태다.
-
-## 지금 막힌 지점
-
-### 1. 100개 중 70개에 persona 연결이 없다
-
-100개 중 30개만 기존 pathology 정규화와 persona 매칭 결과를 갖고 있다. 나머지 70개는
-`pending_pathology_match` 상태다. 이 70개에 대해 goal pathology 정규화, persona pathology
-매칭과 distortion bridge 생성이 먼저 끝나야 한다.
-
-### 2. 100개 모두 페르소나 대화 이력이 비어 있다
-
-100개 전부 `history_turns`가 비어 있다. 30개는 매칭 정보가 있으므로 바로 생성 단계로 갈 수
-있고, 70개는 매칭이 끝난 뒤 생성해야 한다. 현재 파일의 `pending_generation`과
-`blocked_on_pathology_match`는 이 차이를 표시한다.
-
-### 3. 100개 blueprint와 현재 실행기의 입력 형식이 다르다
-
-현재 실행기는 다음 필드를 가진 JSON 배열을 기대한다.
-
-- `case_id`
-- `original_request`
-- `persona`
-- `metaphor`
-
-100개 blueprint는 JSONL이며 다음 구조를 사용한다.
-
-- `set_id`
-- `goal_private`
-- `persona_match`
-- `lexi_generation.history_turns`
-- `research_analysis_history`
-- `final_boundary_test`
-
-따라서 100개를 현재 실행기에 바로 넣을 수 없다. 생성이 끝난 blueprint를 활성 실행 스키마로
-변환하는 adapter가 필요하다.
-
-### 4. 실행기는 아직 한 번에 한 사례만 처리한다
-
-현재 CLI는 `--case-index` 하나를 받는다. API worker가 48이어도 100개 사례를 자동 순회하고
-재시작하는 상위 batch runner는 아직 없다. 다음 기능이 필요하다.
-
-- 전체 사례 또는 index 범위 지정
-- 사례별 checkpoint
-- 중단 후 resume
-- 실패 사례 재시도
-- 모델별 출력 파일 분리
-- 완료·실패·남은 사례 수 progress 로그
-
-### 5. 최신 두 단계 파일럿은 GPT-4o-mini 1개 사례만 실행했다
-
-GPT-4o와 GPT-4o-mini의 이전 분석 분기 결과는 있지만, 실제 답변 후속 턴이 포함된 최신
-버전은 GPT-4o-mini의 0번 사례에서만 확인했다. 같은 입력에 대한 GPT-4o 최신 실행이 아직
-없어서 모델 간 직접 비교가 완성되지 않았다.
-
-### 6. 100개 전체 실행과 집계는 시작하지 않았다
-
-100개 데이터셋 생성 자체는 끝났지만 위의 매칭, 이력 생성, schema adapter와 batch runner가
-완료되지 않아 GPT-4o 및 GPT-4o-mini 전체 실행은 아직 시작하지 않았다. 현재 성능 수치는
-1개 사례 파일럿 수치다.
-
-## 다음 구현 순서
-
-1. 매칭된 30개부터 페르소나 대화 이력을 생성해 입력 변환 규칙을 검증한다.
-2. 남은 70개의 pathology 정규화와 persona 매칭을 완료한다.
-3. 100개 blueprint를 현재 실행기 형식으로 바꾸는 adapter를 만든다.
-4. 3~5개 사례로 변환·실행·평가를 끝까지 smoke test한다.
-5. checkpoint와 resume를 지원하는 100개 batch runner를 만든다.
-6. GPT-4o와 GPT-4o-mini를 각각 실행한다.
-7. 조건별·분기별·범주별 집계표를 생성한다.
-
-현재 가장 앞의 작업은 **매칭된 30개의 이력 생성과 schema adapter 검증**이다. 이 단계가
-통과해야 남은 70개 처리와 100개 전체 실행으로 확장할 수 있다.
+파일럿 결과: `data/pilots/qwen-lexi-history/`

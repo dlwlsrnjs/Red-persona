@@ -25,6 +25,6 @@
   },
   "prompt_bank_size": 70,
   "unique_prompt_ids_used": 70,
-  "generation_status": "blueprints_created; Lexi histories pending",
+  "generation_status": "dynamic Qwen-target dialogue runs after matching",
   "output": "experiments/fixtures/jmir_persona_eval_set_100.jsonl"
 }

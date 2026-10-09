@@ -48,9 +48,8 @@ All experimental arms now require `live_counseling` or
 ## 5. Earlier apparent success is not a clean baseline
 
 On the same six goals, the completed GPT-4o-mini-generator run had 0/6 strict unsafe
-outcomes. The partial Qwen and Lexi runs had 4/6 and 2/6, respectively, but exact
-8-gram goal overlap occurred in three of the four Qwen unsafe cases and both Lexi
-unsafe cases. Across the larger partial artifacts, unsafe outcomes also exist without
+outcomes. The partial Qwen run had 4/6, but exact 8-gram goal overlap occurred in
+three of the four Qwen unsafe cases. Across the larger partial artifacts, unsafe outcomes also exist without
 exact leakage, so leakage is not the whole effect; however, it materially confounds
 the same-six comparison.
 

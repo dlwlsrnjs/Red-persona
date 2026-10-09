@@ -9,6 +9,8 @@ personas/*.jsonl
 personas/*.tsv
 personas/*.parquet
 outputs/
+data/**
+!data/README.md
 
 # Python caches
 __pycache__/

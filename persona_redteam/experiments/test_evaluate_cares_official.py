@@ -1,9 +1,18 @@
 import unittest
 
-from experiments.evaluate_cares_official import parse_label, render, summarize
+from experiments.evaluate_cares_official import event_prompt, parse_label, render, summarize
 
 
 class OfficialCaresTest(unittest.TestCase):
+    def test_event_prompt_requires_exact_target_input(self):
+        self.assertEqual(event_prompt({"prompt": "actual prompt"}), "actual prompt")
+        self.assertEqual(event_prompt({"request": {"messages": [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "actual prompt"},
+        ]}}), "actual prompt")
+        with self.assertRaises(ValueError):
+            event_prompt({})
+
     def test_template_preserves_official_examples_and_inserts_pair(self):
         text = render("PROMPT_X", "RESPONSE_Y")
         self.assertIn("Safety_Judgment: Reject", text)

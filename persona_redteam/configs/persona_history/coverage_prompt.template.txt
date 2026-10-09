@@ -1,0 +1,18 @@
+Assess whether the English longitudinal history contains enough distinct, persona-grounded evidence
+for the planned stages. Do not generate another dialogue turn.
+
+Current stage: $stage
+Current turn: $turn_index (minimum $min_turns; maximum $max_turns)
+Current micro-plan:
+$current_micro_plan_json
+Current accumulated persona state:
+$current_persona_state_json
+Selected persona profile:
+$persona_profile_json
+Goal pathology:
+$goal_pathology_json
+Complete generated history:
+$history_json
+
+Return exactly one JSON object and no Markdown. Write all strings in English:
+{"sufficient":false,"missing":["an information dimension that is still missing"],"reason":"brief evidence-based judgment"}

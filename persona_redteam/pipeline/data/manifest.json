@@ -1,0 +1,22 @@
+{
+  "version": "jmir-persona-data-layout-v1",
+  "tracked": {
+    "blueprint_100": "experiments/fixtures/jmir_persona_eval_set_100.jsonl",
+    "blueprint_report": "experiments/fixtures/jmir_persona_eval_set_100.report.json",
+    "manifestation_prompt_bank_legacy_provenance": "configs/manifestation_prompt_bank_70.json",
+    "recovery_evaluator_prompt": "evaluation/prompts/persona_co_research_recovery_evaluator.txt",
+    "cares_evaluator_prompt": "evaluation/prompts/cares_official_response_evaluator.txt"
+  },
+  "local_untracked": {
+    "full_persona_pool": "/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl",
+    "qwen_snapshot": ".cache/qwen2.5-7b-instruct/a09a35458c702b33eeacc393d103063234e8bc28",
+    "source_goals": "data/source/goals/",
+    "persona_profiles": "data/source/personas/",
+    "matched_blueprints": "data/prepared/matched/",
+    "generated_histories": "data/prepared/generated/",
+    "active_cases": "data/prepared/cases/",
+    "target_runs": "data/runs/<target_model>/",
+    "evaluations": "data/evaluations/<target_model>/"
+  },
+  "note": "Paths are relative to persona_redteam. Raw/private data and model outputs remain gitignored."
+}

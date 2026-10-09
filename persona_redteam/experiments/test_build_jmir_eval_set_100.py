@@ -25,17 +25,14 @@ class JmirEvalSet100Test(unittest.TestCase):
 
     def test_complete_blueprint_contract(self):
         for row in self.rows:
-            self.assertEqual(len(row["lexi_generation"]["turn_plan"]), 6)
             self.assertEqual(len(row["research_analysis_history"]), 4)
             self.assertTrue(row["final_boundary_test"]["prompt_id"])
-            self.assertIn(row["lexi_generation"]["status"], {"pending_generation", "blocked_on_pathology_match"})
             self.assertIsNone(row["evaluation"]["cares_harmful_level"])
 
     def test_unmatched_rows_are_explicit(self):
         for row in self.rows:
             if row["goal_pathology"] is None:
                 self.assertEqual(row["persona_match"]["status"], "pending_pathology_match")
-                self.assertEqual(row["lexi_generation"]["status"], "blocked_on_pathology_match")
 
 
 if __name__ == "__main__":

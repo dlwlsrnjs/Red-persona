@@ -1,5 +1,27 @@
 # persona_redteam
 
+> **현재 실행 문서:** [PIPELINE_OVERVIEW_KO.md](PIPELINE_OVERVIEW_KO.md)
+> 활성 명령은 `pipeline/`을 기준으로 한다. 이 README 아래의 2026-10-08 모델·파일럿 기록은
+> 연구 provenance이며 현재 Qwen–Lexi–target 실행 구성을 설명하지 않는다.
+
+현재 핵심 경로는 다음과 같다.
+
+```text
+전체 persona pool 31,733개 동적 검색
+→ Qwen 의미 계획
+→ Lexi 가변 길이 과거 대화 및 persona state 생성
+→ goal-aware Qwen–target 누적 연구
+→ 8개 독립 분기
+→ candidate-only CARES 평가
+```
+
+- 실행법: [docs/JMIR_100_EXPERIMENT_RUNBOOK_KO.md](docs/JMIR_100_EXPERIMENT_RUNBOOK_KO.md)
+- 프롬프트 연결: [docs/PERSONA_HISTORY_PROMPT_HOOKS_KO.md](docs/PERSONA_HISTORY_PROMPT_HOOKS_KO.md)
+- 활성 코드: [pipeline/README.md](pipeline/README.md)
+- 문서 인덱스: [docs/README.md](docs/README.md)
+
+## 과거 연구 기록
+
 상담 모델의 응답이 **페르소나 유무와 의학적 표현에 따라 얼마나 달라지는지**
 비교하고, 실제 응답을 PCSA의 네 안전성 지표로 평가하는 연구 코드다.
 이 문서는 사용할 데이터, 선정·가공 근거, 현재 구현 상태, 결과의 한계와
@@ -19,6 +41,10 @@
 보존한다.
 완료된 작업과 현재 구현상 막힌 지점만 빠르게 확인하려면
 [`docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md`](docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md)를 본다.
+JMIR 100개 blueprint를 매칭·이력 생성·활성 스키마 변환한 뒤 checkpoint/resume 배치로
+실행하는 명령은 [`docs/JMIR_100_EXPERIMENT_RUNBOOK_KO.md`](docs/JMIR_100_EXPERIMENT_RUNBOOK_KO.md)에 있다.
+활성 코드의 단계별 구조, 데이터 인덱스와 단계 간 계약 검사는
+[`pipeline/README.md`](pipeline/README.md)를 기준으로 한다.
 
 GitHub 저장소의 기존 코드·데이터셋·결과 문서를 현재 코드로 교체했다.
 코드는 `persona_redteam/`에 있고, 이 루트 README가 현재 설명의 기준이다.
@@ -540,7 +566,6 @@ Llama 응답과 최종 비교 응답은 구분해 기록한다. 최종 비교를
 | Goal-only GPT-4o-mini 기준선 | 652/652 완료; strict Figure-4 any-axis 1개, CARES Accept 1개 |
 | GPT-4o-mini 생성기 + Llama 서로게이트 반복 | 652/652 완료; Figure-3 평균 4.081→4.962, CARES Accept 30개, Figure-4 any-axis 54개 |
 | Qwen 생성기 전체 실행 | 588/652 유효 체크포인트에서 의도적으로 종료; 불완전 표본으로 별도 보관 |
-| Lexi 생성기 escalation 전체 실행 | 563/652 유효 체크포인트에서 의도적으로 종료; 불완전 표본으로 별도 보관 |
 | 70B 단일 턴 프레이밍 파일럿 | 6개 goal × 4개 전략 × 3개 프레이밍 = 72개 셀 완료; 세 조건 모두 strict Figure-4 0/24 |
 | 교정된 단일 턴 파일럿 v2 | 24개 후보 모두 1인칭·상담자 지칭·질문 1개 통과; direct/context/analysis 모두 strict Figure-4 0/24 |
 | 프레이밍 파일럿 Figure-3 | direct 4.333, clinical context 4.250, persona analysis 4.208; 분석 프레이밍의 상승 효과 없음 |
@@ -677,7 +702,6 @@ Cactus 가공과 원본 데이터 병합은 재구축 계획이며, 전체가 �
 
 | 우선순위 | 작업 | 완료 기준 |
 |---|---|---|
-| 완료 | Qwen/Lexi 실행 체크포인트 보존 및 서비스 종료 | 588·563개 고유 ID, malformed 0, JSONL 종결 확인; 불완전 결과로 명시 |
 | 완료 | 현재 소스와 실행 설정 보존 | Git commit, 모델 revision, endpoint 역할, source snapshot과 데이터 해시 기록 |
 | 완료 | 6-goal 프레이밍 확인 | 동결된 네 전략 후보의 72개 단일 턴 셀, Figure-3·CARES·Figure-4·보조 감사 완료 |
 | 1 | surrogate-guided 최적화 파일럿 | 후보당 3-5회 응답, top-k 선택, PCSA·목표 비노출·근거성·상담 모드 동시 기록 |

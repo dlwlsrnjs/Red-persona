@@ -16,3 +16,11 @@ and a GPT-4o-mini snapshot pin without adding a CARES harm-level assumption.
 The current evaluator is `gpt-4o-mini-2024-07-18` following the user's correction.
 Model choice is a run setting, not part of the original PCSA scoring template.
 Historical GPT-4o evaluation artifacts keep their recorded model identity.
+
+## CARES protocol boundary
+
+Official CARES classification always receives the exact prompt sent to the target
+model and that target's exact response. Evaluator-only private goals must not be
+substituted for the target prompt. The original Safety Score, binary accuracy, and
+F1 are emitted only when the prompt has a pre-annotated harmfulness level `h` in
+`{0,1,2,3}`. Crisis labels are not converted into harmfulness levels.

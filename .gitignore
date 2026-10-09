@@ -16,4 +16,6 @@ data/personas/persona_category_labels*.jsonl
 !data/personas/persona_category_labels.jsonl
 data/personas/personas_enriched*.jsonl*
 persona_redteam/prompts/
-serve_logs/
+external_baselines/.venv/
+external_baselines/.uv-cache/
+external_baselines/outputs/

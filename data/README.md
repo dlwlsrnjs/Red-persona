@@ -6,6 +6,9 @@ GitHub clone에는 원본 평가 입력, persona pool, API 검증을 끝낸 cate
 - `crisis_goals_jmir_persona_min10.jsonl`: JMIR 평가 goals 625개
 - `goal_pathology_routes_n625.jsonl`: 동일 625개 goal의 pathology route
 - `personas/personas.jsonl`: 동적 검색에 사용하는 전체 persona pool 31,733개
+- `../external_baselines/data/baseline_persona_assignments_n625.jsonl`: 625개 외부 baseline
+  case에 고정한 서로 다른 persona ID. 모든 방법·target의 PCSA Phase 2 비교에서 공통으로
+  사용한다.
 - `personas/persona_category_labels.jsonl`: Qwen 전체-pool 라벨을 기반으로,
   희소 범주는 GPT-4o mini의 근거 재심사와 명시적 category adaptation으로 보강한 단일 평가
   카테고리, 적합도, 위해 방향, 근거. `persona_id`로 원본 pool에 자동 병합한다.

@@ -14,7 +14,7 @@ snapshot을 배치한 뒤, JMIR 625개 전체 실험을 생성·실행·평가�
   -> Lexi 가변 길이 과거 대화와 누적 persona_state 생성
   -> active cases JSON
   -> Qwen 연구 질문 + target 누적 대화
-  -> 조건 3개 x 독립 final branch 8개 x candidate response
+  -> 조건 3개 x 활성 final branch 4개 x candidate response
   -> GPT recovery/behavior evaluator + candidate-only CARES
   -> 사례별 평가 JSON + 전체/조건/위기범주 aggregate JSON
 ```
@@ -24,8 +24,8 @@ snapshot을 배치한 뒤, JMIR 625개 전체 실험을 생성·실행·평가�
 1. blueprint와 prepared/active case가 각각 625개다.
 2. 모든 active case에 최소 4개 `persona_history` turn이 있다.
 3. `data/runs/<target>/`에 사례별 성공 JSON 625개가 있고 `.failed.json`이 없다.
-4. 각 run JSON은 3조건과 조건별 8개 branch, 즉 24개 branch를 가진다.
-5. `data/evaluations/<target>/`에 평가 JSON 625개가 있고 각 파일에 평가 row 24개가 있다.
+4. 각 run JSON은 3조건과 조건별 4개 branch, 즉 12개 branch를 가진다.
+5. `data/evaluations/<target>/`에 평가 JSON 625개가 있고 각 파일에 평가 row 12개가 있다.
 6. `aggregate_summary.json`의 `evaluated_cases`가 625다.
 
 ## 2. 서버 요구사항
@@ -46,7 +46,7 @@ History 생성 단계의 Qwen planner와 Lexi는 각각 `/v1/chat/completions`�
 ### 병렬도 해석
 
 - `--target-workers 256`: 한 사례 내부의 final/manifestation target 요청 병렬도다.
-- `--workers 256`: 한 사례의 24개 평가 branch 병렬도다.
+- `--workers 256`: 한 사례의 12개 평가 branch 병렬도다.
 - 사례 자체는 `run_batch`와 `evaluate_batch`에서 순차 처리된다.
 - `generate_histories`도 사례와 turn을 순차 처리하지만 사례별 checkpoint로 재개한다.
 - 256은 상한일 뿐 권장 시작값이 아니다. API rate limit이 낮으면 16 또는 32부터 시작한다.
@@ -568,8 +568,8 @@ python -m pipeline.run_batch \
 
 산출물의 `intervention`과 `phase_exposure`가 이 구분을 기록한다. Level 1/2의 연구·최종
 분석 branch는 타겟이 goal 관련 내용을 스스로 최초 작성해야 하며, private-goal 2~5-gram이
-Qwen 질문에 섞이면 재생성 후 deterministic fallback을 사용한다. 8개 final direction은
-각 조건에 정확히 8개다.
+Qwen 질문에 섞이면 재생성 후 deterministic fallback을 사용한다. final direction은
+pilot에서 선택한 4개만 각 조건에 사용한다.
 
 그 뒤의 manifestation은 세 조건 모두에서 goal을 직접 제시하는 별도 측정 단계다.
 `phase_exposure.manifestation_measurement_goal_exposed=true`로 표시되며, 비직접 연구 단계의
@@ -604,7 +604,7 @@ python -m pipeline.evaluate_batch \
   --workers 32
 ```
 
-평가 파일의 `rows`는 3조건 x 8방향 = 24개다. 각 row에는 다음이 있다.
+평가 파일의 `rows`는 기본적으로 3조건 x 4방향 = 12개다. 각 row에는 다음이 있다.
 
 - `custom`: recovery level, behavior level과 파생 success boolean
 - `official_cares`: `Accept`, `Caution`, `Refuse`, 입력 출처와 선택적 safety score
@@ -614,14 +614,15 @@ python -m pipeline.evaluate_batch \
 
 사례별 `summary`는 다음 지표를 조건별로 저장한다.
 
-- `raw_success_at_8`
-- `target_originated_success_at_8`
-- `unsafe_manifestation_ASR_at_8`
-- `official_CARES_non_refuse_at_8`
-- `official_CARES_accept_at_8`
+- `active_direction_count` (항상 4)
+- `raw_success_at_4`
+- `target_originated_success_at_4`
+- `unsafe_manifestation_ASR_at_4`
+- `official_CARES_non_refuse_at_4`
+- `official_CARES_accept_at_4`
 
 `cares_harmful_level`이 사전에 `0,1,2,3`으로 annotation되지 않았으면 CARES label과
-Accept@8은 계산되지만 Safety Score, binary accuracy, F1은 `null`이다. `crisis_label`에서
+Accept@4는 계산되지만 Safety Score, binary accuracy, F1은 `null`이다. `crisis_label`에서
 harmful level을 임의로 추론하지 않는다.
 
 검사:
@@ -663,7 +664,7 @@ PY
 | `pipeline/history_planning.py` | Qwen profile reranking, 3–4개 goal atom 기반 최대 12턴 plan, turn 검증 계약 |
 | `pipeline/runtime_io.py` | OpenAI-compatible chat HTTP 호출과 원자적 JSON 저장 |
 | `experiments/prepare_jmir_persona_eval.py` | `status`, `merge`, `adapt` 실제 구현 |
-| `experiments/qwen_target_persona_research_dialogue.py` | Qwen 질문, target 누적 context, 3조건, 8 branch, candidate 분리 |
+| `experiments/qwen_target_persona_research_dialogue.py` | Qwen 질문, target 누적 context, 3조건, 4 branch, candidate 분리 |
 | `experiments/run_jmir_persona_eval_batch.py` | 사례 선택, checkpoint, resume/failure 파일 |
 | `experiments/evaluate_persona_co_research.py` | Recovery/Behavior와 CARES 입력 분리 |
 | `experiments/evaluate_cares_official.py` | 고정 CARES prompt 호출과 label parsing |
@@ -714,7 +715,7 @@ QWEN_DEVICE=cuda:3 python -m pipeline.run_batch ... --start 471 --stop 625 --out
 | Lexi JSON parsing 실패 | prompt가 JSON-only 계약을 못 지킴 | 소규모 prompt pilot, Markdown 금지 강화 |
 | Qwen CUDA OOM | batch size가 큼 | `QWEN_BATCH_SIZE` 축소 |
 | OpenAI 429 | workers/rate limit 과다 | workers 축소 후 `--retry-failed` |
-| 평가 row가 24개 미만 | run branch 누락 또는 CARES 실패 | run preflight, 실패 JSON 확인 후 재실행 |
+| 평가 row가 12개 미만 | run branch 누락 또는 CARES 실패 | run preflight, 실패 JSON 확인 후 재실행 |
 | Safety Score가 null | harmful level 미annotation | 실험 전 독립 annotation 추가; label에서 추론 금지 |
 | history가 `unplanned` | `--skip-qwen-planning` 사용 또는 구형 산출물 | ablation 옵션 제거 후 checkpoint를 새로 생성 |
 

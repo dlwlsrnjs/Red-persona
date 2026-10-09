@@ -3,7 +3,7 @@
 # HTTP: Qwen2.5-7B-Instruct (researcher/validator) on :8000 and
 # Llama-3.1-8B-Lexi-Uncensored-V2 (history generator) on :8002.
 #
-# Dedicated venv:  redpersona-vllm  (/data1/users/ljk98/envs/redpersona-vllm)
+# Dedicated venv:  .venv (or $RED_PERSONA_VENV / $REDPERSONA_VENV)
 # Weights cache :  /data1/users/ljk98/hf_cache   (Qwen + Lexi already present)
 #
 # Usage:
@@ -14,37 +14,43 @@
 #   bash serve_models.sh stop     # stop servers started by this script
 set -euo pipefail
 
-VENV="${RED_PERSONA_VENV:-/data1/users/ljk98/envs/redpersona-vllm}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV="${RED_PERSONA_VENV:-${REDPERSONA_VENV:-$SCRIPT_DIR/.venv}}"
+if [[ ! -x "$VENV/bin/python" ]]; then
+  echo "Python environment not found: $VENV" >&2
+  exit 1
+fi
 export HF_HOME="${HF_HOME:-/data1/users/ljk98/hf_cache}"
-export HF_HUB_OFFLINE=1                      # weights are cached; never hit the network
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}" # weights are cached; never hit the network
 # flashinfer JIT-compiles its sampler with ninja+nvcc. Those live inside the venv
 # (bin/ninja, site-packages/nvidia/cu13/bin/nvcc) but are not on a bare nohup PATH,
 # which crashes EngineCore with FileNotFoundError: 'ninja'. Put them on PATH, point
 # CUDA_HOME at the pip CUDA, and fall back to vLLM's native top-k/top-p sampler so
 # serving never depends on a runtime compile.
-_CUDA_HOME="$VENV/lib/python3.10/site-packages/nvidia/cu13"
+_SITE_PACKAGES="$("$VENV/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
+_CUDA_HOME="${REDPERSONA_CUDA_HOME:-$_SITE_PACKAGES/nvidia/cu13}"
 export PATH="$VENV/bin:$_CUDA_HOME/bin:$PATH"
-export CUDA_HOME="$_CUDA_HOME"
+export CUDA_HOME="${CUDA_HOME:-$_CUDA_HOME}"
 export VLLM_USE_FLASHINFER_SAMPLER=0
 PY="$VENV/bin/python"
 QWEN_ID="Qwen/Qwen2.5-7B-Instruct"
 QWEN_REV="a09a35458c702b33eeacc393d103063234e8bc28"
 LEXI_ID="Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2"
 LEXI_REV="f4617caeabd21f1820ac89bd125c80eda70901a7"
-LOGDIR="$(cd "$(dirname "$0")" && pwd)/serve_logs"
+LOGDIR="$SCRIPT_DIR/serve_logs"
 mkdir -p "$LOGDIR"
 
 # --enforce-eager skips vLLM's torch.compile + cudagraph capture, which under the
 # 0.28 defaults (combo-kernel benchmarking, flashinfer autotune) takes many minutes
 # per model. Eager startup is ~30s and plenty fast for a 7B/8B on an H100.
 serve_qwen() {
-  CUDA_VISIBLE_DEVICES=0 "$PY" -m vllm.entrypoints.openai.api_server \
+  CUDA_VISIBLE_DEVICES="${QWEN_SERVE_GPU:-0}" "$PY" -m vllm.entrypoints.openai.api_server \
     --model "$QWEN_ID" --revision "$QWEN_REV" --served-model-name "$QWEN_ID" \
     --host 127.0.0.1 --port 8000 --enforce-eager \
     --gpu-memory-utilization 0.90 --max-model-len 16384 --dtype bfloat16
 }
 serve_lexi() {
-  CUDA_VISIBLE_DEVICES=1 "$PY" -m vllm.entrypoints.openai.api_server \
+  CUDA_VISIBLE_DEVICES="${LEXI_SERVE_GPU:-1}" "$PY" -m vllm.entrypoints.openai.api_server \
     --model "$LEXI_ID" --revision "$LEXI_REV" --served-model-name "$LEXI_ID" \
     --host 127.0.0.1 --port 8002 --enforce-eager \
     --gpu-memory-utilization 0.90 --max-model-len 16384 --dtype bfloat16

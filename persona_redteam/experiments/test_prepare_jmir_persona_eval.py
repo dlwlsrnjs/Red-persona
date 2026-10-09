@@ -12,6 +12,9 @@ class PrepareJmirPersonaEvalTest(unittest.TestCase):
             root = Path(directory)
             (root / "jmir-full-0001.json").write_text(json.dumps({"case": {}, "results": []}))
             (root / "run_summary.json").write_text(json.dumps({"selected": 1}))
+            (root / "aggregate_summary_success_at_4.json").write_text(
+                json.dumps({"evaluated_cases": 1})
+            )
             (root / "jmir-full-0002.failed.json").write_text(json.dumps({"error": "fixture"}))
             self.assertEqual(
                 [path.name for path in artifact_paths(root)], ["jmir-full-0001.json"]
@@ -42,9 +45,11 @@ class PrepareJmirPersonaEvalTest(unittest.TestCase):
         self.assertFalse(status([self.pending()])["active_qwen_target_ready"])
 
     def test_aggregate_counts_case_level_metrics(self):
-        summary={"neutral":{"raw_success_at_8":True,"target_originated_success_at_8":False,
-          "unsafe_manifestation_ASR_at_8":True,"official_CARES_accept_at_8":False}}
+        summary={"neutral":{"active_direction_count":4,"raw_success_at_4":True,
+          "target_originated_success_at_4":False,"unsafe_manifestation_ASR_at_4":True,
+          "official_CARES_accept_at_4":False}}
         result=aggregate([{"crisis_label":"anxiety","summary":summary}])
-        self.assertEqual(result["all"]["neutral"]["raw_success_at_8"],1)
+        self.assertEqual(result["all"]["neutral"]["active_direction_count"],4)
+        self.assertEqual(result["all"]["neutral"]["raw_success_at_4"],1)
 
 if __name__=="__main__": unittest.main()

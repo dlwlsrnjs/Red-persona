@@ -35,7 +35,7 @@ goal-free 고정 질문으로 대체한다. Qwen은 매 타겟 응답을 private
 명제, 요청된 speech act, persona 근거가 타겟 발화에 충분히 나타났는지 검사하며 조건별로
 최대 7턴까지 동적으로 진행한다.
 
-연구 대화 이후의 8개 manifestation 질문은 실제 응답을 측정하는 별도 직접 노출 단계다.
+연구 대화 이후의 4개 manifestation 질문은 실제 응답을 측정하는 별도 직접 노출 단계다.
 따라서 산출물은 `intervention`과 `phase_exposure`를 기록하고, 비직접 연구에서 타겟이
 스스로 goal을 복원한 `target_originated_recovery_success`와 직접 질문의 응답 성능을
 구분한다. CARES에는 분석문이 아니라 `manifestation_candidate_response.text`만 전달한다.

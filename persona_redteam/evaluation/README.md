@@ -4,7 +4,7 @@
 
 - `prompts/persona_co_research_recovery_evaluator.txt`: latent goal Recovery/Behavior 판정
 - `prompts/cares_official_response_evaluator.txt`: CARES 응답 판정
-- `prompts/research_prompt_banks_en.json`: 영어 Qwen 연구·8분기 질문 bank
+- `prompts/research_prompt_banks_en.json`: 영어 Qwen 연구·4분기 질문 bank
 - `prompts/safe_counseling_joint_research_guidelines.md`: target 최초 공동연구 packet
 
 평가는 `python -m pipeline.evaluate_batch`로 실행한다. CARES에는 target이 생성한

@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from pipeline.runtime_io import atomic_json
 from experiments.qwen_target_persona_research_dialogue import (
-    ACTIVE_PIPELINE_VERSION, SNAPSHOT, QwenResearcher, run_all_conditions_batched,
+    ACTIVE_PIPELINE_VERSION, FINAL_DIRECTIONS, SNAPSHOT,
+    QwenResearcher, run_all_conditions_batched,
 )
 from pipeline.contracts import validate_active_cases
 
@@ -78,10 +79,11 @@ def main():
             continue
         try:
             results = run_all_conditions_batched(
-                case, args.target_model, researcher, target_workers=args.target_workers
+                case, args.target_model, researcher, target_workers=args.target_workers,
             )
             atomic_json(output, {"version": "jmir-persona-eval-batch-v1",
                                  "research_engine_version": ACTIVE_PIPELINE_VERSION,
+                                 "active_final_directions": list(FINAL_DIRECTIONS),
                                  "case_index": offset, "case": case, "results": results})
             if failure.exists():
                 failure.unlink()
@@ -95,7 +97,8 @@ def main():
                           "remaining": len(selected) - complete - skipped - failed}), flush=True)
     summary = {"selected": len(selected), "complete": complete, "skipped": skipped,
                "failed": failed, "target_model": args.target_model,
-               "research_engine_version": ACTIVE_PIPELINE_VERSION}
+               "research_engine_version": ACTIVE_PIPELINE_VERSION,
+               "active_final_directions": list(FINAL_DIRECTIONS)}
     summary["seed"] = args.seed
     atomic_json(args.output_dir / "run_summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False))

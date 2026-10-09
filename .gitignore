@@ -3,10 +3,14 @@
 .env.*
 *.key
 
+# Project-local Python environment (may be a symlink to large-data storage)
+.venv
+
 # Generated files
 __pycache__/
 *.pyc
 *.log
+serve_logs/
 data/personas/category_checkpoints/
 data/personas/persona_category_labels*.jsonl
 !data/personas/persona_category_labels.jsonl

@@ -7,7 +7,7 @@
 
 - `build_jmir_eval_set_full.py`: 625 goals와 route의 full blueprint 생성
 - `prepare_jmir_persona_eval.py`: blueprint 검증·병합과 case adapter
-- `qwen_target_persona_research_dialogue.py`: Qwen–target 누적 연구와 8개 독립 분기
+- `qwen_target_persona_research_dialogue.py`: Qwen–target 누적 연구와 4개 독립 분기
 - `run_jmir_persona_eval_batch.py`: 사례별 checkpoint, retry, resume 실행
 - `evaluate_cares_official.py`: candidate-only CARES 판정
 - `evaluate_persona_co_research.py`: Recovery/Behavior 평가

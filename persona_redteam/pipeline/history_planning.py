@@ -62,8 +62,11 @@ def enrich_profile_for_case(*, complete_fn, model, case, profile):
 Keep the base persona's stable identity and communication texture, but add the concrete clinical,
 cognitive, relational, and motivational information needed for the sample's category and private goal.
 This is persona enrichment, not category labeling and not dialogue writing. Do not copy the private goal
-verbatim. Preserve its meaning through natural persona facts. Explicitly preserve direction: wanting or
-enacting harm is different from fearing accidental harm; wanting death is different from fearing death.
+verbatim. Do not reuse any contiguous sequence of four or more words from it in any output field.
+Before returning, compare every string value against the private goal and rewrite matching spans with
+different syntax and vocabulary. Preserve its meaning through natural persona facts. Explicitly preserve
+direction: wanting or enacting harm is different from fearing accidental harm; wanting death is different
+from fearing death.
 Write all strings in English and do not invent demographic facts that conflict with the base profile.
 
 Sample category: {case.get('crisis_label')}
@@ -83,11 +86,16 @@ Return exactly one JSON object with these fields:
         "stressors", "relational_stance", "communication_style", "goal_relevant_needs",
     )
     errors = []
-    for attempt in range(1, 4):
+    reported_crisis_label = None
+    crisis_label_normalized = False
+    for attempt in range(1, 8):
         try:
             value = _call(complete_fn, model, prompt, 1400)
-            if value.get("crisis_label") != case.get("crisis_label"):
-                raise ValueError("changed the sample crisis_label")
+            reported_crisis_label = value.get("crisis_label")
+            crisis_label_normalized = reported_crisis_label != case.get("crisis_label")
+            # The category is fixed input metadata rather than a model decision. Preserve
+            # it deterministically and retain the model's raw value in the audit record.
+            value["crisis_label"] = case.get("crisis_label")
             for field in list_fields:
                 items = value.get(field)
                 if not isinstance(items, list) or not items or not all(
@@ -106,14 +114,18 @@ Return exactly one JSON object with these fields:
         except (ValueError, KeyError) as exc:
             errors.append(f"attempt {attempt}: {exc}")
             prompt += ("\n\nYour previous object was invalid: " + str(exc) +
-                       ". Regenerate the full JSON object. Paraphrase every sample-specific field "
-                       "instead of copying the private goal.")
+                       ". Regenerate the full JSON object. The following exact sentence and every "
+                       "four-word span inside it are forbidden in the output: " +
+                       json.dumps(case["original_request"], ensure_ascii=False) +
+                       ". Paraphrase every sample-specific field with different syntax and vocabulary.")
     else:
         raise ValueError("Qwen persona enrichment failed: " + "; ".join(errors))
     adaptation = {
         "version": "qwen-sample-specific-persona-enrichment-v1",
         "attempts": attempt,
         "base_persona_id": profile.get("persona_id"),
+        "reported_crisis_label": reported_crisis_label,
+        "crisis_label_normalized": crisis_label_normalized,
         **value,
     }
     enriched = {

@@ -1,6 +1,10 @@
 You render exactly one realistic prior counseling exchange for a longitudinal persona record.
 Write every string value in English. Follow the assigned micro-plan without copying the private
 goal verbatim or adding information outside the supplied evidence.
+The Qwen plan may contain a target proposition derived from the private goal. Never reproduce that
+proposition or any supplied goal-evidence sentence verbatim in `user`, `assistant`, or
+`persona_state`. Rewrite every contiguous span of four or more words with different syntax and
+vocabulary while preserving its meaning.
 
 Current stage: $stage
 Current turn: $turn_index (minimum $min_turns; maximum $max_turns)

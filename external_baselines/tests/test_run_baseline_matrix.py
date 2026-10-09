@@ -12,11 +12,12 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
-def test_default_matrix_builds_eight_methods_for_two_targets():
-    targets, adversary, methods = MODULE.load_matrix_config(MODULE.DEFAULT_CONFIG)
+def test_default_matrix_builds_nine_methods_for_two_targets():
+    targets, adversary, pcsa_evaluator, methods = MODULE.load_matrix_config(MODULE.DEFAULT_CONFIG)
     jobs = MODULE.build_jobs(
         targets=targets,
         adversary=adversary,
+        pcsa_evaluator=pcsa_evaluator,
         methods=methods,
         input_path=MODULE.DEFAULT_INPUT,
         cohort_index_path=MODULE.DEFAULT_COHORT_INDEX,
@@ -24,13 +25,18 @@ def test_default_matrix_builds_eight_methods_for_two_targets():
         pilot_cases=1,
         retry_failed=False,
     )
-    assert len(jobs) == 16
+    assert len(jobs) == 18
     assert len({job.target_name for job in jobs}) == 2
-    assert len({job.method for job in jobs}) == 8
+    assert len({job.method for job in jobs}) == 9
     assert all("--limit" in job.command for job in jobs)
     assert all(str(MODULE.DEFAULT_COHORT_INDEX) in job.command for job in jobs)
     gpt_jobs = [job for job in jobs if job.target_name == "gpt4o"]
     assert all("openai_batch" in job.command for job in gpt_jobs)
+    qwen_pcsa = next(
+        job for job in jobs
+        if job.target_name == "qwen7b_instruct" and job.method == "pcsa_phase2"
+    )
+    assert qwen_pcsa.command[qwen_pcsa.command.index("--batch-case-concurrency") + 1] == "500"
 
 
 def test_profiles_preserve_method_distinctions():
@@ -39,23 +45,28 @@ def test_profiles_preserve_method_distinctions():
     assert "--pair-streams" in MODULE.METHOD_PROFILES["pair"]
     assert "--branching-factor" in MODULE.METHOD_PROFILES["tap"]
     assert MODULE.METHOD_PROFILES["crescendo"] != MODULE.METHOD_PROFILES["tap"]
+    assert MODULE.METHOD_PROFILES["pcsa_phase2"] == (
+        "--max-turns", "4", "--pcsa-candidates", "4"
+    )
 
 
-def test_dry_run_has_16_concurrent_jobs_and_pcsa_phase2(capsys):
+def test_dry_run_has_18_concurrent_jobs_and_pcsa_phase2(capsys):
     assert MODULE.main(["--dry-run"]) == 0
     value = json.loads(capsys.readouterr().out)
     assert value["parallelism"] == {
-        "job_count": 16,
-        "max_concurrent_jobs": 16,
+        "job_count": 18,
+        "max_concurrent_jobs": 18,
         "target_count": 2,
-        "method_count": 8,
+        "method_count": 9,
     }
     assert value["dataset"]["cases_per_job"] == 1
-    assert value["pcsa"] == {
+    assert value["pcsa_phase2"] == {
+        "status": "configured",
         "phase": 2,
         "phase1_enabled": False,
-        "status": "pending",
-        "persona_conditioned": True,
+        "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
+        "max_turns": 4,
+        "candidates_per_turn": 4,
     }
 
 
@@ -69,7 +80,11 @@ def test_full_matrix_uses_official_500(capsys):
 
 
 def test_remote_target_requires_credential(monkeypatch):
-    targets, adversary, _ = MODULE.load_matrix_config(MODULE.DEFAULT_CONFIG)
+    targets, adversary, pcsa_evaluator, _ = MODULE.load_matrix_config(MODULE.DEFAULT_CONFIG)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    errors = MODULE.preflight_errors(targets=targets, adversary=adversary)
+    errors = MODULE.preflight_errors(
+        targets=targets,
+        adversary=adversary,
+        pcsa_evaluator=pcsa_evaluator,
+    )
     assert any("OPENAI_API_KEY" in error for error in errors)

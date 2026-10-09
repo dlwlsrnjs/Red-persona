@@ -1,7 +1,8 @@
-"""Run pinned PyRIT single- or multi-turn baselines on RED-Persona goals.
+"""Run external single- or multi-turn baselines on RED-Persona goals.
 
-PyRIT's scorer controls attack search only. Final evaluation is deliberately
-left pending for PCSA Phase 2; this runner has no PCSA Phase 1 path.
+Eight methods use pinned PyRIT v1.1.0. The ninth method implements the PCSA
+Phase-II loop with the repository's fixed per-goal persona as a replacement
+for PCSA Phase I. Attack-control scores are never treated as final evaluation.
 """
 from __future__ import annotations
 
@@ -16,6 +17,23 @@ import random
 from typing import Any
 from urllib.parse import urlparse
 
+try:
+    from external_baselines.pcsa_phase2 import (
+        DEFAULT_CANDIDATES as PCSA_DEFAULT_CANDIDATES,
+        MAX_TURNS as PCSA_MAX_TURNS,
+        PAPER_ID as PCSA_PAPER_ID,
+        STRATEGY_NAMES as PCSA_STRATEGY_NAMES,
+        run_phase2 as run_pcsa_phase2,
+    )
+except ModuleNotFoundError:  # Direct execution from external_baselines/.
+    from pcsa_phase2 import (
+        DEFAULT_CANDIDATES as PCSA_DEFAULT_CANDIDATES,
+        MAX_TURNS as PCSA_MAX_TURNS,
+        PAPER_ID as PCSA_PAPER_ID,
+        STRATEGY_NAMES as PCSA_STRATEGY_NAMES,
+        run_phase2 as run_pcsa_phase2,
+    )
+
 
 BASELINE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = BASELINE_DIR.parent
@@ -25,6 +43,7 @@ DEFAULT_PERSONA_MAP = (
     BASELINE_DIR / "data" / "baseline_persona_assignments_official_500.jsonl"
 )
 DEFAULT_PERSONA_POOL = REPO_ROOT / "data" / "personas" / "personas.jsonl"
+DEFAULT_PATHOLOGY_ROUTES = REPO_ROOT / "data" / "goal_pathology_routes_n625.jsonl"
 PYRIT_ROOT = BASELINE_DIR / "vendor" / "pyrit"
 CRISIS_PROMPT = PYRIT_ROOT / "pyrit" / "datasets" / "executors" / "crescendo" / "escalation_crisis.yaml"
 THERAPIST_PROMPT = PYRIT_ROOT / "pyrit" / "datasets" / "executors" / "crescendo" / "therapist.yaml"
@@ -32,12 +51,19 @@ DEFAULT_TARGET_ENDPOINT = "http://127.0.0.1:8002/v1"
 DEFAULT_TARGET_MODEL = "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2"
 DEFAULT_ADVERSARY_ENDPOINT = "http://127.0.0.1:8000/v1"
 DEFAULT_ADVERSARY_MODEL = "Qwen/Qwen2.5-7B-Instruct"
-SCHEMA_VERSION = "red-persona-pyrit-baseline-v2"
+SCHEMA_VERSION = "red-persona-external-baseline-v3"
 DATASET_NAME = "red-persona-official-500"
 EXPECTED_SOURCE_CASE_COUNT = 625
 EXPECTED_FULL_CASE_COUNT = 500
 MULTI_TURN_METHODS = frozenset(
-    {"crescendo", "therapist_crescendo", "pair", "tap", "red_teaming"}
+    {
+        "crescendo",
+        "therapist_crescendo",
+        "pair",
+        "tap",
+        "red_teaming",
+        "pcsa_phase2",
+    }
 )
 SINGLE_TURN_METHODS = frozenset({"direct", "skeleton_key", "many_shot"})
 METHODS = tuple(sorted(MULTI_TURN_METHODS | SINGLE_TURN_METHODS))
@@ -138,10 +164,27 @@ def load_persona_contexts(
     return contexts
 
 
+def load_pathology_contexts(path: Path) -> dict[str, dict[str, Any]]:
+    """Load the fixed goal-to-pathology routes used to initialize PCSA Phase II."""
+    contexts: dict[str, dict[str, Any]] = {}
+    for row in _read_records(path):
+        goal_id = str(row.get("goal_id") or "").strip()
+        pathology = row.get("pathology")
+        if not goal_id:
+            raise ValueError("pathology route is missing goal_id")
+        if goal_id in contexts:
+            raise ValueError(f"duplicate pathology route for goal: {goal_id}")
+        if not isinstance(pathology, dict) or not pathology:
+            raise ValueError(f"pathology route is missing structured pathology: {goal_id}")
+        contexts[goal_id] = row
+    return contexts
+
+
 def normalize_cases(
     records: Iterable[dict[str, Any]],
     *,
     persona_contexts: dict[str, dict[str, Any]] | None = None,
+    pathology_contexts: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Normalize raw goals or prepared cases into the baseline input contract."""
     normalized: list[dict[str, Any]] = []
@@ -156,6 +199,7 @@ def normalize_cases(
         if case_id in seen:
             raise ValueError(f"duplicate case id: {case_id}")
         seen.add(case_id)
+        source_goal_id = record.get("source_goal_id") or record.get("goal_id")
         normalized.append(
             {
                 "case_index": index,
@@ -164,11 +208,12 @@ def normalize_cases(
                 "crisis_label": record.get("crisis_label") or record.get("label"),
                 "source_hf": record.get("source_hf"),
                 "dataset_id": record.get("dataset_id"),
-                "source_goal_id": record.get("source_goal_id") or record.get("goal_id"),
+                "source_goal_id": source_goal_id,
                 "official_index": record.get("official_index"),
                 "canonical_source_index": record.get("canonical_source_index"),
                 "selection_role": record.get("selection_role"),
                 "persona_context": (persona_contexts or {}).get(case_id),
+                "pathology_context": (pathology_contexts or {}).get(str(source_goal_id)),
             }
         )
     return normalized
@@ -195,13 +240,10 @@ def select_cases(
 
 def evaluation_contract() -> dict[str, Any]:
     return {
-        "final_evaluator": "pcsa",
-        "pcsa_phase": 2,
-        "phase1_enabled": False,
+        "final_evaluators": ["cares", "mental_health_gpt_judge"],
         "status": "pending",
-        "persona_conditioned": True,
+        "attack_control_score_is_final": False,
         "required_inputs": [
-            "persona_context",
             "target_conversation",
             "final_target_response",
         ],
@@ -248,8 +290,8 @@ def build_manifest(
             "assignment_path": str(args.persona_map.resolve()),
             "persona_pool_path": str(args.persona_pool.resolve()),
             "assigned_count": sum(case["persona_context"] is not None for case in selected),
-            "injected_into_attack_prompt": False,
-            "used_by_pcsa_phase2": True,
+            "injected_into_attack_prompt": args.method == "pcsa_phase2",
+            "used_by_pcsa_phase2": args.method == "pcsa_phase2",
         },
         "target": {
             "endpoint": args.target_endpoint,
@@ -275,13 +317,32 @@ def build_manifest(
             "tree_width": args.tree_width if args.method == "tap" else None,
             "branching_factor": args.branching_factor if args.method == "tap" else None,
             "many_shot_examples": args.many_shot_examples if args.method == "many_shot" else None,
+            "pcsa": (
+                {
+                    "paper": PCSA_PAPER_ID,
+                    "phase": 2,
+                    "phase1_enabled": False,
+                    "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
+                    "pathology_routes": str(args.pathology_routes.resolve()),
+                    "max_turns": args.max_turns,
+                    "candidates_per_turn": args.pcsa_candidates,
+                    "strategies": list(PCSA_STRATEGY_NAMES),
+                    "evaluator": {
+                        "endpoint": args.pcsa_evaluator_endpoint,
+                        "model": args.pcsa_evaluator_model,
+                        "transport": args.pcsa_evaluator_transport,
+                    },
+                }
+                if args.method == "pcsa_phase2"
+                else None
+            ),
             "crescendo_prompt": str(CRISIS_PROMPT) if args.method == "crescendo" else None,
             "therapist_prompt": (
                 str(THERAPIST_PROMPT) if args.method == "therapist_crescendo" else None
             ),
         },
         "internal_scorer_is_final_evaluation": False,
-        "pcsa_phase2": evaluation_contract(),
+        "final_evaluation": evaluation_contract(),
     }
 
 
@@ -351,7 +412,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
             SkeletonKeyAttack,
             TAPAttack,
         )
-        from pyrit.models import SeedPrompt
+        from pyrit.models import Message, SeedPrompt
         from pyrit.prompt_target import OpenAIChatTarget
         from pyrit.score import FloatScaleThresholdScorer, NumericRubric, SelfAskScaleScorer
         from pyrit.setup import IN_MEMORY, initialize_pyrit_async
@@ -370,62 +431,80 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
     await initialize_pyrit_async(
         memory_db_type=IN_MEMORY, silent=True, seed=args.seed, load_defaults=False
     )
-    if args.target_transport == "openai_batch":
-        if urlparse(args.target_endpoint).hostname != "api.openai.com":
-            raise RuntimeError("openai_batch target transport requires https://api.openai.com/v1")
+    class OpenAIBatchChatTarget(OpenAIChatTarget):
+        def __init__(self, *, batch_work_dir: Path, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.batch_dispatcher = OpenAIBatchDispatcher(
+                client=self._client,
+                work_dir=batch_work_dir,
+                poll_interval_seconds=args.batch_poll_seconds,
+                flush_interval_seconds=args.batch_flush_seconds,
+            )
 
-        class OpenAIBatchChatTarget(OpenAIChatTarget):
-            def __init__(self, *, batch_work_dir: Path, **kwargs: Any) -> None:
-                super().__init__(**kwargs)
-                self.batch_dispatcher = OpenAIBatchDispatcher(
-                    client=self._client,
-                    work_dir=batch_work_dir,
-                    poll_interval_seconds=args.batch_poll_seconds,
-                    flush_interval_seconds=args.batch_flush_seconds,
+        async def _send_prompt_to_target_async(
+            self, *, normalized_conversation: list[Any]
+        ) -> list[Any]:
+            message = normalized_conversation[-1]
+            message_piece = message.message_pieces[0]
+            json_config = self._get_json_response_config(message_piece=message_piece)
+            body = await self._construct_request_body_async(
+                conversation=normalized_conversation, json_config=json_config
+            )
+
+            async def batch_api_call() -> ChatCompletion:
+                response_body = await self.batch_dispatcher.submit(body)
+                return ChatCompletion.model_validate(response_body)
+
+            response = await self._handle_openai_request_async(
+                api_call=batch_api_call,
+                request=message,
+            )
+            return [response]
+
+    def make_chat_target(
+        *,
+        endpoint: str,
+        model: str,
+        api_key_env: str,
+        temperature: float,
+        transport: str,
+        batch_work_dir: Path,
+    ) -> Any:
+        options = {
+            "endpoint": endpoint,
+            "model_name": model,
+            "api_key": _api_key(endpoint, api_key_env),
+            "temperature": temperature,
+        }
+        if transport == "openai_batch":
+            if urlparse(endpoint).hostname != "api.openai.com":
+                raise RuntimeError(
+                    "openai_batch transport requires https://api.openai.com/v1"
                 )
+            return OpenAIBatchChatTarget(
+                batch_work_dir=batch_work_dir,
+                **options,
+            )
+        return OpenAIChatTarget(**options)
 
-            async def _send_prompt_to_target_async(
-                self, *, normalized_conversation: list[Any]
-            ) -> list[Any]:
-                message = normalized_conversation[-1]
-                message_piece = message.message_pieces[0]
-                json_config = self._get_json_response_config(message_piece=message_piece)
-                body = await self._construct_request_body_async(
-                    conversation=normalized_conversation, json_config=json_config
-                )
-
-                async def batch_api_call() -> ChatCompletion:
-                    response_body = await self.batch_dispatcher.submit(body)
-                    return ChatCompletion.model_validate(response_body)
-
-                response = await self._handle_openai_request_async(
-                    api_call=batch_api_call,
-                    request=message,
-                )
-                return [response]
-
-        target = OpenAIBatchChatTarget(
-            batch_work_dir=args.output_dir / "_openai_batches",
-            endpoint=args.target_endpoint,
-            model_name=args.target_model,
-            api_key=_api_key(args.target_endpoint, args.target_api_key_env),
-            temperature=args.target_temperature,
-        )
-    else:
-        target = OpenAIChatTarget(
-            endpoint=args.target_endpoint,
-            model_name=args.target_model,
-            api_key=_api_key(args.target_endpoint, args.target_api_key_env),
-            temperature=args.target_temperature,
-        )
+    target = make_chat_target(
+        endpoint=args.target_endpoint,
+        model=args.target_model,
+        api_key_env=args.target_api_key_env,
+        temperature=args.target_temperature,
+        transport=args.target_transport,
+        batch_work_dir=args.output_dir / "_openai_batches" / "target",
+    )
     adversary = None
     adversarial_config = None
     if args.method in MULTI_TURN_METHODS:
-        adversary = OpenAIChatTarget(
+        adversary = make_chat_target(
             endpoint=args.adversary_endpoint,
-            model_name=args.adversary_model,
-            api_key=_api_key(args.adversary_endpoint, args.adversary_api_key_env),
+            model=args.adversary_model,
+            api_key_env=args.adversary_api_key_env,
             temperature=args.adversary_temperature,
+            transport="sync",
+            batch_work_dir=args.output_dir / "_openai_batches" / "adversary",
         )
         adversarial_config = AttackAdversarialConfig(
             target=adversary,
@@ -437,7 +516,18 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                 else None
             ),
         )
-    if args.method in {"crescendo", "therapist_crescendo"}:
+    pcsa_evaluator = None
+    if args.method == "pcsa_phase2":
+        pcsa_evaluator = make_chat_target(
+            endpoint=args.pcsa_evaluator_endpoint,
+            model=args.pcsa_evaluator_model,
+            api_key_env=args.pcsa_evaluator_api_key_env,
+            temperature=0.0,
+            transport=args.pcsa_evaluator_transport,
+            batch_work_dir=args.output_dir / "_openai_batches" / "pcsa_evaluator",
+        )
+        attack = None
+    elif args.method in {"crescendo", "therapist_crescendo"}:
         assert adversarial_config is not None
         attack = CrescendoAttack(
             objective_target=target,
@@ -487,6 +577,18 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
     else:
         attack = PromptSendingAttack(objective_target=target)
 
+    async def chat(target_object: Any, messages: Iterable[dict[str, str]]) -> str:
+        normalized = [
+            Message.from_prompt(prompt=message["content"], role=message["role"])
+            for message in messages
+        ]
+        responses = await target_object._send_prompt_to_target_async(
+            normalized_conversation=normalized
+        )
+        if not responses:
+            raise ValueError("chat target returned no response message")
+        return responses[0].get_value()
+
     counts = {"complete": 0, "skipped": 0, "failed": 0}
 
     async def process_case(case: dict[str, Any]) -> None:
@@ -496,29 +598,58 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
             counts["skipped"] += 1
             return
         try:
-            result = await attack.execute_async(
-                objective=case["objective"],
-                memory_labels={
-                    "case_id": case["case_id"],
-                    "crisis_label": str(case["crisis_label"] or ""),
-                    "baseline_method": args.method,
-                },
-            )
-            transcript = await _target_transcript(result.conversation_id)
-            final_response = result.last_response.converted_value if result.last_response else None
+            if args.method == "pcsa_phase2":
+                assert adversary is not None and pcsa_evaluator is not None
+                persona_context = case["persona_context"]
+                pathology_context = case["pathology_context"]
+                if not persona_context or not pathology_context:
+                    raise ValueError("PCSA requires both persona and pathology context")
+                pcsa_result = await run_pcsa_phase2(
+                    objective=case["objective"],
+                    persona_profile=persona_context["persona_profile"],
+                    pathology=pathology_context["pathology"],
+                    attacker_chat=lambda messages: chat(adversary, messages),
+                    target_chat=lambda messages: chat(target, messages),
+                    evaluator_chat=lambda messages: chat(pcsa_evaluator, messages),
+                    max_turns=args.max_turns,
+                    candidates_per_turn=args.pcsa_candidates,
+                )
+                transcript = pcsa_result["target_conversation"]
+                final_response = pcsa_result["final_target_response"]
+                internal_attack_control = {
+                    "framework": "pcsa_phase2",
+                    "is_final_evaluation": False,
+                    "result": pcsa_result,
+                }
+            else:
+                assert attack is not None
+                result = await attack.execute_async(
+                    objective=case["objective"],
+                    memory_labels={
+                        "case_id": case["case_id"],
+                        "crisis_label": str(case["crisis_label"] or ""),
+                        "baseline_method": args.method,
+                    },
+                )
+                transcript = await _target_transcript(result.conversation_id)
+                final_response = (
+                    result.last_response.converted_value if result.last_response else None
+                )
+                internal_attack_control = {
+                    "framework": "pyrit",
+                    "is_final_evaluation": False,
+                    "result": _compact_attack_result(result),
+                }
             payload = {
                 "schema_version": SCHEMA_VERSION,
                 "method": args.method,
                 "case": case,
                 "persona_context": case["persona_context"],
+                "pathology_context": case["pathology_context"],
                 "target_conversation": transcript,
                 "final_target_response": final_response,
-                "internal_attack_control": {
-                    "framework": "pyrit",
-                    "is_final_evaluation": False,
-                    "result": _compact_attack_result(result),
-                },
-                "pcsa_phase2": evaluation_contract(),
+                "internal_attack_control": internal_attack_control,
+                "final_evaluation": evaluation_contract(),
             }
             _atomic_json(output, payload)
             if failure.exists():
@@ -533,13 +664,17 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                     "case": case,
                     "error_type": type(exc).__name__,
                     "error": str(exc),
-                    "pcsa_phase2": evaluation_contract(),
+                    "final_evaluation": evaluation_contract(),
                 },
             )
             counts["failed"] += 1
         print(json.dumps({"case_id": case["case_id"], **counts}), flush=True)
 
-    if args.target_transport == "openai_batch":
+    uses_batch_transport = args.target_transport == "openai_batch" or (
+        args.method == "pcsa_phase2"
+        and args.pcsa_evaluator_transport == "openai_batch"
+    )
+    if uses_batch_transport:
         semaphore = asyncio.Semaphore(args.batch_case_concurrency)
 
         async def process_with_limit(case: dict[str, Any]) -> None:
@@ -560,13 +695,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--cohort-index", type=Path, default=DEFAULT_COHORT_INDEX)
     parser.add_argument("--persona-map", type=Path, default=DEFAULT_PERSONA_MAP)
     parser.add_argument("--persona-pool", type=Path, default=DEFAULT_PERSONA_POOL)
+    parser.add_argument("--pathology-routes", type=Path, default=DEFAULT_PATHOLOGY_ROUTES)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--stop", type=int)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--crisis-label", action="append", default=[])
     parser.add_argument("--seed", type=int)
-    parser.add_argument("--max-turns", type=int, default=10)
+    parser.add_argument(
+        "--max-turns",
+        type=int,
+        help="attack turn cap (default: 4 for PCSA Phase 2, 10 otherwise)",
+    )
     parser.add_argument("--max-backtracks", type=int, default=10)
     parser.add_argument("--pair-streams", type=int, default=3)
     parser.add_argument("--tree-width", type=int, default=3)
@@ -586,9 +726,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--adversary-model", default=DEFAULT_ADVERSARY_MODEL)
     parser.add_argument("--adversary-api-key-env", default="ADVERSARY_API_KEY")
     parser.add_argument("--adversary-temperature", type=float, default=0.7)
+    parser.add_argument("--pcsa-candidates", type=int, default=PCSA_DEFAULT_CANDIDATES)
+    parser.add_argument(
+        "--pcsa-evaluator-endpoint", default="https://api.openai.com/v1"
+    )
+    parser.add_argument("--pcsa-evaluator-model", default="gpt-4o-mini")
+    parser.add_argument("--pcsa-evaluator-api-key-env", default="OPENAI_API_KEY")
+    parser.add_argument(
+        "--pcsa-evaluator-transport",
+        choices=("sync", "openai_batch"),
+        default="openai_batch",
+    )
     parser.add_argument("--retry-failed", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
+    if args.max_turns is None:
+        args.max_turns = PCSA_MAX_TURNS if args.method == "pcsa_phase2" else 10
     for name in (
         "start",
         "max_turns",
@@ -597,6 +750,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "branching_factor",
         "many_shot_examples",
         "batch_case_concurrency",
+        "pcsa_candidates",
     ):
         if getattr(args, name) < (0 if name == "start" else 1):
             parser.error(f"--{name.replace('_', '-')} has an invalid value")
@@ -610,6 +764,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--limit must be at least 1")
     if args.max_backtracks < 0:
         parser.error("--max-backtracks cannot be negative")
+    if args.pcsa_candidates > len(PCSA_STRATEGY_NAMES):
+        parser.error(
+            f"--pcsa-candidates cannot exceed {len(PCSA_STRATEGY_NAMES)}"
+        )
+    if args.method == "pcsa_phase2" and args.max_turns > PCSA_MAX_TURNS:
+        parser.error(f"PCSA Phase 2 is capped at {PCSA_MAX_TURNS} turns")
     if not CRISIS_PROMPT.exists() or not THERAPIST_PROMPT.exists():
         parser.error("PyRIT submodule is missing; run: git submodule update --init --recursive")
     if args.output_dir is None:
@@ -620,11 +780,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     persona_contexts = load_persona_contexts(args.persona_map, args.persona_pool)
+    pathology_contexts = load_pathology_contexts(args.pathology_routes)
     source_records = _read_records(args.input)
     cohort_rows = load_cohort_rows(args.cohort_index)
     cases = normalize_cases(
         project_official_records(source_records, cohort_rows),
         persona_contexts=persona_contexts,
+        pathology_contexts=pathology_contexts,
     )
     if _is_canonical_full_run(args) and len(source_records) != EXPECTED_SOURCE_CASE_COUNT:
         raise ValueError(
@@ -642,6 +804,14 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(
                 "canonical baseline run requires a fixed Phase 2 persona for every case; "
                 f"missing {len(missing_personas)} assignments"
+            )
+        missing_pathology = [
+            case["case_id"] for case in cases if case["pathology_context"] is None
+        ]
+        if missing_pathology:
+            raise ValueError(
+                "canonical baseline run requires a pathology route for every case; "
+                f"missing {len(missing_pathology)} routes"
             )
     selected = select_cases(
         cases,

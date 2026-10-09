@@ -1,4 +1,4 @@
-"""Run the eight RED-Persona baselines against Qwen and GPT-4o concurrently."""
+"""Run the nine RED-Persona baselines against Qwen and GPT-4o concurrently."""
 from __future__ import annotations
 
 import argparse
@@ -30,7 +30,7 @@ REPO_ROOT = BASELINE_DIR.parent
 RUNNER = Path(__file__).resolve().with_name("run_pyrit_baseline.py")
 DEFAULT_CONFIG = BASELINE_DIR / "matrix_qwen_gpt4o.json"
 DEFAULT_OUTPUT = BASELINE_DIR / "outputs" / "qwen_gpt4o_pilot"
-MATRIX_SCHEMA_VERSION = "red-persona-baseline-matrix-v2"
+MATRIX_SCHEMA_VERSION = "red-persona-baseline-matrix-v3"
 
 # Small but method-distinct pilot budgets. The official 500-case run can use the
 # same profiles or override them after the pilot confirms latency and cost.
@@ -50,6 +50,7 @@ METHOD_PROFILES: dict[str, tuple[str, ...]] = {
     ),
     "crescendo": ("--max-turns", "4", "--max-backtracks", "2"),
     "therapist_crescendo": ("--max-turns", "4", "--max-backtracks", "2"),
+    "pcsa_phase2": ("--max-turns", "4", "--pcsa-candidates", "4"),
 }
 
 
@@ -81,7 +82,9 @@ def _atomic_json(path: Path, value: Any) -> None:
     temporary.replace(path)
 
 
-def _endpoint(value: dict[str, Any], *, require_name: bool) -> EndpointConfig:
+def _endpoint(
+    value: dict[str, Any], *, require_name: bool, require_sync: bool = False
+) -> EndpointConfig:
     required = {"endpoint", "model", "api_key_env"}
     if require_name:
         required.add("name")
@@ -101,7 +104,7 @@ def _endpoint(value: dict[str, Any], *, require_name: bool) -> EndpointConfig:
         raise ValueError("endpoint name, model, and api_key_env must be non-empty")
     if transport not in {"sync", "openai_batch"}:
         raise ValueError("endpoint transport must be sync or openai_batch")
-    if not require_name and transport != "sync":
+    if require_sync and transport != "sync":
         raise ValueError("the local adversary must use sync transport")
     if batch_case_concurrency < 1:
         raise ValueError("batch_case_concurrency must be at least 1")
@@ -115,29 +118,35 @@ def _endpoint(value: dict[str, Any], *, require_name: bool) -> EndpointConfig:
     )
 
 
-def load_matrix_config(path: Path) -> tuple[list[EndpointConfig], EndpointConfig, list[str]]:
+def load_matrix_config(
+    path: Path,
+) -> tuple[list[EndpointConfig], EndpointConfig, EndpointConfig, list[str]]:
     value = json.loads(path.read_text(encoding="utf-8"))
     targets = [_endpoint(item, require_name=True) for item in value.get("targets", [])]
     if len(targets) != 2:
         raise ValueError("matrix config must contain exactly two targets")
     if len({target.name for target in targets}) != len(targets):
         raise ValueError("target names must be unique")
-    adversary = _endpoint(value.get("adversary", {}), require_name=False)
+    adversary = _endpoint(
+        value.get("adversary", {}), require_name=False, require_sync=True
+    )
+    pcsa_evaluator = _endpoint(value.get("pcsa_evaluator", {}), require_name=True)
     methods = value.get("methods", [])
     if methods != list(METHOD_PROFILES):
         raise ValueError(
-            "matrix methods must list the eight canonical methods in this order: "
+            "matrix methods must list the nine canonical methods in this order: "
             + ", ".join(METHOD_PROFILES)
         )
     if any(method not in METHODS for method in methods):
         raise ValueError("matrix contains a method unsupported by run_pyrit_baseline.py")
-    return targets, adversary, methods
+    return targets, adversary, pcsa_evaluator, methods
 
 
 def build_jobs(
     *,
     targets: list[EndpointConfig],
     adversary: EndpointConfig,
+    pcsa_evaluator: EndpointConfig,
     methods: list[str],
     input_path: Path,
     cohort_index_path: Path,
@@ -176,9 +185,28 @@ def build_jobs(
                 adversary.api_key_env,
                 *METHOD_PROFILES[method],
             ]
-            if target.transport == "openai_batch":
+            batch_concurrency = (
+                target.batch_case_concurrency
+                if target.transport == "openai_batch"
+                else pcsa_evaluator.batch_case_concurrency
+                if method == "pcsa_phase2"
+                and pcsa_evaluator.transport == "openai_batch"
+                else None
+            )
+            if batch_concurrency is not None:
+                command.extend(("--batch-case-concurrency", str(batch_concurrency)))
+            if method == "pcsa_phase2":
                 command.extend(
-                    ("--batch-case-concurrency", str(target.batch_case_concurrency))
+                    (
+                        "--pcsa-evaluator-endpoint",
+                        pcsa_evaluator.endpoint,
+                        "--pcsa-evaluator-model",
+                        pcsa_evaluator.model,
+                        "--pcsa-evaluator-api-key-env",
+                        pcsa_evaluator.api_key_env,
+                        "--pcsa-evaluator-transport",
+                        pcsa_evaluator.transport,
+                    )
                 )
             if pilot_cases is not None:
                 command.extend(("--limit", str(pilot_cases)))
@@ -196,11 +224,14 @@ def build_jobs(
 
 
 def preflight_errors(
-    *, targets: list[EndpointConfig], adversary: EndpointConfig
+    *,
+    targets: list[EndpointConfig],
+    adversary: EndpointConfig,
+    pcsa_evaluator: EndpointConfig | None = None,
 ) -> list[str]:
     errors: list[str] = []
     checked: set[tuple[str, str]] = set()
-    for item in [*targets, adversary]:
+    for item in [*targets, adversary, *([pcsa_evaluator] if pcsa_evaluator else [])]:
         key = (item.endpoint, item.api_key_env)
         if key in checked:
             continue
@@ -213,11 +244,14 @@ def preflight_errors(
 
 
 def endpoint_probe_errors(
-    *, targets: list[EndpointConfig], adversary: EndpointConfig
+    *,
+    targets: list[EndpointConfig],
+    adversary: EndpointConfig,
+    pcsa_evaluator: EndpointConfig | None = None,
 ) -> list[str]:
     errors: list[str] = []
     checked: set[tuple[str, str]] = set()
-    for item in [*targets, adversary]:
+    for item in [*targets, adversary, *([pcsa_evaluator] if pcsa_evaluator else [])]:
         key = (item.endpoint, item.model)
         if key in checked:
             continue
@@ -282,20 +316,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--pilot-cases", type=int, default=1)
     parser.add_argument("--full-500", action="store_true")
-    parser.add_argument("--max-concurrent-jobs", type=int, default=16)
+    parser.add_argument("--max-concurrent-jobs", type=int, default=18)
     parser.add_argument("--retry-failed", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     if args.pilot_cases < 1:
         parser.error("--pilot-cases must be at least 1")
-    if not 1 <= args.max_concurrent_jobs <= 16:
-        parser.error("--max-concurrent-jobs must be between 1 and 16")
+    if not 1 <= args.max_concurrent_jobs <= 18:
+        parser.error("--max-concurrent-jobs must be between 1 and 18")
     return args
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    targets, adversary, methods = load_matrix_config(args.config)
+    targets, adversary, pcsa_evaluator, methods = load_matrix_config(args.config)
     cohort_count = len(load_cohort_rows(args.cohort_index))
     if args.full_500 and cohort_count != EXPECTED_FULL_CASE_COUNT:
         raise ValueError(
@@ -306,6 +340,7 @@ def main(argv: list[str] | None = None) -> int:
     jobs = build_jobs(
         targets=targets,
         adversary=adversary,
+        pcsa_evaluator=pcsa_evaluator,
         methods=methods,
         input_path=args.input,
         cohort_index_path=args.cohort_index,
@@ -331,6 +366,7 @@ def main(argv: list[str] | None = None) -> int:
         },
         "targets": [asdict(target) for target in targets],
         "adversary": asdict(adversary),
+        "pcsa_evaluator": asdict(pcsa_evaluator),
         "jobs": [
             {
                 "target": job.target_name,
@@ -340,19 +376,35 @@ def main(argv: list[str] | None = None) -> int:
             }
             for job in jobs
         ],
-        "pcsa": {
+        "pcsa_phase2": {
+            "status": "configured",
             "phase": 2,
             "phase1_enabled": False,
+            "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
+            "max_turns": 4,
+            "candidates_per_turn": 4,
+        },
+        "final_evaluation": {
             "status": "pending",
-            "persona_conditioned": True,
+            "evaluators": ["cares", "mental_health_gpt_judge"],
         },
     }
     if args.dry_run:
         print(json.dumps(manifest, ensure_ascii=False, indent=2))
         return 0
-    errors = preflight_errors(targets=targets, adversary=adversary)
+    errors = preflight_errors(
+        targets=targets,
+        adversary=adversary,
+        pcsa_evaluator=pcsa_evaluator,
+    )
     if not errors:
-        errors.extend(endpoint_probe_errors(targets=targets, adversary=adversary))
+        errors.extend(
+            endpoint_probe_errors(
+                targets=targets,
+                adversary=adversary,
+                pcsa_evaluator=pcsa_evaluator,
+            )
+        )
     if errors:
         for error in errors:
             print(f"preflight error: {error}", file=sys.stderr)

@@ -21,6 +21,14 @@
     "model": "Qwen/Qwen2.5-7B-Instruct",
     "api_key_env": "QWEN_ADVERSARY_API_KEY"
   },
+  "pcsa_evaluator": {
+    "name": "pcsa_evaluator",
+    "endpoint": "https://api.openai.com/v1",
+    "model": "gpt-4o-mini",
+    "api_key_env": "OPENAI_API_KEY",
+    "transport": "openai_batch",
+    "batch_case_concurrency": 500
+  },
   "methods": [
     "direct",
     "skeleton_key",
@@ -29,6 +37,7 @@
     "pair",
     "tap",
     "crescendo",
-    "therapist_crescendo"
+    "therapist_crescendo",
+    "pcsa_phase2"
   ]
 }

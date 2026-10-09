@@ -20,8 +20,8 @@ persona, Lexi prior history를 결합했다. 공식 500개는 이 종합 후보�
 - `personas/personas.jsonl`: 동적 검색에 사용하는 전체 persona pool 31,733개
 - `../external_baselines/data/baseline_persona_assignments_official_500.jsonl`: 공식 500개
   외부 baseline case에 고정한 서로 다른 persona ID. 원천 625개와 공식 index의
-  `canonical_source_index`를 교차 연결하며, 모든 방법·target의 PCSA Phase 2 비교에서
-  공통으로 사용한다.
+  `canonical_source_index`를 교차 연결한다. 아홉 번째 공격 방법인 PCSA Phase II가 이
+  profile을 공격자 context로 사용하며, 모든 방법·target의 결과에도 분석용 sidecar로 남긴다.
 - `personas/persona_category_labels.jsonl`: Qwen 전체-pool 라벨을 기반으로,
   희소 범주는 GPT-4o mini의 근거 재심사와 명시적 category adaptation으로 보강한 단일 평가
   카테고리, 적합도, 위해 방향, 근거. `persona_id`로 원본 pool에 자동 병합한다.

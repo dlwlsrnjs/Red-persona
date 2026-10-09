@@ -3,8 +3,9 @@
 # HTTP: Qwen2.5-7B-Instruct (researcher/validator) on :8000 and
 # Llama-3.1-8B-Lexi-Uncensored-V2 (history generator) on :8002.
 #
-# Dedicated venv:  .venv (or $RED_PERSONA_VENV / $REDPERSONA_VENV)
-# Weights cache :  /data1/users/ljk98/hf_cache   (Qwen + Lexi already present)
+# Dedicated venv:  persona_redteam/.venv in this workspace, with the legacy
+#                  /data1 environment used only when it actually exists
+# Weights cache :  /home/ljk98/POLY/hf-cache on the current cluster
 #
 # Usage:
 #   bash serve_models.sh qwen     # start Qwen on GPU 0, port 8000
@@ -15,12 +16,28 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV="${RED_PERSONA_VENV:-${REDPERSONA_VENV:-$SCRIPT_DIR/.venv}}"
+if [[ -n "${RED_PERSONA_VENV:-}" ]]; then
+  VENV="$RED_PERSONA_VENV"
+elif [[ -n "${REDPERSONA_VENV:-}" ]]; then
+  VENV="$REDPERSONA_VENV"
+elif [[ -x /data1/users/ljk98/envs/redpersona-vllm/bin/python ]]; then
+  VENV=/data1/users/ljk98/envs/redpersona-vllm
+else
+  VENV="$SCRIPT_DIR/persona_redteam/.venv"
+fi
 if [[ ! -x "$VENV/bin/python" ]]; then
   echo "Python environment not found: $VENV" >&2
   exit 1
 fi
-export HF_HOME="${HF_HOME:-/data1/users/ljk98/hf_cache}"
+if [[ -z "${HF_HOME:-}" ]]; then
+  if [[ -d /data1/users/ljk98/hf_cache ]]; then
+    export HF_HOME=/data1/users/ljk98/hf_cache
+  elif [[ -d /home/ljk98/POLY/hf-cache ]]; then
+    export HF_HOME=/home/ljk98/POLY/hf-cache
+  else
+    export HF_HOME="$(cd "$SCRIPT_DIR/.." && pwd)/model-cache/huggingface-new"
+  fi
+fi
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}" # weights are cached; never hit the network
 # flashinfer JIT-compiles its sampler with ninja+nvcc. Those live inside the venv
 # (bin/ninja, site-packages/nvidia/cu13/bin/nvcc) but are not on a bare nohup PATH,

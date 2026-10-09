@@ -25,13 +25,16 @@ def test_normalize_and_select_cases():
     assert [case["case_id"] for case in selected] == ["g1"]
 
 
-def test_pcsa_contract_is_phase2_only():
+def test_final_evaluation_is_separate_from_attack_control():
     contract = MODULE.evaluation_contract()
-    assert contract["pcsa_phase"] == 2
-    assert contract["phase1_enabled"] is False
     assert contract["status"] == "pending"
-    assert contract["persona_conditioned"] is True
-    assert "persona_context" in contract["required_inputs"]
+    assert contract["attack_control_score_is_final"] is False
+    assert contract["final_evaluators"] == ["cares", "mental_health_gpt_judge"]
+
+
+def test_pcsa_uses_method_specific_four_turn_default():
+    assert MODULE.parse_args(["--method", "pcsa_phase2", "--dry-run"]).max_turns == 4
+    assert MODULE.parse_args(["--method", "pair", "--dry-run"]).max_turns == 10
 
 
 def test_method_families_are_disjoint_and_complete():
@@ -41,6 +44,7 @@ def test_method_families_are_disjoint_and_complete():
         "pair",
         "tap",
         "red_teaming",
+        "pcsa_phase2",
     }
     assert MODULE.SINGLE_TURN_METHODS == {"direct", "skeleton_key", "many_shot"}
     assert not MODULE.MULTI_TURN_METHODS.intersection(MODULE.SINGLE_TURN_METHODS)
@@ -51,10 +55,13 @@ def test_canonical_baseline_dataset_is_official_500_unique_cases():
     contexts = MODULE.load_persona_contexts(
         MODULE.DEFAULT_PERSONA_MAP, MODULE.DEFAULT_PERSONA_POOL
     )
+    pathologies = MODULE.load_pathology_contexts(MODULE.DEFAULT_PATHOLOGY_ROUTES)
     cohort = MODULE.load_cohort_rows(MODULE.DEFAULT_COHORT_INDEX)
     source = MODULE._read_records(MODULE.DEFAULT_INPUT)
     cases = MODULE.normalize_cases(
-        MODULE.project_official_records(source, cohort), persona_contexts=contexts
+        MODULE.project_official_records(source, cohort),
+        persona_contexts=contexts,
+        pathology_contexts=pathologies,
     )
     assert len(source) == MODULE.EXPECTED_SOURCE_CASE_COUNT == 625
     assert len(cases) == MODULE.EXPECTED_FULL_CASE_COUNT == 500
@@ -62,6 +69,7 @@ def test_canonical_baseline_dataset_is_official_500_unique_cases():
     assert len({case["case_id"] for case in cases}) == 500
     assert len({case["source_goal_id"] for case in cases}) == 500
     assert len({case["persona_context"]["persona_id"] for case in cases}) == 500
+    assert all(case["pathology_context"] for case in cases)
 
 
 def write_test_cohort(path):
@@ -98,7 +106,32 @@ def test_dry_run_reads_jsonl_without_importing_pyrit(tmp_path, capsys):
     assert output["selected_count"] == 1
     assert output["dataset"]["run_scope"] == "subset"
     assert output["internal_scorer_is_final_evaluation"] is False
-    assert output["pcsa_phase2"]["pcsa_phase"] == 2
+    assert output["final_evaluation"]["status"] == "pending"
+    assert output["final_evaluation"]["attack_control_score_is_final"] is False
+
+
+def test_pcsa_dry_run_uses_fixed_personas_and_four_turn_cap(capsys):
+    assert MODULE.main(
+        ["--method", "pcsa_phase2", "--max-turns", "4", "--limit", "1", "--dry-run"]
+    ) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["selected_count"] == 1
+    assert output["persona_context"]["injected_into_attack_prompt"] is True
+    assert output["attack_parameters"]["pcsa"] == {
+        "paper": MODULE.PCSA_PAPER_ID,
+        "phase": 2,
+        "phase1_enabled": False,
+        "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
+        "pathology_routes": str(MODULE.DEFAULT_PATHOLOGY_ROUTES.resolve()),
+        "max_turns": 4,
+        "candidates_per_turn": 4,
+        "strategies": list(MODULE.PCSA_STRATEGY_NAMES),
+        "evaluator": {
+            "endpoint": "https://api.openai.com/v1",
+            "model": "gpt-4o-mini",
+            "transport": "openai_batch",
+        },
+    }
 
 
 def test_single_turn_manifest_has_no_adversary(tmp_path, capsys):

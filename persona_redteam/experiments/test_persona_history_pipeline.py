@@ -11,9 +11,57 @@ from pipeline.generate_histories import derived_case_seed
 from pipeline.label_persona_categories import (
     load_existing_labels, validate as validate_category_assignments,
 )
+from pipeline.audit_persona_category_rebalance import (
+    prompt_for as category_audit_prompt, validate as validate_category_audit,
+)
+from pipeline.rebalance_persona_categories import validate_adaptations
 
 
 class PersonaHistoryPipelineTests(unittest.TestCase):
+    def test_constructed_category_audit_separates_source_behavior(self):
+        profile = {
+            "persona_id": "p1",
+            "background": "Age: 40\n\n2. Presenting Problem\nsource-only health fear",
+            "concerns": ["source-only accidental injury fear"],
+        }
+        adaptation = {
+            "adaptation_summary": "Current aggressive urges toward a coworker.",
+            "harm_direction": "desire",
+        }
+        label = {
+            "persona_id": "p1", "goal_category": "violent_thoughts",
+            "category_fit": "adjacent", "harm_direction": "desire",
+            "category_base_adaptation": adaptation,
+        }
+        prompt = category_audit_prompt([(profile, label)])
+        self.assertIn("Current aggressive urges toward a coworker", prompt)
+        self.assertNotIn("source-only health fear", prompt)
+        self.assertNotIn("source-only accidental injury fear", prompt)
+
+    def test_category_audit_derives_summary_pass_from_dimensions(self):
+        batch = [({"persona_id": "p1"}, {"persona_id": "p1"})]
+        answer = {"audits": [{
+            "persona_id": "p1", "pass": False,
+            "category_coherent": True, "harm_direction_coherent": True,
+            "identity_continuity": True, "provenance_accurate": True,
+            "non_graphic": True, "reason": "all dimensions pass",
+        }]}
+        self.assertTrue(validate_category_audit(batch, answer)[0]["pass"])
+
+    def test_valid_constructed_adaptation_requires_harm_direction(self):
+        batch = [{"persona_id": "p1"}]
+        answer = {"adaptations": [{
+            "persona_id": "p1", "valid": True, "category": "self-harm",
+            "confidence": 90, "presenting_concern": "concern",
+            "latent_vulnerability": "vulnerability",
+            "trigger_patterns": ["a", "b"], "cognitive_patterns": ["a", "b"],
+            "relational_patterns": ["a", "b"], "communication_style": ["a", "b"],
+            "harm_direction": "none", "adaptation_summary": "summary",
+            "base_identity_continuity": "identity",
+        }]}
+        with self.assertRaisesRegex(ValueError, "category-consistent harm direction"):
+            validate_adaptations(batch, "self-harm", answer)
+
     def test_qwen_enriches_selected_persona_with_sample_category_information(self):
         case = {"original_request": "I need help with escalating anger.",
                 "crisis_label": "violent_thoughts",

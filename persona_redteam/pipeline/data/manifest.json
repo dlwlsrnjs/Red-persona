@@ -4,13 +4,14 @@
     "data_lineage_document": "docs/DATA_LINEAGE_AND_EXTRACTION_KO.md",
     "full_blueprint_builder": "experiments/build_jmir_eval_set_full.py",
     "full_persona_pool": "../data/personas/personas.jsonl (31,733 rows)",
+    "persona_category_labels": "../data/personas/persona_category_labels.jsonl (31,733 rows; SHA256 7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0)",
+    "persona_category_audit": "../data/personas/persona_category_labels.audit.json (268/268 passed)",
     "full_evaluation_goals_625": "../data/crisis_goals_jmir_persona_min10.jsonl",
     "full_goal_pathology_routes_625": "../data/goal_pathology_routes_n625.jsonl",
     "recovery_evaluator_prompt": "evaluation/prompts/persona_co_research_recovery_evaluator.txt",
     "cares_evaluator_prompt": "evaluation/prompts/cares_official_response_evaluator.txt"
   },
   "local_untracked": {
-    "persona_category_labels": "../data/personas/persona_category_labels.jsonl (31,733 generated rows; override: PERSONA_CATEGORY_LABELS_PATH)",
     "full_evaluation_blueprint": "data/prepared/blueprints/jmir_eval_full.jsonl",
     "full_pre_generation_cases": "data/prepared/cases/jmir_eval_full_pre_generation.json",
     "full_generated_cases": "data/prepared/generated/jmir_eval_full_with_history.json",
@@ -23,5 +24,5 @@
     "target_runs": "data/runs/<target_model>/",
     "evaluations": "data/evaluations/<target_model>/"
   },
-  "note": "The 625-case full set is the main evaluation. Paths are relative to persona_redteam; the canonical persona pool is tracked, while generated model outputs remain gitignored."
+  "note": "The 625-case full set is the main evaluation. Paths are relative to persona_redteam; the canonical persona pool and validated final category sidecar are tracked, while checkpoints and transient model outputs remain gitignored."
 }

@@ -129,17 +129,18 @@ export PERSONA_POOL_PATH=/absolute/path/to/personas.jsonl
 `pipeline.persona_pool`은 이 환경변수를 우선하고, 없으면
 `../data/personas/personas.jsonl`을 사용한다.
 
-다음 category sidecar는 모델 생성 산출물이므로 Git에 포함되지 않는다.
+다음 검증 완료 category sidecar와 감사 요약은 Git에 포함된다.
 
 ```text
 ../data/personas/persona_category_labels.jsonl
+../data/personas/persona_category_labels.audit.json
 ```
 
-새 서버에서는 `pipeline.label_persona_categories`로 31,733개 초기 라벨을 생성한 뒤 runbook의
-`pipeline.rebalance_persona_categories` 희소 범주 감사를 실행하거나, 동일 model
-revision과 labeler version으로 만든 완성 sidecar를 안전하게 복사한다. 전체 ID가 정확히 한 번씩
-존재하지 않으면 `pipeline.generate_histories`가 시작되지 않는다. 상세 명령은
-`JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md` 2절을 따른다.
+새 서버에서는 기본적으로 clone된 최종 sidecar를 그대로 사용한다. SHA-256
+`7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0`과 31,733행을 확인한다.
+재생성이 필요할 때만 `pipeline.label_persona_categories`부터 runbook의 재분류·독립 감사·복구
+절차를 수행한다. 전체 ID가 정확히 한 번씩 존재하지 않으면 `pipeline.generate_histories`가
+시작되지 않는다. 생성 checkpoint와 partial sidecar는 계속 Git에서 제외한다.
 
 두 핵심 historical payload는 다음 checksum과 일치해야 한다.
 

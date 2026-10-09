@@ -9,6 +9,7 @@ __pycache__/
 *.log
 data/personas/category_checkpoints/
 data/personas/persona_category_labels*.jsonl
+!data/personas/persona_category_labels.jsonl
 data/personas/personas_enriched*.jsonl*
 persona_redteam/prompts/
 serve_logs/

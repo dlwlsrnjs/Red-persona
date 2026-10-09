@@ -20,13 +20,22 @@
 ## 2. Qwen category sidecar
 
 `pipeline.label_persona_categories`가 각 persona에 초기 평가 범주 하나를 부여한다. 출력
-`../data/personas/persona_category_labels.jsonl`은 모델 생성 산출물이므로 Git에 포함하지
-않고, checkpoint와 함께 실행별 provenance로 보존한다.
+`../data/personas/persona_category_labels.jsonl` 중 API 검증을 끝낸 최종본과
+`persona_category_labels.audit.json`은 재현 기준으로 Git에 포함한다. 생성 checkpoint,
+partial sidecar와 후보 풀은 실행별 provenance로만 보존하며 Git에 포함하지 않는다.
 
-희소 범주는 `pipeline.rebalance_persona_categories`가 GPT-4o mini로 원문 근거를 재심사한다.
-단순 재라벨링으로 고유 base family 100개를 확보할 수 없는 범주는 서로 다른 base identity를
-유지한 명시적 `category_base_adaptation`을 생성한다. 이는 원문 사실이 아닌
-category-conditioned construction으로 별도 model·method·confidence provenance를 기록한다.
+희소 범주는 `pipeline.rebalance_persona_categories`가 GPT-4o mini로 후보를 만들고,
+`pipeline.audit_persona_category_rebalance`가 각 항목을 독립 심사한다. 최종 정책은 원문상의
+인접 신호만으로 재지정한 행을 보수적으로 원복하고, 서로 다른 base identity를 유지한 명시적
+`category_base_adaptation`만 부족분에 사용한다. 이는 원문 사실이 아닌 category-conditioned
+construction으로 별도 model·method·confidence provenance를 기록한다. 유효한 구성형 행은
+`desire|enacted|historical` 중 명확한 위해 방향을 가져야 한다.
+
+현재 최종본은 31,733행이며 범주별 개수는 anxiety 31,046, risk-taking 102, self-harm 101,
+substance 216, suicidal ideation 168, violent thoughts 100이다. 보강된 268행은 모두 구성형이고,
+self-harm/suicidal/violent의 고유 base family가 각각 100개다. GPT-4o mini 항목별 감사 결과는
+268/268 통과이며 sidecar SHA-256은
+`7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0`이다.
 
 허용 범주는 JMIR 평가의 여섯 범주와 동일하다.
 

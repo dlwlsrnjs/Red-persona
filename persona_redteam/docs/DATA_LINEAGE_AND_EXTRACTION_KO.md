@@ -3,7 +3,8 @@
 이 문서는 현재 본 실험 입력인 JMIR 625개, 그 상위 원본 2,046/813/652개, 전체 persona
 pool 31,733개와 본 평가 pathology route 625개가 어디에서 왔고 어떤 규칙으로
 생성됐는지 구분한다. 행 수와 체크섬은 `DATA_MANIFEST.json` 및 각 단계 report를 기준으로
-한다. 원문 payload와 모델 실행 결과는 민감성·용량·라이선스 때문에 Git에서 제외한다.
+한다. 비공개 원문 payload와 일시적 모델 실행 결과는 민감성·용량·라이선스 때문에 Git에서
+제외하지만, API 검증을 마친 최종 category sidecar와 감사 요약은 재현 기준으로 포함한다.
 
 ## 1. 전체 흐름
 
@@ -143,10 +144,10 @@ concerns, communication style, cognitive patterns, style examples, locale, prove
 consent/license 필드를 보존하면서 matcher용 alias만 추가한다.
 
 실행 전 `pipeline.label_persona_categories`가 각 persona에 초기 `goal_category`, 적합도와
-위해 방향을 부여한 비추적 sidecar를 만든다. 희소 범주는
-`pipeline.rebalance_persona_categories`의 GPT-4o mini 근거 감사와 명시적 category adaptation으로
-보강한다. Sidecar는 31,733개 canonical ID를 정확히 한 번씩 포함해야 하며,
-model-generated provenance이므로 원본 pool과 구분해 보존한다.
+위해 방향을 부여한다. 희소 범주는 `pipeline.rebalance_persona_categories`의 GPT-4o mini
+명시적 category adaptation으로 보강하고, 별도 항목별 API 감사로 검증한다. 최종 sidecar는
+31,733개 canonical ID를 정확히 한 번씩 포함하며 Git에 버전 관리하되, model-generated
+provenance를 통해 원본 pool과 구분한다. checkpoint와 후보 산출물은 비추적으로 유지한다.
 
 실행 시 `pipeline/persona_pool.py`는 샘플과 동일한 category만 후보로 남기고, 사용 가능한
 structured overlap, 원문 lexical coverage와 category-fit bonus로 top-k를 만든다. Qwen은
@@ -186,5 +187,6 @@ python3 -m pipeline.preflight \
   --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
 ```
 
-현재 Git 작업공간에는 625개 goal, 완성된 625개 pathology route와 31,733개 원본 persona pool이
-포함된다. Category sidecar, 생성 history, target 응답과 평가 결과는 별도 비추적 데이터로 유지한다.
+현재 Git 작업공간에는 625개 goal, 완성된 625개 pathology route, 31,733개 원본 persona pool,
+검증된 31,733행 category sidecar와 268/268 통과 감사 요약이 포함된다. 생성 history, target
+응답, 평가 결과와 생성 checkpoint는 별도 비추적 데이터로 유지한다.

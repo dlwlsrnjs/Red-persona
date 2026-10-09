@@ -43,7 +43,8 @@ goal-free 고정 질문으로 대체한다. Qwen은 매 타겟 응답을 private
 상세 계약과 산출물 예시는
 [`persona_redteam/pipeline/README.md`](persona_redteam/pipeline/README.md)의 3~5절을 따른다.
 
-API 키와 모델·실행 산출물은 Git에 포함하지 않는다.
+API 키, 모델 checkpoint와 실행 중간 산출물은 Git에 포함하지 않는다. 재현 기준으로 검증된
+최종 persona category sidecar와 그 API 감사 요약만 예외적으로 버전 관리한다.
 
 이 서버의 로컬 모델 실행 환경은 [`MUST_READ_SERVING_SETUP.md`](MUST_READ_SERVING_SETUP.md),
 재현 가능한 전체 실행 순서는

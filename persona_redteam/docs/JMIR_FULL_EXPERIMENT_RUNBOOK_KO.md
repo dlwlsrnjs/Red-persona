@@ -29,8 +29,10 @@ python3 -m pipeline.preflight \
 
 ## 2. Persona category sidecar 생성
 
-Git에 포함된 원본 pool 31,733개에 Qwen category label을 생성한다. 최종 sidecar가 이미 있고
-동일 labeler version으로 31,733개가 완료됐다면 이 단계는 건너뛸 수 있다.
+Git에는 검증 완료된 31,733행 최종 sidecar가 포함되어 있으므로 기본 실행에서는 이 절을
+건너뛴다. 먼저 `sha256sum ../data/personas/persona_category_labels.jsonl`이
+`7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0`인지 확인한다.
+아래 절차는 라벨을 처음부터 재생성할 때만 실행한다.
 
 ```bash
 python3 -m pipeline.label_persona_categories \
@@ -58,9 +60,41 @@ python3 -m pipeline.rebalance_persona_categories \
 ```
 
 GPT 원문 근거 판정과 명시적 category adaptation은 구분해 provenance에 남는다. 숫자를 맞추기
-위해 근거 없는 profile을 원문상 direct 사례로 재라벨링하지 않는다.
+위해 근거 없는 profile을 원문상 direct 사례로 재라벨링하지 않는다. 보수적 최종본은 원문
+인접 재지정을 원복하고, 명확한 위해 방향을 가진 구성형 후보만 사용한다. 먼저 재분류 행을
+항목별로 독립 감사한다. 감사 명령은 실패 행이 있으면 의도적으로 종료 코드 2를 반환한다.
 
-명령은 일부 batch가 실패하면 non-zero로 종료한다. `--retry-failed`로 재실행해 최종 summary의
+```bash
+python3 -m pipeline.audit_persona_category_rebalance \
+  --profiles ../data/personas/personas.jsonl \
+  --labels ../data/personas/persona_category_labels.jsonl \
+  --checkpoint-dir ../data/personas/category_checkpoints/gpt4omini-audit-initial \
+  --summary ../data/personas/persona_category_labels.audit.json \
+  --model gpt-4o-mini-2024-07-18 \
+  --batch-size 1 --workers 64 --attempts 5 --retry-failed
+```
+
+실패 행과 원문 인접 재지정을 복원하고, 결손 범주마다 후보를 넉넉히 생성해 동일 감사 통과
+후보만 선택한다.
+
+```bash
+python3 -m pipeline.repair_persona_category_rebalance \
+  --profiles ../data/personas/personas.jsonl \
+  --labels ../data/personas/persona_category_labels.jsonl \
+  --audit-checkpoints ../data/personas/category_checkpoints/gpt4omini-audit-initial \
+  --checkpoint-dir ../data/personas/category_checkpoints/gpt4omini-repair \
+  --output ../data/personas/persona_category_labels.jsonl \
+  --summary ../data/personas/category_checkpoints/gpt4omini-repair/summary.json \
+  --model gpt-4o-mini-2024-07-18 \
+  --minimum 100 --batch-size 1 --workers 64 --attempts 5 \
+  --revert-source-grounded
+```
+
+마지막으로 새 checkpoint 디렉터리에서 위 감사 명령을 다시 실행해 `passed=268`, `failed=0`과
+다섯 차원의 268/268을 확인한다. 최종 sidecar와 `.audit.json`만 버전 관리하며 생성
+checkpoint와 partial 파일은 제외한다.
+
+초기 전체 라벨 명령은 일부 batch가 실패하면 non-zero로 종료한다. `--retry-failed`로 재실행해 최종 summary의
 `complete=31733`, `failed=0`을 확인한다. Partial sidecar로 history 생성을 시작할 수 없다.
 
 ## 3. 사용자 프롬프트 준비

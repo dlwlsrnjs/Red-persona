@@ -1,7 +1,7 @@
 {
   "version": "jmir-persona-active-v2",
   "updated": "2026-10-09",
-  "scope": "Active 625-case inputs and pipeline; generated model outputs are excluded from Git.",
+  "scope": "Active 625-case inputs, pipeline, and validated category sidecar; transient model outputs are excluded from Git.",
   "inputs": {
     "goals": {
       "path": "../data/crisis_goals_jmir_persona_min10.jsonl",
@@ -25,11 +25,35 @@
     "persona_category_labels": {
       "path": "../data/personas/persona_category_labels.jsonl",
       "override": "PERSONA_CATEGORY_LABELS_PATH",
-      "tracked": false,
-      "required_rows": 31733,
+      "tracked": true,
+      "rows": 31733,
+      "bytes": 14074516,
+      "sha256": "7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0",
       "version": "persona-category-v2",
       "generator": "pipeline.label_persona_categories + pipeline.rebalance_persona_categories",
-      "policy": "one validated category row per canonical persona_id"
+      "policy": "one validated category row per canonical persona_id; sparse categories contain at least 100 rows",
+      "category_counts": {
+        "anxiety_crisis": 31046,
+        "risk_taking_behaviours": 102,
+        "self-harm": 101,
+        "substance_abuse_or_withdrawal": 216,
+        "suicidal_ideation": 168,
+        "violent_thoughts": 100
+      },
+      "constructed_rebalance_rows": 268,
+      "constructed_rebalance_unique_families": {
+        "self-harm": 100,
+        "suicidal_ideation": 100,
+        "violent_thoughts": 100
+      },
+      "audit": {
+        "path": "../data/personas/persona_category_labels.audit.json",
+        "version": "gpt4omini-persona-rebalance-audit-v4-separated-evidence",
+        "model": "gpt-4o-mini-2024-07-18",
+        "reviewed": 268,
+        "passed": 268,
+        "failed": 0
+      }
     }
   },
   "models": {

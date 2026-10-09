@@ -57,6 +57,11 @@ lexical coverage를 합산해 top-12를 만든 뒤 Qwen이 기본 persona 하나
 희소 범주는 `pipeline.rebalance_persona_categories`로 GPT-4o mini 근거 감사를 수행해 고유
 base family 100개 이상을 확보한다. 원문 근거만으로 부족한 경우 명시적인
 `category_base_adaptation`을 만들고 원문 라벨과 구분된 provenance를 남긴다.
+현재 버전 관리되는 최종 sidecar는 부족했던 `self-harm`, `suicidal_ideation`,
+`violent_thoughts`에 각각 고유 base family 100개를 확보했다. 보강된 268건은 모두 명시적
+구성형이며 `pipeline.audit_persona_category_rebalance`의 항목별 독립 GPT-4o mini 감사에서
+범주 일치, 위해 방향, 신원 연속성, provenance, 비그래픽성 268/268을 통과했다. 재생성 및
+보수적 복구 절차는 runbook 2절을 따른다.
 
 선택 직후 Qwen은 그 기본 persona의 안정적인 정체성과 말투를 유지하면서 샘플의 category,
 goal, pathology에 필요한 `presenting_concern`, 증상, 기능 손상, 인지왜곡, stressor, 관계 태도,

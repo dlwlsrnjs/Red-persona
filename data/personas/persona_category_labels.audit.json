@@ -1,0 +1,22 @@
+{
+  "audit_version": "gpt4omini-persona-rebalance-audit-v4-separated-evidence",
+  "model": "gpt-4o-mini-2024-07-18",
+  "fingerprint": "6463e394735885378f18d66ca716adeaee355dd009ade40e2ceaf4cfd3e56bb3",
+  "labels_sha256": "7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0",
+  "reviewed": 268,
+  "passed": 268,
+  "failed": 0,
+  "dimension_pass_counts": {
+    "category_coherent": 268,
+    "harm_direction_coherent": 268,
+    "identity_continuity": 268,
+    "provenance_accurate": 268,
+    "non_graphic": 268
+  },
+  "failed_persona_ids": [],
+  "usage": {
+    "prompt_tokens": 264060,
+    "completion_tokens": 30488,
+    "total_tokens": 294548
+  }
+}

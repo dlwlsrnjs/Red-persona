@@ -140,7 +140,7 @@ class BatchChatClient:
                 input_file_id=uploaded.id,
                 endpoint="/v1/chat/completions",
                 completion_window="24h",
-                metadata={"campaign": "red-persona-250", "wave": label[:60]},
+                metadata={"campaign": "red-persona-batch", "wave": label[:60]},
             )
             batch_id = batch.id
             state = {

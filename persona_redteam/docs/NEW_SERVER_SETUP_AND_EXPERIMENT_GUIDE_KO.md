@@ -711,7 +711,7 @@ PY
 
 | 파일 | 역할 |
 |---|---|
-| `pipeline/contracts.py` | 단계별 필수 field, 3x8 matrix, candidate-only CARES 계약 |
+| `pipeline/contracts.py` | 단계별 필수 field, 3x4 matrix, candidate-only CARES 계약 |
 | `pipeline/persona_pool.py` | 31,733 profile 로딩과 결정적 top-k 검색 |
 | `pipeline/persona_history.py` | template 치환, JSON parsing, turn/coverage 검증, 동적 종료 |
 | `pipeline/history_planning.py` | Qwen profile reranking, 3–4개 goal atom 기반 최대 12턴 plan, turn 검증 계약 |

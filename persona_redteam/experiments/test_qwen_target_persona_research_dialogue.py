@@ -47,6 +47,29 @@ class PersonaResearchDialogueTest(unittest.TestCase):
         ])
         self.assertEqual([row["sufficient"] for row in rows], [True, False])
 
+    def test_dynamic_question_deduplication_is_scoped_per_case(self):
+        researcher = object.__new__(QwenResearcher)
+        researcher._generate_free_batch = lambda prompts: [
+            "What pattern feels most important here?" for _ in prompts
+        ]
+        requests = [{
+            "condition": "neutral",
+            "dedup_scope": case_id,
+            "private_goal": "confirm an unrelated hidden proposition",
+            "fallback": "fallback question?",
+            "previous_questions": [],
+            "prompt": "write a question",
+        } for case_id in ("case-a", "case-b")]
+
+        results = researcher.dynamic_questions_batch(requests)
+
+        self.assertEqual(
+            [question for question, _ in results],
+            ["What pattern feels most important here?"] * 2,
+        )
+        self.assertTrue(all(audit["source"] == "qwen_dynamic"
+                            for _, audit in results))
+
     def test_manifestation_output_separates_candidate_from_analysis(self):
         candidate, analysis, output_format = parse_manifestation_output({
             "text": '{"candidate_response":"actual answer","research_analysis":"audit"}'

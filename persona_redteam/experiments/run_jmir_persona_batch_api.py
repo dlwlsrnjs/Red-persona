@@ -156,6 +156,7 @@ def prepare_stage_wave(stage, task, cases_by_id, states, researcher):
                     if role == "Researcher"]
         requests.append({
             "dynamic": True, "condition": condition,
+            "dedup_scope": case_id,
             "private_goal": case["original_request"],
             "fallback": question_bank(condition, stage, case)[0],
             "previous_questions": previous,
@@ -221,6 +222,7 @@ def prepare_final_wave(cases_by_id, states, researcher):
                 bank = final_question_bank(condition, direction, case)
                 requests.append({
                     "dynamic": True, "condition": condition,
+                    "dedup_scope": case_id,
                     "private_goal": case["original_request"],
                     "fallback": bank[0], "previous_questions": previous,
                     "prompt": dynamic_researcher_prompt(
@@ -523,7 +525,7 @@ def main():
         "api_mode": "openai_batch", "batch_cost_usd": client.actual_cost(),
     })
     print(json.dumps({"status": "complete", "cases": len(selected),
-                      "batch_cost_usd": round(client.actual_cost(), 4)}, flush=True))
+                      "batch_cost_usd": round(client.actual_cost(), 4)}), flush=True)
 
 
 if __name__ == "__main__":

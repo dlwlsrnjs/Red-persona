@@ -319,7 +319,7 @@ def main():
     })
     print(json.dumps({"status": "complete", "evaluated": len(runs),
                       "total": len(evaluated) + len(runs),
-                      "batch_cost_usd": round(client.actual_cost(), 4)}, flush=True))
+                      "batch_cost_usd": round(client.actual_cost(), 4)}), flush=True)
 
 
 if __name__ == "__main__":

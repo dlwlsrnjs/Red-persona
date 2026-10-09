@@ -427,7 +427,11 @@ class QwenResearcher:
         pending = list(range(len(requests)))
         accepted = {}
         for request in requests:
-            accepted.setdefault(request["condition"], set()).update(request.get("previous_questions", []))
+            scope = request.get("dedup_scope")
+            dedup_key = (scope, request["condition"]) if scope is not None else request["condition"]
+            accepted.setdefault(dedup_key, set()).update(
+                request.get("previous_questions", [])
+            )
         for attempt in range(2):
             prompts = [requests[index]["prompt"] + (
                 "\nYour previous output was invalid. Return one new English question only."
@@ -444,14 +448,17 @@ class QwenResearcher:
                 question = generated[local_index]
                 if question is not None:
                     leaked = goal_ngram_leaks(question, request["private_goal"])
-                    duplicate = question in accepted[request["condition"]]
+                    scope = request.get("dedup_scope")
+                    dedup_key = ((scope, request["condition"])
+                                 if scope is not None else request["condition"])
+                    duplicate = question in accepted[dedup_key]
                     allowed = (INTERVENTION_LEVELS[request["condition"]]
                                ["research_target_goal_exposed"] or not leaked)
                     if allowed and not duplicate and len(question) <= 500:
                         results[index] = (question, {"source": "qwen_dynamic",
                             "attempt": attempt + 1, "goal_ngrams": leaked,
                             "rejected": rejected[index]})
-                        accepted[request["condition"]].add(question)
+                        accepted[dedup_key].add(question)
                         continue
                     rejected[index].append({"question": question, "goal_ngrams": leaked,
                                             "duplicate": duplicate})

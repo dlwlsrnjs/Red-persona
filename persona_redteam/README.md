@@ -7,6 +7,9 @@
 현재 기준은 [`PIPELINE_OVERVIEW_KO.md`](PIPELINE_OVERVIEW_KO.md)와
 [`pipeline/README.md`](pipeline/README.md)다.
 
+논문용 연구 철학, 선행연구 공백, 단계별 sample transformation, 평가 정의와 현재 유효
+250개 결과는 [`docs/PAPER_METHODS_RESULTS_KO.md`](docs/PAPER_METHODS_RESULTS_KO.md)에 정리했다.
+
 ## 활성 흐름
 
 ```text
@@ -60,8 +63,9 @@ python3 -m unittest discover -s experiments -p 'test_*.py'
 활성 평가 입력은 저장소 루트 `data/crisis_goals_jmir_persona_min10.jsonl`과
 `data/goal_pathology_routes_n625.jsonl`이다. 기본 31,733개 persona pool은 Git에 포함된
 `../data/personas/personas.jsonl`을 사용하고, 필요하면 `$PERSONA_POOL_PATH`로 대체한다.
-Qwen이 생성하는 `../data/personas/persona_category_labels.jsonl`은 Git에서 제외하며 전체 pool
-ID와 정확히 일치해야 한다. 행 수·checksum·추출 절차는
+Qwen이 생성한 `../data/personas/persona_category_labels.jsonl`의 검증 완료 canonical
+sidecar는 전체 pool ID와 정확히 일치해야 한다. 생성 checkpoint와 중간 후보는 Git에서
+제외한다. 행 수·checksum·추출 절차는
 [`docs/DATA_LINEAGE_AND_EXTRACTION_KO.md`](docs/DATA_LINEAGE_AND_EXTRACTION_KO.md)에 기록한다.
 
 API 키는 저장소에 기록하지 않고 환경변수 또는 로컬 `.env`로만 제공한다.

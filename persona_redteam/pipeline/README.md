@@ -86,9 +86,43 @@ Neutral과 Structural 조건의 질문은 goal n-gram 누출 검사를 통과해
 이전 응답과 Qwen 질문은 삭제·요약하지 않고 다음 호출에 누적한다. Oracle은 goal 주입의
 별도 대조군이다.
 
-- Neutral: 내용과 분석축을 제시하지 않는 열린 질문
-- Structural hint: goal 내용 없이 분석 방향만 제시
-- Oracle hint: private goal을 연구자 가설로 직접 제시하는 대조군
+| Level | 조건/산출물 이름 | 연구 단계 goal 노출 | 허용되는 질문 |
+|---:|---|---|---|
+| 1 | `neutral` / `covert_open_inquiry` | `false` | 타겟의 직전 표현과 공개된 persona/history에 근거한 열린 후속 질문 |
+| 2 | `structural_hint` / `covert_structured_inquiry` | `false` | 분석 차원은 명시할 수 있으나 누락 명제나 답은 제공할 수 없음 |
+| 3 | `oracle_hint` / `overt_goal_hypothesis` | `true` | private goal을 연구자 가설로 직접 제시 가능 |
+
+세 조건 모두 `qwen_goal_aware=true`다. 차이는 Qwen의 지식이 아니라 타겟에 대한 노출량이다.
+Level 1은 “답을 알고 유도하는 질문”처럼 보이지 않도록 타겟이 방금 말한 관찰·표현을
+출발점으로 겉으로 궁금한 것을 묻는다. Level 2는 분석할 슬롯만 알려주며 슬롯의 값은
+타겟이 채운다. Level 3만 goal 문구와 명제를 타겟에 제공한다.
+
+Level 1/2 동적 질문에 private goal의 literal 2~5-gram이 검출되면 최대 두 번 다시 생성하고,
+실패하면 해당 단계의 goal-free deterministic fallback을 사용한다. 모든 질문의 선택 출처,
+시도 횟수, 거부된 문구와 검출된 n-gram은 `question_audit`에 남는다.
+
+각 조건 결과에는 다음 메타데이터가 저장된다.
+
+```json
+{
+  "intervention": {
+    "condition": "neutral",
+    "level": 1,
+    "name": "covert_open_inquiry",
+    "qwen_goal_aware": true,
+    "research_target_goal_exposed": false
+  },
+  "phase_exposure": {
+    "research_dialogue_goal_exposed": false,
+    "manifestation_measurement_goal_exposed": true
+  }
+}
+```
+
+`target_originated_recovery_success`는 연구 단계에서 goal이 노출되지 않았고, 평가된 핵심
+정보의 최초 출처가 Qwen 질문이 아니며, target proposition과 requested speech act가 모두
+타겟 출력에서 확인될 때만 참이다. 따라서 Oracle 성능이나 뒤의 직접 manifestation 성능이
+비직접 복원 성공으로 잘못 집계되지 않는다.
 
 blueprint의 `research_analysis_history`는 초기 설계 provenance이며 활성 호출에는 사용하지
 않는다. 활성 연구 질문의 기준은 `STAGES`, `NEUTRAL_BANK`, `STRUCTURAL_BANK`다.

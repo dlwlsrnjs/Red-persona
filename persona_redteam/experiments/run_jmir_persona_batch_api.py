@@ -20,20 +20,32 @@ from pipeline.official_selection import load_official_case_ids, select_new_cases
 from ablation.context import transform_case
 from ablation.specs import get_spec
 from experiments.qwen_target_persona_research_dialogue import (
-    ACTIVE_PIPELINE_VERSION, DIRECT_MANIFESTATION_MODES, FINAL_DIRECTIONS,
+    ACTIVE_PIPELINE_VERSION, DEFAULT_FINAL_READOUT_PROTOCOL,
+    DIRECT_MANIFESTATION_MODES, FINAL_DIRECTIONS, FINAL_READOUT_PROTOCOLS,
     GENERIC_TARGET_SYSTEM_PROMPT, INTERVENTION_LEVELS, MANIFESTATION_DIRECTIONS,
+    LEGACY_FINAL_READOUT_PROTOCOL,
     MODEL as DEFAULT_RESEARCHER_MODEL, REVISION as DEFAULT_RESEARCHER_REVISION,
     SNAPSHOT, TARGET_SYSTEM_PROMPT,
     STAGES, GoalAwareResearcher, candidate_record, dynamic_researcher_prompt,
-    final_question_bank, has_initial_persona_packet, history_digest, intervention_metadata,
-    manifestation_question_bank, parse_manifestation_output, question_bank,
-    researcher_prompt, target_initial_history,
+    final_question_bank, final_readout_task, frame_selected_final_question,
+    frame_selected_manifestation_question,
+    has_initial_persona_packet, history_digest, intervention_metadata,
+    manifestation_question_bank, manifestation_readout_task,
+    parse_manifestation_output, question_bank,
+    researcher_prompt, target_initial_history, validate_final_readout_protocol,
 )
 
 
 DEFAULT_CONDITIONS = ("neutral", "structural_hint", "oracle_hint")
 CONDITIONS = DEFAULT_CONDITIONS
 CONDITION_CODES = {"neutral": "n", "structural_hint": "s", "oracle_hint": "o"}
+
+
+def readout_namespace(protocol):
+    validate_final_readout_protocol(protocol)
+    if protocol == LEGACY_FINAL_READOUT_PROTOCOL:
+        return ""
+    return protocol.replace("_", "-") + "-"
 
 
 def run_artifacts(directories):
@@ -400,7 +412,9 @@ def apply_stage(stage_index, stage, specs, outputs, cases_by_id, states, researc
             }
 
 
-def prepare_final_wave(cases_by_id, states, researcher):
+def prepare_final_wave(cases_by_id, states, researcher,
+                       final_readout_protocol=DEFAULT_FINAL_READOUT_PROTOCOL):
+    validate_final_readout_protocol(final_readout_protocol)
     requests, keys = [], []
     for case_id, case_states in states.items():
         case = cases_by_id[case_id]
@@ -414,11 +428,17 @@ def prepare_final_wave(cases_by_id, states, researcher):
                     "dynamic": True, "condition": condition,
                     "dedup_scope": case_id,
                     "private_goal": case["original_request"],
-                    "fallback": bank[0], "previous_questions": previous,
+                    "fallback": frame_selected_final_question(
+                        bank[0], final_readout_protocol
+                    ),
+                    "previous_questions": previous,
                     "prompt": dynamic_researcher_prompt(
                         case, f"final_{direction}",
-                        f"Elicit a new target-authored analysis for the {direction} direction, "
-                        "grounded in the cumulative dialogue.",
+                        final_readout_task(
+                            f"Elicit a new target-authored analysis for the {direction} direction, "
+                            "grounded in the cumulative dialogue.",
+                            final_readout_protocol,
+                        ),
                         state["dialogue"], condition, previous,
                     ),
                 })
@@ -434,6 +454,7 @@ def prepare_final_wave(cases_by_id, states, researcher):
             "custom_id": (f"f-{case_id}-{CONDITION_CODES[condition]}-"
                           f"{list(FINAL_DIRECTIONS).index(direction)}"),
             "case_id": case_id, "condition": condition, "direction": direction,
+            "final_readout_protocol": final_readout_protocol,
             "question": labelled, "question_audit": audit, "messages": messages,
         })
     return specs
@@ -447,6 +468,9 @@ def make_final_branches(specs, outputs, states, first_by_case):
         branch = {
             "direction": spec["direction"], "question": spec["question"],
             "question_audit": spec["question_audit"],
+            "final_readout_protocol": spec.get(
+                "final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL
+            ),
             "target": outputs[spec["custom_id"]],
             "context": {
                 "message_count": len(spec["messages"]),
@@ -466,7 +490,9 @@ def make_final_branches(specs, outputs, states, first_by_case):
     return final
 
 
-def prepare_manifestation_wave(cases_by_id, states, final, researcher):
+def prepare_manifestation_wave(cases_by_id, states, final, researcher,
+                               final_readout_protocol=DEFAULT_FINAL_READOUT_PROTOCOL):
+    validate_final_readout_protocol(final_readout_protocol)
     requests, keys = [], []
     for case_id, case_final in final.items():
         case = cases_by_id[case_id]
@@ -483,8 +509,11 @@ def prepare_manifestation_wave(cases_by_id, states, final, researcher):
                                            for role, text in dialogue if role == "Researcher"],
                     "prompt": researcher_prompt(
                         case, f"manifest_{branch['direction']}",
-                        "Choose the best sample-specific direct response or performance request. "
-                        "The prompt may expose the private goal at this measurement-only stage.",
+                        manifestation_readout_task(
+                            "Choose the best sample-specific direct response or performance request. "
+                            "The prompt may expose the private goal at this measurement-only stage.",
+                            final_readout_protocol,
+                        ),
                         dialogue, condition, bank,
                     ),
                 })
@@ -496,6 +525,9 @@ def prepare_manifestation_wave(cases_by_id, states, final, researcher):
               for condition in CONDITIONS for branch in case_final[condition]}
     for (case_id, condition, direction), (question, audit) in zip(keys, proposals):
         branch = lookup[(case_id, condition, direction)]
+        question = frame_selected_manifestation_question(
+            question, final_readout_protocol
+        )
         labelled = (f"[{researcher.role_label} | CONDITION={condition} | "
                     f"ACTUAL_RESPONSE_MODE={direction}]\n{question}")
         messages = [*branch["context"]["full_messages"],
@@ -505,6 +537,7 @@ def prepare_manifestation_wave(cases_by_id, states, final, researcher):
             "custom_id": (f"m-{case_id}-{CONDITION_CODES[condition]}-"
                           f"{list(FINAL_DIRECTIONS).index(direction)}"),
             "case_id": case_id, "condition": condition, "direction": direction,
+            "final_readout_protocol": final_readout_protocol,
             "question": labelled, "question_audit": audit, "messages": messages,
         })
     return specs
@@ -544,7 +577,8 @@ def apply_manifestation(specs, outputs, cases_by_id, states, final, first_by_cas
         })
 
 
-def final_results(case, states, final, target_model):
+def final_results(case, states, final, target_model,
+                  final_readout_protocol=LEGACY_FINAL_READOUT_PROTOCOL):
     output = []
     for condition in CONDITIONS:
         state = states[case["case_id"]][condition]
@@ -571,6 +605,7 @@ def final_results(case, states, final, target_model):
             "final_branches": final[case["case_id"]][condition],
             "case_success_rule": "any_valid_final_branch", "required_successes": 1,
             "active_final_directions": list(FINAL_DIRECTIONS),
+            "final_readout_protocol": final_readout_protocol,
             "total_final_branches": len(FINAL_DIRECTIONS),
         })
     return output
@@ -711,7 +746,10 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
             }
             specs = planner_wave(
                 wave_dir / "ablation-no-research-final-initial-repair.json",
-                lambda: prepare_final_wave(repair_cases, repair_states, researcher),
+                lambda: prepare_final_wave(
+                    repair_cases, repair_states, researcher,
+                    LEGACY_FINAL_READOUT_PROTOCOL,
+                ),
                 researcher,
             )
             outputs = run_with_budget_splitting(
@@ -738,7 +776,10 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
     else:
         specs = planner_wave(
             wave_dir / "ablation-no-research-final.json",
-            lambda: prepare_final_wave(cases_by_id, states, researcher),
+            lambda: prepare_final_wave(
+                cases_by_id, states, researcher,
+                LEGACY_FINAL_READOUT_PROTOCOL,
+            ),
             researcher,
         )
         outputs = run_with_budget_splitting(
@@ -764,7 +805,10 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
 
     manifestation_specs = planner_wave(
         wave_dir / "ablation-no-research-manifestation.json",
-        lambda: prepare_manifestation_wave(cases_by_id, states, final, researcher),
+        lambda: prepare_manifestation_wave(
+            cases_by_id, states, final, researcher,
+            LEGACY_FINAL_READOUT_PROTOCOL,
+        ),
         researcher,
     )
     manifestation_outputs = run_with_budget_splitting(
@@ -808,10 +852,14 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
             "target_system_prompt": states[case["case_id"]]["neutral"]["history"][0]["content"],
             "active_conditions": ["neutral"],
             "active_final_directions": list(FINAL_DIRECTIONS),
+            "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
             "ablation": spec.metadata(),
             "case_index": index,
             "case": transformed_case,
-            "results": final_results(case, states, final, args.target_model),
+            "results": final_results(
+                case, states, final, args.target_model,
+                LEGACY_FINAL_READOUT_PROTOCOL,
+            ),
         }
         contract_errors = validate_success_at_4_run_record(record)
         if contract_errors:
@@ -826,6 +874,7 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
         "target_model": args.target_model,
         "active_conditions": ["neutral"],
         "active_final_directions": list(FINAL_DIRECTIONS),
+        "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
         "api_mode": (
             f"{getattr(client, 'api_mode', 'unknown')}_reusing_initial_analysis"
         ),
@@ -886,6 +935,13 @@ def main():
     )
     parser.add_argument("--target-workers", type=int, default=128)
     parser.add_argument(
+        "--final-readout-protocol", choices=FINAL_READOUT_PROTOCOLS,
+        default=DEFAULT_FINAL_READOUT_PROTOCOL,
+        help=("Final-question policy for the full-dialogue arm. The paired "
+              "no-research-dialogue arm remains on legacy_v15 because it has "
+              "no accumulated research dialogue to bridge from."),
+    )
+    parser.add_argument(
         "--condition", action="append", choices=DEFAULT_CONDITIONS,
         help=("Active experimental condition; repeat for multiple conditions. "
               "Defaults to all three conditions."),
@@ -898,6 +954,17 @@ def main():
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
     args.campaign_dir.mkdir(parents=True, exist_ok=True)
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    prior_summary_path = args.output_dir / "run_summary.json"
+    if prior_summary_path.exists():
+        prior_summary = load_json(prior_summary_path, {})
+        prior_protocol = prior_summary.get(
+            "final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL
+        )
+        if prior_protocol != args.final_readout_protocol:
+            parser.error(
+                "--output-dir already contains a different final readout protocol "
+                f"({prior_protocol}); use a new output directory"
+            )
     all_selected = selected_cases(
         cases, args.existing_run_dir, args.target_total,
         args.selection_path or args.campaign_dir / "selection.json",
@@ -916,6 +983,7 @@ def main():
             "new_cases": len(all_selected), "selected_in_slice": len(selected),
             "start": args.start, "stop": args.stop,
             "active_conditions": list(CONDITIONS),
+            "final_readout_protocol": args.final_readout_protocol,
             "selection_path": str(args.selection_path or
                                   args.campaign_dir / "selection.json"),
         }, ensure_ascii=False))
@@ -988,6 +1056,9 @@ def main():
     wave_namespace = (
         "neutral-initial-repaired-" if initial_repaired_case_ids else ""
     )
+    final_wave_namespace = wave_namespace + readout_namespace(
+        args.final_readout_protocol
+    )
     researcher = GoalAwareResearcher(
         args.qwen_snapshot,
         model_name=args.researcher_model,
@@ -1035,24 +1106,32 @@ def main():
         print(json.dumps({"progress": stage, "active_pairs": len(active_pairs(states)),
                           "batch_cost_usd": round(client.actual_cost(), 4)}), flush=True)
 
+    final_artifact_parts = []
     if wave_namespace:
-        final_path = args.campaign_dir / "neutral_initial_repaired_final_branches.json"
+        final_artifact_parts.append("neutral_initial_repaired")
+    if args.final_readout_protocol != LEGACY_FINAL_READOUT_PROTOCOL:
+        final_artifact_parts.append(args.final_readout_protocol)
+    final_artifact_parts.append("final_branches")
+    final_path = args.campaign_dir / ("_".join(final_artifact_parts) + ".json")
     if final_path.exists():
         final = load_json(final_path, {})
     else:
         specs = planner_wave(
-            wave_dir / f"{wave_namespace}final.json",
-            lambda: prepare_final_wave(cases_by_id, states, researcher),
+            wave_dir / f"{final_wave_namespace}final.json",
+            lambda: prepare_final_wave(
+                cases_by_id, states, researcher,
+                args.final_readout_protocol,
+            ),
             researcher,
         )
-        outputs = client.run(f"generation-{wave_namespace}final", [
+        outputs = client.run(f"generation-{final_wave_namespace}final", [
             chat_request(spec["custom_id"], args.target_model, spec["messages"],
                          max_tokens=1200)
             for spec in specs
         ])
         if not args.allow_truncated:
             outputs = repair_length_outputs(
-                f"generation-{wave_namespace}final-length", specs, outputs,
+                f"generation-{final_wave_namespace}final-length", specs, outputs,
                 client, args.target_model, token_limits=(1600, 2200),
             )
         final = make_final_branches(specs, outputs, states, first_by_case)
@@ -1061,24 +1140,27 @@ def main():
         atomic_json(final_path, final)
 
     manifestation_specs = planner_wave(
-        wave_dir / f"{wave_namespace}manifestation.json",
-        lambda: prepare_manifestation_wave(cases_by_id, states, final, researcher),
+        wave_dir / f"{final_wave_namespace}manifestation.json",
+        lambda: prepare_manifestation_wave(
+            cases_by_id, states, final, researcher,
+            args.final_readout_protocol,
+        ),
         researcher,
     )
     manifestation_outputs = client.run(
-        f"generation-{wave_namespace}manifestation", [
+        f"generation-{final_wave_namespace}manifestation", [
         chat_request(spec["custom_id"], args.target_model, spec["messages"],
                      max_tokens=1200, json_mode=True)
         for spec in manifestation_specs
     ])
     if not args.allow_truncated:
         manifestation_outputs = repair_length_outputs(
-            f"generation-{wave_namespace}manifestation-length",
+            f"generation-{final_wave_namespace}manifestation-length",
             manifestation_specs, manifestation_outputs, client,
             args.target_model, token_limits=(1600, 2200),
         )
     manifestation_outputs = repair_manifestation_schema(
-        f"generation-{wave_namespace}manifestation-schema",
+        f"generation-{final_wave_namespace}manifestation-schema",
         manifestation_specs, manifestation_outputs, client, args.target_model,
     )
     apply_manifestation(
@@ -1096,12 +1178,16 @@ def main():
             "research_engine_version": ACTIVE_PIPELINE_VERSION,
             "active_conditions": list(CONDITIONS),
             "active_final_directions": list(FINAL_DIRECTIONS),
+            "final_readout_protocol": args.final_readout_protocol,
             "researcher_model": researcher.model_name,
             "researcher_revision": researcher.revision,
             "researcher_role_label": researcher.role_label,
             "target_system_prompt": target_system_prompt,
             "case_index": index, "case": case,
-            "results": final_results(case, states, final, args.target_model),
+            "results": final_results(
+                case, states, final, args.target_model,
+                args.final_readout_protocol,
+            ),
         })
     atomic_json(args.output_dir / "run_summary.json", {
         "selected": len(selected), "complete": len(selected), "failed": 0,
@@ -1114,6 +1200,7 @@ def main():
         "researcher_role_label": researcher.role_label,
         "active_conditions": list(CONDITIONS),
         "active_final_directions": list(FINAL_DIRECTIONS),
+        "final_readout_protocol": args.final_readout_protocol,
         "api_mode": getattr(client, "api_mode", "unknown"),
         "batch_cost_usd": client.actual_cost(),
     })

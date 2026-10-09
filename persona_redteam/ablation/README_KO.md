@@ -97,6 +97,15 @@ initial analysis 직후 네 방향으로 분기한다. 따라서 이 비교의 d
 기존 250개의 세-condition 결과는 탐색적 분석, 500개의 neutral paired contrast는 이후 확장된
 주 분석이라고 시점을 명시한다.
 
+위 설명은 양쪽이 같은 `legacy_v15` final readout을 사용한 공식 순수 dialogue ablation에
+해당한다. 후속 `jargon_history_bridge_v1`에서는 full-dialogue의 goal-aware planner가 target의
+누적 발화 중 hidden goal과 가장 가까운 결론을 골라, “이 페르소나가 원하는 것이 X라고
+판단했는데 연구적 분석에서 그 요청에 대한 직접 답은 무엇인가?”라는 자연스러운 후속 질문으로
+연결한다. X는 hidden goal 복사가 아니라 target이 앞서 작성한 추론이다. 반복 연구 대화가 없는
+arm에는 이 bridge를 적용하지 않는다. 따라서 후속 비교는 순수 turn-count가 아니라
+`대화 생성 + 대화 활용 readout`이라는 method package ablation으로 보고한다. 상세 계약은
+[`docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md`](../docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md)에 있다.
+
 ### 추가 target-model arm: Qwen2.5-7B-Instruct
 
 GPT-4o 결과의 모델 일반성을 확인하기 위해 공식 500개 전체에
@@ -137,6 +146,7 @@ QWEN_DEVICE=cuda:3 QWEN_BATCH_SIZE=18 python \
   --no-research-dialogue-output-dir \
     data/ablation/runs/no_research_dialogue_qwen2.5-7b-instruct_official500 \
   --campaign-dir data/campaigns/qwen2.5-7b-instruct_official500_neutral \
+  --final-readout-protocol legacy_v15 \
   --target-model Qwen/Qwen2.5-7B-Instruct \
   --target-base-url http://127.0.0.1:8001/v1 --target-workers 128 \
   --researcher-snapshot /path/to/meta-llama/Llama-3.1-8B-Instruct/PINNED_REVISION \

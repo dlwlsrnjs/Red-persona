@@ -23,6 +23,9 @@ R0–R4, B0–B5, CARES 라벨, provenance와 방향별 모든 count/rate는
 동명의 JSON scorecard에 고정했다.
 Qwen target 공식 500개의 모델 revision, 7-GPU shard, 질문 provenance, 빈 출력 검사 결과는
 [`docs/QWEN_TARGET_500_RUN_AUDIT_KO.md`](docs/QWEN_TARGET_500_RUN_AUDIT_KO.md)에 고정했다.
+누적 target 발화를 hidden goal과 연결해 final question에 활용하는 후속 JARGON-style readout은
+[`docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md`](docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md)에 별도
+protocol로 기록했다.
 
 ## 활성 흐름
 

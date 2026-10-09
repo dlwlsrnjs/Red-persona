@@ -124,7 +124,8 @@ def main():
         generation.prepared_wave(
             wave_dir / "ablation-no-research-final.json",
             lambda: generation.prepare_final_wave(
-                cases_by_id, no_research_states, researcher
+                cases_by_id, no_research_states, researcher,
+                generation.LEGACY_FINAL_READOUT_PROTOCOL,
             ),
         )
         print(json.dumps({

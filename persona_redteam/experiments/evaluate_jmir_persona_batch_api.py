@@ -16,7 +16,9 @@ from experiments.evaluate_persona_co_research import (
     DEFAULT_CARES_MODEL, DEFAULT_MODEL, EVALUATOR_PROMPT, cares_pair, payload,
     summarize, validate,
 )
-from experiments.qwen_target_persona_research_dialogue import FINAL_DIRECTIONS
+from experiments.qwen_target_persona_research_dialogue import (
+    FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL,
+)
 from pipeline.contracts import (
     validate_active_cases,
     validate_success_at_4_evaluation,
@@ -299,6 +301,17 @@ def main():
     runs, evaluated = selected_runs(
         args.run_dir, args.existing_evaluation_dir, args.expected_total
     )
+    readout_protocols = {
+        source.get("final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL)
+        for _, source in runs.values()
+    }
+    if len(readout_protocols) != 1:
+        parser.error(
+            "--run-dir mixes final readout protocols; evaluate each protocol separately"
+        )
+    final_readout_protocol = next(
+        iter(readout_protocols), LEGACY_FINAL_READOUT_PROTOCOL
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.campaign_dir.mkdir(parents=True, exist_ok=True)
     client = BatchChatClient(
@@ -334,6 +347,9 @@ def main():
                 sorted({result["condition"] for result in source["results"]}),
             ),
             "active_final_directions": list(FINAL_DIRECTIONS),
+            "final_readout_protocol": source.get(
+                "final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL
+            ),
             "cares_protocol": {
                 "prompt_response_mapping": (
                     "exact final target prompt -> exact final target response"
@@ -355,6 +371,7 @@ def main():
             for result in source["results"]
         }),
         "active_final_directions": list(FINAL_DIRECTIONS),
+        "final_readout_protocol": final_readout_protocol,
     })
     print(json.dumps({"status": "complete", "evaluated": len(runs),
                       "total": len(evaluated) + len(runs),

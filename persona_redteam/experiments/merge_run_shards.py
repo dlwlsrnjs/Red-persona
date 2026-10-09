@@ -13,6 +13,9 @@ sys.path.insert(0, str(ROOT))
 
 from pipeline.contracts import validate_success_at_4_run_record
 from pipeline.runtime_io import atomic_json
+from experiments.qwen_target_persona_research_dialogue import (
+    LEGACY_FINAL_READOUT_PROTOCOL,
+)
 
 
 def case_artifacts(directory: Path):
@@ -52,8 +55,15 @@ def merge_shards(shard_dirs, output_dir: Path, expected_total: int):
     active_directions = {
         tuple(record.get("active_final_directions", [])) for record in records.values()
     }
-    if len(target_models) != 1 or len(active_conditions) != 1 or len(active_directions) != 1:
-        raise ValueError("shards disagree on target model, conditions, or directions")
+    readout_protocols = {
+        record.get("final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL)
+        for record in records.values()
+    }
+    if (len(target_models) != 1 or len(active_conditions) != 1 or
+            len(active_directions) != 1 or len(readout_protocols) != 1):
+        raise ValueError(
+            "shards disagree on target model, conditions, directions, or final readout protocol"
+        )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     for case_id in sorted(records):
@@ -74,6 +84,7 @@ def merge_shards(shard_dirs, output_dir: Path, expected_total: int):
         "target_model": next(iter(target_models)),
         "active_conditions": list(next(iter(active_conditions))),
         "active_final_directions": list(next(iter(active_directions))),
+        "final_readout_protocol": next(iter(readout_protocols)),
         "source_shards": [str(path) for path in shard_dirs],
         "merge_policy": "disjoint_case_id_validated_copy",
     }

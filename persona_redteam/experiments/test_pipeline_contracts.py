@@ -9,7 +9,10 @@ from pipeline.research_context import (
     ACTIVE_PIPELINE_VERSION,
     FINAL_DIRECTIONS,
 )
-from experiments.qwen_target_persona_research_dialogue import TARGET_SYSTEM_PROMPT
+from experiments.qwen_target_persona_research_dialogue import (
+    JARGON_HISTORY_BRIDGE_PROTOCOL, LEGACY_FINAL_READOUT_PROTOCOL,
+    TARGET_SYSTEM_PROMPT,
+)
 
 
 def history():
@@ -121,6 +124,31 @@ class PipelineContractTests(unittest.TestCase):
             "reason": "ablation_no_research_dialogue",
             "after_stage": "initial_analysis",
         }
+        self.assertEqual(validate_run_record(record), [])
+
+    def test_no_research_dialogue_rejects_history_bridge_readout(self):
+        record = self.make_run()
+        record["active_conditions"] = ["neutral"]
+        record["ablation"] = {"name": "no_research_dialogue"}
+        record["final_readout_protocol"] = JARGON_HISTORY_BRIDGE_PROTOCOL
+        record["results"] = [
+            result for result in record["results"]
+            if result["condition"] == "neutral"
+        ]
+        result = record["results"][0]
+        result["final_readout_protocol"] = JARGON_HISTORY_BRIDGE_PROTOCOL
+        result["turns"] = [{"stage": "initial_analysis"}]
+        result["research_stop"] = {
+            "reason": "ablation_no_research_dialogue",
+            "after_stage": "initial_analysis",
+        }
+
+        errors = validate_run_record(record)
+
+        self.assertTrue(any("cannot use a history-bridge" in error
+                            for error in errors))
+        record["final_readout_protocol"] = LEGACY_FINAL_READOUT_PROTOCOL
+        result["final_readout_protocol"] = LEGACY_FINAL_READOUT_PROTOCOL
         self.assertEqual(validate_run_record(record), [])
 
     def test_stale_engine_and_missing_candidate_are_rejected(self):

@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 
 from experiments.qwen_target_persona_research_dialogue import (
-    ACTIVE_PIPELINE_VERSION, FINAL_DIRECTIONS, TARGET_SYSTEM_PROMPT,
+    ACTIVE_PIPELINE_VERSION, FINAL_DIRECTIONS, FINAL_READOUT_PROTOCOLS,
+    LEGACY_FINAL_READOUT_PROTOCOL, TARGET_SYSTEM_PROMPT,
 )
 
 CONDITIONS = {"neutral", "structural_hint", "oracle_hint"}
@@ -153,8 +154,21 @@ def validate_run_record(record):
             f"{sorted(expected_conditions)}, got {sorted(map(str, conditions))}"
         )
     ablation_name = record.get("ablation", {}).get("name")
+    readout_protocol = record.get("final_readout_protocol")
+    if (readout_protocol is not None and
+            readout_protocol not in FINAL_READOUT_PROTOCOLS):
+        errors.append(f"run has unsupported final_readout_protocol: {readout_protocol}")
+    if (ablation_name == "no_research_dialogue" and readout_protocol is not None and
+            readout_protocol != LEGACY_FINAL_READOUT_PROTOCOL):
+        errors.append(
+            "no_research_dialogue cannot use a history-bridge readout protocol"
+        )
     for result in results:
         prefix = f"{result.get('case_id')}:{result.get('condition')}"
+        result_readout = result.get("final_readout_protocol")
+        if (readout_protocol is not None and result_readout is not None and
+                result_readout != readout_protocol):
+            errors.append(f"{prefix}: result final readout protocol differs from run")
         turns = result.get("turns", [])
         research_turns = [turn for turn in turns if turn.get("stage") != "initial_analysis"]
         if ablation_name == "no_research_dialogue":

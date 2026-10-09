@@ -9,7 +9,8 @@ from ablation.direction_attribution import attribution
 from ablation.metrics import METRICS
 from ablation.specs import get_spec
 from experiments.qwen_target_persona_research_dialogue import (
-    FINAL_DIRECTIONS, initial_prompt, run_all_conditions_batched,
+    FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL, initial_prompt,
+    run_all_conditions_batched,
 )
 
 
@@ -81,6 +82,10 @@ class AblationTest(unittest.TestCase):
         self.assertEqual(len(results), 3)
         self.assertTrue(all(len(result["turns"]) == 1 for result in results))
         self.assertTrue(all(len(result["final_branches"]) == 4 for result in results))
+        self.assertTrue(all(
+            result["final_readout_protocol"] == LEGACY_FINAL_READOUT_PROTOCOL
+            for result in results
+        ))
         self.assertTrue(all(
             result["research_stop"]["reason"] == "ablation_no_research_dialogue"
             for result in results

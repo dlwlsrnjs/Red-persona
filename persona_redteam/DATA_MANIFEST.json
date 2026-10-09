@@ -53,6 +53,13 @@
         "reviewed": 268,
         "passed": 268,
         "failed": 0
+      },
+      "category_partitions": {
+        "path": "../data/personas/by_category/index.json",
+        "version": "persona-category-partitions-v1",
+        "categories": 6,
+        "rows": 31733,
+        "partition_set_sha256": "ed6758cd47fc4e65f895b22965d298604e4e2678c00032c205e36c42827f731a"
       }
     }
   },

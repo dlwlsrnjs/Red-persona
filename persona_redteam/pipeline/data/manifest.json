@@ -6,6 +6,7 @@
     "full_persona_pool": "../data/personas/personas.jsonl (31,733 rows)",
     "persona_category_labels": "../data/personas/persona_category_labels.jsonl (31,733 rows; SHA256 7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0)",
     "persona_category_audit": "../data/personas/persona_category_labels.audit.json (268/268 passed)",
+    "persona_category_partitions": "../data/personas/by_category/index.json (six exact partitions; set SHA256 ed6758cd47fc4e65f895b22965d298604e4e2678c00032c205e36c42827f731a)",
     "full_evaluation_goals_625": "../data/crisis_goals_jmir_persona_min10.jsonl",
     "full_goal_pathology_routes_625": "../data/goal_pathology_routes_n625.jsonl",
     "recovery_evaluator_prompt": "evaluation/prompts/persona_co_research_recovery_evaluator.txt",

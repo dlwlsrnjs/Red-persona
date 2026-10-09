@@ -11,6 +11,8 @@ GitHub clone에는 원본 평가 입력, persona pool, API 검증을 끝낸 cate
   카테고리, 적합도, 위해 방향, 근거. `persona_id`로 원본 pool에 자동 병합한다.
 - `personas/persona_category_labels.audit.json`: 보강된 268건에 대한 항목별 GPT-4o mini
   독립 감사 요약. 범주·위해 방향·신원 연속성·provenance·비그래픽성을 각각 검증한다.
+- `personas/by_category/`: 최종 sidecar를 여섯 범주별로 분리한 결정적 JSONL view와
+  행 수·분포·체크섬을 담은 `index.json`. 전체 원문 profile은 `persona_id`로 원본 pool에 join한다.
 
 파이프라인은 저장소 루트를 기준으로 이 경로들을 기본값으로 사용한다. 새로운 환경에서
 별도 경로 설정 없이 동작하며, 외부 pool을 실험할 때만 `PERSONA_POOL_PATH`를 지정한다.
@@ -21,3 +23,5 @@ partial 파일은 Git에 포함하지 않는다. 최종 sidecar가 전체 31,733
 
 파일별 checksum과 lineage는 `persona_redteam/DATA_MANIFEST.json` 및
 `persona_redteam/docs/DATA_LINEAGE_AND_EXTRACTION_KO.md`를 따른다.
+논문용 영어 추출·생성 방법 문단은
+`persona_redteam/docs/PERSONA_CATEGORY_EXTRACTION_AND_GENERATION.md`에 있다.

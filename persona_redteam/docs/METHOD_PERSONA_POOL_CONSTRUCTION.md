@@ -36,6 +36,8 @@ substance 216, suicidal ideation 168, violent thoughts 100이다. 보강된 268�
 self-harm/suicidal/violent의 고유 base family가 각각 100개다. GPT-4o mini 항목별 감사 결과는
 268/268 통과이며 sidecar SHA-256은
 `7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0`이다.
+범주별 정리본은 `../data/personas/by_category/`에 있으며, 논문에 바로 사용할 수 있는 영어
+추출·생성 문단은 `docs/PERSONA_CATEGORY_EXTRACTION_AND_GENERATION.md`에 별도로 고정했다.
 
 허용 범주는 JMIR 평가의 여섯 범주와 동일하다.
 

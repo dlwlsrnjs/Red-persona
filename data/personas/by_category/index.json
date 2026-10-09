@@ -1,0 +1,135 @@
+{
+  "version": "persona-category-partitions-v1",
+  "source": "../persona_category_labels.jsonl",
+  "source_sha256": "7fa62560f5c99dc1d05b7aacac17f63a92ad19f13ac1e3fda13aa5a033edf9f0",
+  "join_key": "persona_id",
+  "record_scope": "Category label, direction, evidence, and construction provenance; join to ../personas.jsonl for the canonical source persona narrative.",
+  "ordering": "persona_id ascending within each category",
+  "total_rows": 31733,
+  "partition_set_sha256": "ed6758cd47fc4e65f895b22965d298604e4e2678c00032c205e36c42827f731a",
+  "categories": {
+    "anxiety_crisis": {
+      "file": "anxiety_crisis.jsonl",
+      "rows": 31046,
+      "bytes": 13295275,
+      "sha256": "0f2cd11ce288c7bb0bb680d349ba969d1597a7c311c6b28f0a9f8e19afaa00b5",
+      "unique_base_families": 4187,
+      "constructed_adaptation_rows": 0,
+      "category_fit_counts": {
+        "adjacent": 1352,
+        "direct": 29033,
+        "weak": 661
+      },
+      "harm_direction_counts": {
+        "desire": 50,
+        "fear": 30253,
+        "none": 743
+      },
+      "label_method_counts": {
+        "gpt4omini-api-audit-reverted-v2": 229,
+        "qwen-full-pool-v1": 30817
+      }
+    },
+    "risk_taking_behaviours": {
+      "file": "risk_taking_behaviours.jsonl",
+      "rows": 102,
+      "bytes": 45491,
+      "sha256": "4a71716dae7137a8ed3eb2aef7eab8717dd5cc45cc64e43f651a8fb63748cde3",
+      "unique_base_families": 32,
+      "constructed_adaptation_rows": 0,
+      "category_fit_counts": {
+        "adjacent": 38,
+        "direct": 64
+      },
+      "harm_direction_counts": {
+        "desire": 66,
+        "enacted": 6,
+        "fear": 27,
+        "none": 3
+      },
+      "label_method_counts": {
+        "qwen-full-pool-v1": 102
+      }
+    },
+    "self-harm": {
+      "file": "self-harm.jsonl",
+      "rows": 101,
+      "bytes": 222770,
+      "sha256": "2595bbbe8a95673cca8f240751bf85d1e5f59d692be0e87424148bddd105a345",
+      "unique_base_families": 100,
+      "constructed_adaptation_rows": 97,
+      "category_fit_counts": {
+        "adjacent": 97,
+        "direct": 4
+      },
+      "harm_direction_counts": {
+        "desire": 86,
+        "enacted": 2,
+        "historical": 13
+      },
+      "label_method_counts": {
+        "gpt4omini-targeted-deficit-rebalance-v2": 97,
+        "qwen-full-pool-v1": 4
+      }
+    },
+    "substance_abuse_or_withdrawal": {
+      "file": "substance_abuse_or_withdrawal.jsonl",
+      "rows": 216,
+      "bytes": 101133,
+      "sha256": "d95e0a4b4a6b3f3959e8e9582d3c639d918564e657fff11da6c761c39bc2f50c",
+      "unique_base_families": 51,
+      "constructed_adaptation_rows": 0,
+      "category_fit_counts": {
+        "adjacent": 67,
+        "direct": 149
+      },
+      "harm_direction_counts": {
+        "desire": 116,
+        "fear": 69,
+        "none": 31
+      },
+      "label_method_counts": {
+        "qwen-full-pool-v1": 216
+      }
+    },
+    "suicidal_ideation": {
+      "file": "suicidal_ideation.jsonl",
+      "rows": 168,
+      "bytes": 210605,
+      "sha256": "8dc443d401257e00a45c975ccd3d6e138b7baa69dbdcd341467ca8a86522bc5f",
+      "unique_base_families": 100,
+      "constructed_adaptation_rows": 74,
+      "category_fit_counts": {
+        "adjacent": 75,
+        "direct": 93
+      },
+      "harm_direction_counts": {
+        "desire": 160,
+        "fear": 8
+      },
+      "label_method_counts": {
+        "gpt4omini-targeted-deficit-rebalance-v2": 74,
+        "qwen-full-pool-v1": 94
+      }
+    },
+    "violent_thoughts": {
+      "file": "violent_thoughts.jsonl",
+      "rows": 100,
+      "bytes": 199242,
+      "sha256": "d1bcddd7e5e5f23a66b70a351c1b903566f343c8c94c42fd7661f7445a9700c6",
+      "unique_base_families": 100,
+      "constructed_adaptation_rows": 97,
+      "category_fit_counts": {
+        "adjacent": 97,
+        "direct": 3
+      },
+      "harm_direction_counts": {
+        "desire": 100
+      },
+      "label_method_counts": {
+        "gpt4omini-targeted-deficit-rebalance-v2": 97,
+        "qwen-full-pool-v1": 3
+      }
+    }
+  }
+}

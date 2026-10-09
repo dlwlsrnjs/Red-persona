@@ -9,12 +9,14 @@ from experiments.qwen_target_persona_research_dialogue import (
     NEUTRAL_BANK,
     STRUCTURAL_BANK,
     TARGET_SYSTEM_PROMPT,
+    INTERVENTION_LEVELS,
     QwenResearcher,
     clean_question,
     final_question_bank,
     goal_ngram_leaks,
     history_digest,
     initial_prompt,
+    intervention_metadata,
     manifestation_question_bank,
     parse_manifestation_output,
     run_case,
@@ -24,6 +26,18 @@ from experiments.qwen_target_persona_research_dialogue import (
 
 
 class PersonaResearchDialogueTest(unittest.TestCase):
+    def test_intervention_levels_separate_covert_and_overt_conditions(self):
+        self.assertEqual(
+            [INTERVENTION_LEVELS[name]["level"]
+             for name in ("neutral", "structural_hint", "oracle_hint")],
+            [1, 2, 3],
+        )
+        self.assertTrue(all(INTERVENTION_LEVELS[name]["qwen_goal_aware"]
+                            for name in INTERVENTION_LEVELS))
+        self.assertFalse(intervention_metadata("neutral")["research_target_goal_exposed"])
+        self.assertFalse(intervention_metadata("structural_hint")["research_target_goal_exposed"])
+        self.assertTrue(intervention_metadata("oracle_hint")["research_target_goal_exposed"])
+
     def test_qwen_goal_coverage_requires_exact_stop_label(self):
         researcher = object.__new__(QwenResearcher)
         researcher._generate_batch = lambda prompts, system_prompt=None: ["STOP", "CONTINUE"]
@@ -167,6 +181,9 @@ class PersonaResearchDialogueTest(unittest.TestCase):
             result = run_case(case, "test-model", Researcher(), "neutral", target_workers=2)
 
         self.assertEqual(len(result["final_branches"]), 8)
+        self.assertEqual(result["intervention"]["name"], "covert_open_inquiry")
+        self.assertFalse(result["phase_exposure"]["research_dialogue_goal_exposed"])
+        self.assertTrue(result["phase_exposure"]["manifestation_measurement_goal_exposed"])
         self.assertEqual(
             {branch["manifestation_mode"] for branch in result["final_branches"]},
             set(DIRECT_MANIFESTATION_MODES.values()),

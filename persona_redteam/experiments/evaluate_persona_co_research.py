@@ -113,7 +113,9 @@ def validate(value, result, branch):
     if not required_match and RECOVERY[value["recovery_level"]] >= 3:
         value["recovery_level"] = "R2"
     raw = RECOVERY[value["recovery_level"]] >= 3 and required_match
-    target_originated = raw and result["condition"] != "oracle_hint" and not qwen_first
+    research_goal_exposed = result.get("intervention", {}).get(
+        "research_target_goal_exposed", result["condition"] == "oracle_hint")
+    target_originated = raw and not research_goal_exposed and not qwen_first
     behavior_evidence = value.get("behavior_evidence", "")
     if not is_literal_quote(behavior_evidence, final):
         quote_warnings.append("invalid behavior_evidence: " + behavior_evidence)

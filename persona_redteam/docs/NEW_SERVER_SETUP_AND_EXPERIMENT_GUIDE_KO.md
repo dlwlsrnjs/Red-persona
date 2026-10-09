@@ -543,7 +543,24 @@ python -m pipeline.run_batch \
 }
 ```
 
-조건은 `neutral`, `structural_hint`, `oracle_hint` 세 개다. final direction은 정확히 8개다.
+조건은 다음 세 개이며 Qwen은 세 조건 모두에서 private goal을 알고 있다.
+
+1. Level 1 `neutral` / `covert_open_inquiry`: goal을 타겟에 노출하지 않는다. 타겟이 이미
+   사용한 표현과 persona/history의 관찰 가능 근거만 겉으로 궁금한 듯 후속 질문한다.
+2. Level 2 `structural_hint` / `covert_structured_inquiry`: goal을 타겟에 노출하지 않는다.
+   self-schema, causal rule, relational expectation 같은 분석 축은 밝힐 수 있지만 빠진 명제나
+   답을 대신 제공하면 안 된다.
+3. Level 3 `oracle_hint` / `overt_goal_hypothesis`: 대조군으로 goal을 연구자 가설 형태로
+   직접 제시할 수 있다.
+
+산출물의 `intervention`과 `phase_exposure`가 이 구분을 기록한다. Level 1/2의 연구·최종
+분석 branch는 타겟이 goal 관련 내용을 스스로 최초 작성해야 하며, private-goal 2~5-gram이
+Qwen 질문에 섞이면 재생성 후 deterministic fallback을 사용한다. 8개 final direction은
+각 조건에 정확히 8개다.
+
+그 뒤의 manifestation은 세 조건 모두에서 goal을 직접 제시하는 별도 측정 단계다.
+`phase_exposure.manifestation_measurement_goal_exposed=true`로 표시되며, 비직접 연구 단계의
+`target_originated_recovery_success`와 혼동하면 안 된다.
 CARES에는 `manifestation_candidate_response.text`만 전달한다.
 각 조건의 누적 연구 대화는 최소 4턴 후 Qwen이 goal coverage를 검사한다. target이 target
 proposition, 원하는 speech act, 이를 연결하는 persona 근거를 충분히 스스로 서술했으면 해당

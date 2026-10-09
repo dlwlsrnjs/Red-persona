@@ -9,12 +9,15 @@ from pathlib import Path
 from pipeline.runtime_io import atomic_json, respond
 from experiments.run_jmir_persona_eval_batch import select_cases
 from pipeline.history_planning import (
-    build_plan, enrich_profile_for_case, replan_turn, rerank_profile, verify_turn,
+    build_plan, enrich_profile_for_case, normalize_plan, replan_turn, rerank_profile,
+    verify_turn,
 )
 from pipeline.persona_history import generate_history, load_template
-from pipeline.persona_pool import FULL_PERSONA_POOL, load_profiles, retrieve
+from pipeline.persona_pool import (
+    FULL_PERSONA_POOL, PERSONA_CATEGORY_LABELS, load_profiles, retrieve,
+)
 
-GENERATION_VERSION = "qwen-lexi-history-v9-sample-enriched-persona"
+GENERATION_VERSION = "qwen-lexi-history-v10-coverage-desynthetic"
 
 
 def derived_case_seed(seed, case_id):
@@ -56,6 +59,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", type=Path, required=True)
     parser.add_argument("--profiles", type=Path, default=FULL_PERSONA_POOL)
+    parser.add_argument("--category-labels", type=Path, default=PERSONA_CATEGORY_LABELS)
     parser.add_argument("--generation-prompt", type=Path, required=True)
     parser.add_argument("--coverage-prompt", type=Path, required=True)
     parser.add_argument("--plans", type=Path,
@@ -95,11 +99,13 @@ def main():
         all_cases, args.start, args.stop, args.crisis_label, args.per_label,
         seed=args.seed,
     )]
-    profiles = load_profiles(args.profiles)
+    profiles = load_profiles(args.profiles, args.category_labels, require_labels=True)
     generation_template = load_template(args.generation_prompt)
     coverage_template = load_template(args.coverage_prompt)
     plans = load_plans(args.plans)
     profile_stat = args.profiles.stat()
+    category_labels_stat = args.category_labels.stat()
+    category_labels_sha256 = file_sha256(args.category_labels)
     fingerprint_payload = {
         "version": GENERATION_VERSION,
         "cases": str(args.cases.resolve()),
@@ -108,6 +114,10 @@ def main():
         "profiles_size": profile_stat.st_size,
         "profiles_mtime_ns": profile_stat.st_mtime_ns,
         "profiles_sha256": file_sha256(args.profiles),
+        "category_labels": str(args.category_labels.resolve()),
+        "category_labels_size": category_labels_stat.st_size,
+        "category_labels_mtime_ns": category_labels_stat.st_mtime_ns,
+        "category_labels_sha256": category_labels_sha256,
         "generation_prompt": generation_template.template,
         "coverage_prompt": coverage_template.template,
         "plans": (args.plans.read_text(encoding="utf-8") if args.plans else None),
@@ -186,10 +196,13 @@ def main():
             generation_profile = {k: v for k, v in enriched_profile.items()
                                   if k not in _GENERATION_META}
             plan = plans.get(case_id)
-            if plan is None and not args.skip_qwen_planning:
-                plan = build_plan(complete_fn=qwen_complete, model=args.qwen_model,
-                                  case=case, profile=generation_profile,
-                                  max_turns=args.max_turns)
+            if not args.skip_qwen_planning:
+                if plan is None:
+                    plan = build_plan(complete_fn=qwen_complete, model=args.qwen_model,
+                                      case=case, profile=generation_profile,
+                                      max_turns=args.max_turns)
+                else:
+                    plan = normalize_plan(plan, args.max_turns)
             plan = plan or {}
             diagnostics["qwen_plan"] = plan
             if not args.skip_qwen_planning:
@@ -280,6 +293,8 @@ def main():
                           "lexi_generation_calls": lexi_call_index,
                           "version": GENERATION_VERSION,
                           "fingerprint": generation_fingerprint,
+                          "category_labels_path": str(args.category_labels.resolve()),
+                          "category_labels_sha256": category_labels_sha256,
                           "retrieval_top_k": ranked,
                           "profile_selection": selection_audit,
                           "profile_enrichment": enrichment_audit,

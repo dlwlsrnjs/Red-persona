@@ -27,7 +27,25 @@ python3 -m pipeline.preflight \
   --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
 ```
 
-## 2. 사용자 프롬프트 준비
+## 2. Persona category sidecar 생성
+
+Git에 포함된 원본 pool 31,733개에 Qwen category label을 생성한다. 최종 sidecar가 이미 있고
+동일 labeler version으로 31,733개가 완료됐다면 이 단계는 건너뛸 수 있다.
+
+```bash
+python3 -m pipeline.label_persona_categories \
+  --input ../data/personas/personas.jsonl \
+  --output ../data/personas/persona_category_labels.jsonl \
+  --checkpoint-dir ../data/personas/category_checkpoints \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --base-url http://127.0.0.1:8000/v1 \
+  --batch-size 5 --workers 16 --attempts 3 --retry-failed
+```
+
+명령은 일부 batch가 실패하면 non-zero로 종료한다. `--retry-failed`로 재실행해 최종 summary의
+`complete=31733`, `failed=0`을 확인한다. Partial sidecar로 history 생성을 시작할 수 없다.
+
+## 3. 사용자 프롬프트 준비
 
 ```bash
 mkdir -p prompts
@@ -37,7 +55,7 @@ cp configs/persona_history/coverage_prompt.template.txt prompts/persona_history_
 
 변수와 JSON 계약은 `docs/PERSONA_HISTORY_PROMPT_HOOKS_KO.md`를 따른다.
 
-## 3. 전체 pool 기반 Lexi history
+## 4. 전체 pool 기반 Lexi history
 
 `--profiles`를 생략하면 `$PERSONA_POOL_PATH` 또는
 `../data/personas/personas.jsonl`의 전체 pool을 사용한다.
@@ -45,6 +63,7 @@ cp configs/persona_history/coverage_prompt.template.txt prompts/persona_history_
 ```bash
 python3 -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
+  --category-labels ../data/personas/persona_category_labels.jsonl \
   --generation-prompt prompts/persona_history_generation.txt \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
@@ -53,11 +72,12 @@ python3 -m pipeline.generate_histories \
   --qwen-base-url http://127.0.0.1:8000/v1 \
   --min-turns 4 --max-turns 12 \
   --generation-attempts 6 --lexi-temperature 0.7 \
+  --seed 20261009 \
   --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
 
-`--plans`를 생략하면 Qwen이 각 사례의 profile을 rerank하고 최대 8단계 plan을 동적으로
+`--plans`를 생략하면 Qwen이 각 사례의 profile을 rerank하고 최대 12단계 plan을 동적으로
 생성한다. Lexi의 각 turn은 Qwen 검증을 통과해야 누적된다. 실패 checkpoint 재시도에는
 `--retry-failed`를 추가한다.
 
@@ -66,15 +86,17 @@ python3 -m pipeline.generate_histories \
 결정적 반복을 피한다. `--lexi-temperature`는 Lexi 생성에만 적용되고 Qwen 검증에는 적용하지
 않는다.
 
-Qwen은 goal을 canonical `G1..Gn` atom으로 분해한다. coverage가 하나라도 빠진 atom 또는
-`goal_recoverable=false`를 반환하면 다음 turn plan을 해당 부족분에 맞게 다시 만든다. 최대
-12턴에도 충분하지 않으면 사례는 실패로 남으며, partial history·coverage·검증·재계획 기록은
-`.failed.json`의 `diagnostics`에 저장된다.
+Qwen은 goal을 3–4개의 canonical `G1..Gn` atom으로 분해한다. Coverage는 Qwen 판정과
+`verify_turn`을 통과한 micro-plan atom을 단조 누적하며, 하나라도 빠진 atom이 있으면 다음 turn
+plan을 해당 부족분에 맞게 다시 만든다. `persona_grounded`와 `goal_recoverable`은 audit에 함께
+남고, acceptance에는 전체 atom coverage와 persona grounding을 요구한다. 최대 12턴에도 충분하지
+않으면 사례는 실패로 남으며, partial history·coverage·검증·재계획 기록은 `.failed.json`의
+`diagnostics`에 저장된다.
 
 Qwen micro-plan → Lexi 턴별 렌더링과 검증은 `pipeline.generate_histories` 안에서 수행되며,
 사례별 checkpoint에 계획·생성·검증 결과가 함께 저장된다.
 
-## 4. Qwen–target 본 실행
+## 5. Qwen–target 본 실행
 
 ```bash
 python3 -m pipeline.run_batch \
@@ -86,7 +108,7 @@ python3 -m pipeline.run_batch \
 
 실패 checkpoint를 재시도하려면 `--retry-failed`를 추가한다.
 
-## 5. 평가와 집계
+## 6. 평가와 집계
 
 ```bash
 python3 -m pipeline.evaluate_batch \
@@ -99,7 +121,7 @@ python3 -m pipeline.evaluate_batch \
 
 공식 CARES에는 `manifestation_candidate_response.text`만 전달한다.
 
-## 6. 산출물 검사
+## 7. 산출물 검사
 
 ```bash
 python3 -m pipeline.preflight --run data/runs/gpt-4o/jmir-full-0001.json

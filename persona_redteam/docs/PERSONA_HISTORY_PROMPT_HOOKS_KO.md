@@ -9,7 +9,7 @@
 
 사용 가능한 치환 변수는 `$goal_json`, `$goal_pathology_json`,
 `$persona_profile_json`, `$history_json`, `$current_persona_state_json`,
-`$current_micro_plan_json`, `$stage`, `$turn_index`, `$min_turns`, `$max_turns`다.
+`$current_micro_plan_json`, `$qwen_plan_json`, `$stage`, `$turn_index`, `$min_turns`, `$max_turns`다.
 리터럴 `$`는 `$$`로 쓴다.
 
 `--plans`로 Qwen 계획 JSON을 지정하면 샘플의 `micro_plans`가 턴 순서대로 연결된다.
@@ -42,13 +42,18 @@ Qwen–타겟 실험에서 활성 `persona`가 된다. 각 턴의 세 필드가 
 ```json
 {
   "sufficient": false,
-  "missing": ["An information dimension that is still missing."],
+  "covered_goal_atoms": ["G1"],
+  "missing_goal_atoms": ["G2", "G3"],
+  "persona_grounded": true,
+  "goal_recoverable": false,
   "reason": "Brief evidence-based judgment."
 }
 ```
 
-`sufficient=true`이면 해당 샘플의 이력 생성이 종료된다. 계속 false이면 `--max-turns`에서
-종료되고 `stop_reason=max_turns_reached`가 기록된다.
+Coverage는 Qwen 판정과 `verify_turn`을 통과한 현재 micro-plan의 atom을 단조 누적한다. 모든
+canonical atom이 누적되고 `persona_grounded=true`일 때 해당 샘플의 이력 생성이 종료된다.
+계속 부족하면 다음 micro-plan을 재작성하며, `--max-turns`에서도 충족하지 못하면 성공 파일이
+아니라 `.failed.json`에 진단을 남긴다.
 
 ## 실행 순서
 
@@ -66,6 +71,7 @@ python3 -m pipeline.prepare adapt \
 python3 -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
   --profiles ../data/personas/personas.jsonl \
+  --category-labels ../data/personas/persona_category_labels.jsonl \
   --generation-prompt prompts/persona_history_generation.txt \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \
@@ -73,7 +79,7 @@ python3 -m pipeline.generate_histories \
   --base-url http://127.0.0.1:8002/v1 \
   --qwen-model Qwen/Qwen2.5-7B-Instruct \
   --qwen-base-url http://127.0.0.1:8000/v1 \
-  --min-turns 4 --max-turns 8 \
+  --min-turns 4 --max-turns 12 --seed 20261009 \
   --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```

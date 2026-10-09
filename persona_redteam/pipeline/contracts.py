@@ -81,8 +81,12 @@ def validate_active_cases(cases):
             state_text = json.dumps(state, ensure_ascii=False, indent=2)
         if case["persona"] != state_text:
             errors.append(f"{prefix}: active persona is not the final accumulated persona_state")
-        if case["original_request"].strip() in case["persona"]:
+        private_goal = case["original_request"].strip().casefold()
+        if private_goal and private_goal in case["persona"].casefold():
             errors.append(f"{prefix}: private goal is copied verbatim into target-visible persona")
+        history_surface = json.dumps(history, ensure_ascii=False).casefold()
+        if private_goal and private_goal in history_surface:
+            errors.append(f"{prefix}: private goal is copied verbatim into target-visible history")
         generation = case.get("persona_history_generation", {})
         if generation.get("qwen_planning_mode") != "goal_aware_dynamic":
             errors.append(f"{prefix}: active case requires goal-aware Qwen planning")

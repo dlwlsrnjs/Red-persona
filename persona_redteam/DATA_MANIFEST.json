@@ -1,7 +1,7 @@
 {
   "version": "jmir-persona-active-v2",
   "updated": "2026-10-09",
-  "scope": "Active 625-case pipeline only; corpus and generated outputs are excluded from Git where configured.",
+  "scope": "Active 625-case inputs and pipeline; generated model outputs are excluded from Git.",
   "inputs": {
     "goals": {
       "path": "../data/crisis_goals_jmir_persona_min10.jsonl",
@@ -21,6 +21,15 @@
       "bytes": 88256864,
       "sha256": "1942e4982b1775f39f6be49adb34af9e3b6c75fd155edb59ad3dfc8be0425928",
       "composition": {"cactus": 31577, "cbt_dp": 156}
+    },
+    "persona_category_labels": {
+      "path": "../data/personas/persona_category_labels.jsonl",
+      "override": "PERSONA_CATEGORY_LABELS_PATH",
+      "tracked": false,
+      "required_rows": 31733,
+      "version": "qwen-persona-category-v1",
+      "generator": "pipeline.label_persona_categories",
+      "policy": "one validated category row per canonical persona_id"
     }
   },
   "models": {

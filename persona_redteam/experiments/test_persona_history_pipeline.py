@@ -3,7 +3,9 @@ import unittest
 from string import Template
 
 from pipeline.persona_history import duplicate_reason, generate_history
-from pipeline.history_planning import build_plan, enrich_profile_for_case, rerank_profile
+from pipeline.history_planning import (
+    build_plan, enrich_profile_for_case, normalize_plan, rerank_profile,
+)
 from pipeline.persona_pool import load_profiles, retrieve
 from pipeline.generate_histories import derived_case_seed
 
@@ -71,6 +73,42 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         self.assertFalse(audits[-1]["sufficient"])
         self.assertEqual(audits[-1]["missing_goal_atoms"], ["G2"])
 
+    def test_verified_plan_atoms_accumulate_before_coverage_gate(self):
+        turn = {"value": 0}
+
+        def complete(_model, messages):
+            if messages[0]["content"].startswith("coverage"):
+                return {"text": json.dumps({
+                    "sufficient": False, "covered_goal_atoms": [],
+                    "missing_goal_atoms": ["G1", "G2"], "persona_grounded": True,
+                    "goal_recoverable": False, "reason": "judge under-credit",
+                })}
+            turn["value"] += 1
+            return {"text": json.dumps({
+                "user": f"user {turn['value']}",
+                "assistant": f"assistant {turn['value']}",
+                "persona_state": {"summary": f"state {turn['value']}"},
+            })}
+
+        history, audits, reason = generate_history(
+            complete_fn=complete, model="local", generation_template=Template("generation"),
+            coverage_template=Template("coverage"),
+            context={"goal": "g", "goal_pathology": {}, "persona_profile": {},
+                     "qwen_plan": {"goal_information_atoms": [
+                         {"atom_id": "G1"}, {"atom_id": "G2"},
+                     ]},
+                     "micro_plans": [
+                         {"stage": "trigger", "goal_atom_ids": ["G1"]},
+                         {"stage": "self_interpretation", "goal_atom_ids": ["G2"]},
+                     ]},
+            min_turns=2, max_turns=2,
+            verify_fn=lambda *_args: {"valid": True, "reason": "verified"},
+        )
+        self.assertEqual(len(history), 2)
+        self.assertEqual(reason, "coverage_sufficient")
+        self.assertEqual(audits[-1]["covered_goal_atoms"], ["G1", "G2"])
+        self.assertEqual(audits[-1]["missing_goal_atoms"], [])
+
 
     def test_full_pool_schema_is_normalized(self):
         import tempfile
@@ -83,6 +121,44 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         self.assertEqual(profile["persona_id"], "full-1")
         self.assertEqual(profile["source"], "source")
         self.assertEqual(profile["cognitive_distortions"], ["catastrophizing"])
+
+    def test_required_category_sidecar_must_cover_pool_exactly(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            pool = root / "pool.jsonl"
+            labels = root / "labels.jsonl"
+            pool.write_text(
+                json.dumps({"id": "p1"}) + "\n" + json.dumps({"id": "p2"}) + "\n",
+                encoding="utf-8",
+            )
+            labels.write_text(json.dumps({
+                "persona_id": "p1", "goal_category": "anxiety_crisis",
+                "category_fit": "direct", "harm_direction": "fear",
+                "category_label_version": "qwen-persona-category-v1",
+            }) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "must match the full pool exactly"):
+                load_profiles(pool, labels, require_labels=True)
+
+    def test_required_category_sidecar_rejects_duplicate_ids(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            pool = root / "pool.jsonl"
+            labels = root / "labels.jsonl"
+            pool.write_text(json.dumps({"id": "p1"}) + "\n", encoding="utf-8")
+            row = {
+                "persona_id": "p1", "goal_category": "anxiety_crisis",
+                "category_fit": "direct", "harm_direction": "fear",
+                "category_label_version": "qwen-persona-category-v1",
+            }
+            labels.write_text(
+                json.dumps(row) + "\n" + json.dumps(row) + "\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate persona_id"):
+                load_profiles(pool, labels, require_labels=True)
 
     def test_retrieval_prefers_matching_profile(self):
         goal = {"symptoms": ["anxiety"], "cognitive_distortions": ["catastrophizing"]}
@@ -304,11 +380,19 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         responses = iter([
             {"selected_persona_id": "p2", "reason": "specific fit"},
             {"target_proposition": "tp", "requested_speech_act": "agreement",
-             "motivation": "m", "micro_plans": [
-                 {"stage": stage, "new_information": [stage],
+             "motivation": "m", "goal_information_atoms": [
+                 {"atom_id": "a", "meaning": "proposition",
+                  "persona_evidence_needed": "evidence a"},
+                 {"atom_id": "b", "meaning": "speech act",
+                  "persona_evidence_needed": "evidence b"},
+                 {"atom_id": "c", "meaning": "motive",
+                  "persona_evidence_needed": "evidence c"},
+             ], "micro_plans": [
+                 {"stage": stage, "goal_atom_ids": [["a"], ["b"], ["c"], ["a"]][index],
+                  "new_information": [stage],
                   "continuity_requirement": "retain prior facts"}
-                 for stage in ("trigger", "self_interpretation", "relational_expectation",
-                               "desired_response")
+                 for index, stage in enumerate(("trigger", "self_interpretation",
+                                                "relational_expectation", "desired_response"))
              ]},
         ])
 
@@ -324,6 +408,20 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
                           profile=selected["profile"], max_turns=4)
         self.assertEqual(audit["selected_persona_id"], "p2")
         self.assertEqual(len(plan["micro_plans"]), 4)
+
+    def test_precomputed_plan_uses_same_three_to_four_atom_contract(self):
+        invalid = {
+            "target_proposition": "tp", "requested_speech_act": "agreement",
+            "motivation": "m",
+            "goal_information_atoms": [
+                {"atom_id": f"a{index}", "meaning": f"meaning {index}",
+                 "persona_evidence_needed": f"evidence {index}"}
+                for index in range(5)
+            ],
+            "micro_plans": [{}, {}, {}, {}],
+        }
+        with self.assertRaisesRegex(ValueError, "exactly 3 or 4 atoms"):
+            normalize_plan(invalid, max_turns=4)
 
 
 if __name__ == "__main__":

@@ -14,8 +14,8 @@
 #   bash serve_models.sh stop     # stop servers started by this script
 set -euo pipefail
 
-VENV=/data1/users/ljk98/envs/redpersona-vllm
-export HF_HOME=/data1/users/ljk98/hf_cache
+VENV="${RED_PERSONA_VENV:-/data1/users/ljk98/envs/redpersona-vllm}"
+export HF_HOME="${HF_HOME:-/data1/users/ljk98/hf_cache}"
 export HF_HUB_OFFLINE=1                      # weights are cached; never hit the network
 # flashinfer JIT-compiles its sampler with ninja+nvcc. Those live inside the venv
 # (bin/ninja, site-packages/nvidia/cu13/bin/nvcc) but are not on a bare nohup PATH,
@@ -30,6 +30,7 @@ PY="$VENV/bin/python"
 QWEN_ID="Qwen/Qwen2.5-7B-Instruct"
 QWEN_REV="a09a35458c702b33eeacc393d103063234e8bc28"
 LEXI_ID="Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2"
+LEXI_REV="f4617caeabd21f1820ac89bd125c80eda70901a7"
 LOGDIR="$(cd "$(dirname "$0")" && pwd)/serve_logs"
 mkdir -p "$LOGDIR"
 
@@ -44,7 +45,7 @@ serve_qwen() {
 }
 serve_lexi() {
   CUDA_VISIBLE_DEVICES=1 "$PY" -m vllm.entrypoints.openai.api_server \
-    --model "$LEXI_ID" --served-model-name "$LEXI_ID" \
+    --model "$LEXI_ID" --revision "$LEXI_REV" --served-model-name "$LEXI_ID" \
     --host 127.0.0.1 --port 8002 --enforce-eager \
     --gpu-memory-utilization 0.90 --max-model-len 16384 --dtype bfloat16
 }

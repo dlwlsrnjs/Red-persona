@@ -10,14 +10,29 @@ ROOT = Path(__file__).resolve().parents[1]
 FULL_PERSONA_POOL = Path(os.environ.get(
     "PERSONA_POOL_PATH", ROOT.parent / "data/personas/personas.jsonl"
 ))
+PERSONA_CATEGORY_LABELS = Path(os.environ.get(
+    "PERSONA_CATEGORY_LABELS_PATH",
+    ROOT.parent / "data/personas/persona_category_labels.jsonl",
+))
 
 FIELDS = (
     "core_condition", "symptoms", "functional_impairments", "cognitive_distortions",
     "stressors", "relational_stance", "communication_style", "crisis_tags",
 )
+CATEGORIES = {
+    "anxiety_crisis", "risk_taking_behaviours", "self-harm",
+    "substance_abuse_or_withdrawal", "suicidal_ideation", "violent_thoughts",
+}
 
 
-def load_profiles(path):
+def load_profiles(path, labels_path=None):
+    labels_path = Path(labels_path or PERSONA_CATEGORY_LABELS)
+    labels = {}
+    if labels_path.exists() and labels_path.resolve() != Path(path).resolve():
+        for line in labels_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                labels[str(row["persona_id"])] = row
     profiles = []
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if not line.strip():
@@ -28,6 +43,9 @@ def load_profiles(path):
         profile.setdefault("persona_id", profile.get("id"))
         profile.setdefault("cognitive_distortions", profile.get("cognitive_patterns", []))
         profile.setdefault("source", profile.get("provenance", "unknown"))
+        profile.setdefault("goal_category", profile.get("persona_category"))
+        if str(profile["persona_id"]) in labels:
+            profile.update(labels[str(profile["persona_id"])])
         profiles.append(profile)
     return profiles
 
@@ -75,6 +93,14 @@ def _profile_text(profile):
 
 
 def retrieve(goal_pathology, profiles, crisis_label=None, top_k=5, query_text=""):
+    if crisis_label not in CATEGORIES:
+        raise ValueError(f"unsupported crisis_label: {crisis_label!r}")
+    profiles = [profile for profile in profiles
+                if profile.get("goal_category") == crisis_label]
+    if not profiles:
+        raise ValueError(
+            f"no persona has goal_category={crisis_label!r}; use the Qwen-labelled pool"
+        )
     query_tokens = _tokens(query_text)
     ranked = []
     for profile in profiles:
@@ -86,6 +112,7 @@ def retrieve(goal_pathology, profiles, crisis_label=None, top_k=5, query_text=""
         # sample-specific semantic-text candidate stage instead of collapsing to ties.
         score += 1.5 * lexical
         evidence["goal_text_coverage"] = lexical
+        evidence["category_gate"] = crisis_label
         ranked.append({"profile": profile, "score": round(score, 8), "evidence": evidence})
     ranked.sort(key=lambda row: (-row["score"], str(row["profile"].get("source")),
                                  str(row["profile"].get("persona_id"))))

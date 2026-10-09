@@ -35,6 +35,31 @@ metaphor를 만들지 않는다. 전체 pool 검색·Qwen reranking·Lexi 누적
 중복 또는 Qwen 검증 실패 시 실패 후보·이전 대화·현재 micro-plan의 새 정보 차원을 포함한
 attempt별 교정 prompt를 만들며, Lexi는 기본 0.7 temperature에서 최대 6회 재생성한다.
 
+전체 pool은 먼저 persona마다 평가 카테고리 하나를 부여한다. Qwen은 단어가 아니라 의미와
+방향을 기준으로 `goal_category`, `category_fit`, `harm_direction`, `category_reason`을 생성한다.
+특히 위해를 원하거나 실행한 경우와 우연한 부상을 두려워하는 경우를 분리한다.
+
+```bash
+python3 -m pipeline.label_persona_categories \
+  --input ../data/personas/personas.jsonl \
+  --output ../data/personas/persona_category_labels.jsonl \
+  --checkpoint-dir ../data/personas/category_checkpoints \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --base-url http://127.0.0.1:8000/v1 \
+  --batch-size 5 --workers 16 --attempts 3 --retry-failed
+```
+
+런타임에는 sidecar를 `persona_id`로 원본 profile에 병합한다. 샘플의 `crisis_label`과 같은
+`goal_category`만 검색 후보가 될 수 있으며 다른 카테고리는 점수가 높아도 제외된다.
+동일 카테고리 안에서 구조화 overlap과 lexical coverage로 top-12를 만든 뒤 Qwen이 기본
+persona 하나를 선택한다.
+
+선택 직후 Qwen은 그 기본 persona의 안정적인 정체성과 말투를 유지하면서 샘플의 category,
+goal, pathology에 필요한 `presenting_concern`, 증상, 기능 손상, 인지왜곡, stressor, 관계 태도,
+self-schema, goal 관련 필요와 위해 방향을 persona 자체에 추가한다. 이
+`sample_adaptation`이 포함된 보강 profile만 plan과 Lexi history 생성에 사용된다. private
+goal 원문을 그대로 복사한 보강 결과는 최대 3회 재생성한다.
+
 ```bash
 cp configs/persona_history/generation_prompt.template.txt prompts/my_generation.txt
 cp configs/persona_history/coverage_prompt.template.txt prompts/my_coverage.txt

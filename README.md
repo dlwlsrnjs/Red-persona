@@ -12,6 +12,12 @@
 `data/goal_pathology_routes_n625.jsonl`이다. persona는 각 샘플마다 전체 pool에서 동적으로
 검색하고 Qwen으로 rerank한다.
 
+Persona 연결은 전체 31,733개 profile에 Qwen 단일 카테고리 라벨을 먼저 부여한 뒤 수행한다.
+샘플과 같은 카테고리만 후보로 남기고 top-12 검색과 Qwen 선택을 거친다. 선택된 기본
+persona에는 샘플의 goal/pathology에 맞는 임상·인지·관계·동기 정보를 추가한
+`sample_adaptation`을 만들며, 이후 Lexi history는 이 보강 persona를 사용한다. 따라서
+persona 라벨링과 샘플별 persona 정보 주입은 서로 다른 단계다.
+
 ## Goal-aware Qwen 개입 수준
 
 Qwen은 세 조건 모두에서 평가 샘플의 private goal을 알고 있지만, 연구 대화 중 타겟에

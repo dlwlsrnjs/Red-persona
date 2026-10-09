@@ -8,11 +8,13 @@ from pathlib import Path
 
 from pipeline.runtime_io import atomic_json, respond
 from experiments.run_jmir_persona_eval_batch import select_cases
-from pipeline.history_planning import build_plan, replan_turn, rerank_profile, verify_turn
+from pipeline.history_planning import (
+    build_plan, enrich_profile_for_case, replan_turn, rerank_profile, verify_turn,
+)
 from pipeline.persona_history import generate_history, load_template
 from pipeline.persona_pool import FULL_PERSONA_POOL, load_profiles, retrieve
 
-GENERATION_VERSION = "qwen-lexi-history-v8-canonical-goal-atoms"
+GENERATION_VERSION = "qwen-lexi-history-v9-sample-enriched-persona"
 
 
 def derived_case_seed(seed, case_id):
@@ -162,10 +164,19 @@ def main():
             else:
                 selected, selection_audit = rerank_profile(
                     complete_fn=qwen_complete, model=args.qwen_model, case=case, ranked=ranked)
+            if args.skip_qwen_planning:
+                enriched_profile = selected["profile"]
+                enrichment_audit = {"mode": "disabled_ablation"}
+            else:
+                enriched_profile, enrichment_audit = enrich_profile_for_case(
+                    complete_fn=qwen_complete, model=args.qwen_model, case=case,
+                    profile=selected["profile"])
+            diagnostics["profile_selection"] = selection_audit
+            diagnostics["profile_enrichment"] = enrichment_audit
             plan = plans.get(case_id)
             if plan is None and not args.skip_qwen_planning:
                 plan = build_plan(complete_fn=qwen_complete, model=args.qwen_model,
-                                  case=case, profile=selected["profile"],
+                                  case=case, profile=enriched_profile,
                                   max_turns=args.max_turns)
             plan = plan or {}
             diagnostics["qwen_plan"] = plan
@@ -195,14 +206,14 @@ def main():
                 )
             }
             context = {"goal": case["original_request"], "goal_pathology": goal_pathology,
-                       "persona_profile": selected["profile"],
+                       "persona_profile": enriched_profile,
                        "micro_plans": plan.get("micro_plans", []), "qwen_plan": prompt_plan}
             verification = None if args.skip_qwen_planning else lambda micro_plan, history, state, turn: verify_turn(
                 complete_fn=qwen_complete, model=args.qwen_model, micro_plan=micro_plan,
                 history=history, prior_state=state, turn=turn)
             replanner = None if args.skip_qwen_planning else lambda turn_index, micro_plan, history, state, errors, coverage: replan_turn(
                 complete_fn=qwen_complete, model=args.qwen_model, case=case,
-                profile=selected["profile"], turn_index=turn_index,
+                profile=enriched_profile, turn_index=turn_index,
                 micro_plan=micro_plan, history=history, prior_state=state,
                 errors=errors, prior_coverage=coverage)
             history, audits, stop_reason = generate_history(
@@ -235,7 +246,7 @@ def main():
             metaphor = (final_state.get("metaphor", "") if isinstance(final_state, dict) else "")
             record = {**case, "persona": persona_text,
                       "metaphor": metaphor or "No recurring metaphor was generated.",
-                      "persona_profile": selected["profile"],
+                      "persona_profile": enriched_profile,
                       "persona_history": history,
                       "persona_history_generation": {
                           "model": args.model, "qwen_model": args.qwen_model,
@@ -247,6 +258,7 @@ def main():
                           "fingerprint": generation_fingerprint,
                           "retrieval_top_k": ranked,
                           "profile_selection": selection_audit,
+                          "profile_enrichment": enrichment_audit,
                           "coverage_audit": audits,
                           "coverage_model": (args.model if args.skip_qwen_planning
                                              else args.qwen_model),

@@ -3,12 +3,38 @@ import unittest
 from string import Template
 
 from pipeline.persona_history import duplicate_reason, generate_history
-from pipeline.history_planning import build_plan, rerank_profile
+from pipeline.history_planning import build_plan, enrich_profile_for_case, rerank_profile
 from pipeline.persona_pool import load_profiles, retrieve
 from pipeline.generate_histories import derived_case_seed
 
 
 class PersonaHistoryPipelineTests(unittest.TestCase):
+    def test_qwen_enriches_selected_persona_with_sample_category_information(self):
+        case = {"original_request": "I need help with escalating anger.",
+                "crisis_label": "violent_thoughts",
+                "provenance": {"goal_pathology": {"symptoms": ["anger"]}}}
+        profile = {"persona_id": "base-1", "background": "An adult office worker.",
+                   "communication_style": ["reflective"]}
+        answer = {
+            "crisis_label": "violent_thoughts",
+            "presenting_concern": "Anger is escalating during conflicts.",
+            "core_condition": ["anger_dysregulation"], "symptoms": ["irritability"],
+            "functional_impairments": ["relationship_conflict"],
+            "cognitive_distortions": ["hostile_attribution"], "stressors": ["conflict"],
+            "relational_stance": ["guarded"], "communication_style": ["direct"],
+            "persona_self_schema": "Others will provoke me unless I stay forceful.",
+            "goal_relevant_needs": ["describe control loss and its consequences"],
+            "harm_direction": "desire",
+            "base_identity_continuity": "Retains the adult office-worker identity.",
+        }
+        qwen = lambda *_args, **_kwargs: {"text": json.dumps(answer)}
+        enriched, audit = enrich_profile_for_case(
+            complete_fn=qwen, model="qwen", case=case, profile=profile)
+        self.assertEqual(enriched["persona_id"], "base-1")
+        self.assertEqual(enriched["crisis_tags"], ["violent_thoughts"])
+        self.assertEqual(enriched["sample_adaptation"]["crisis_label"], "violent_thoughts")
+        self.assertEqual(audit["base_persona_id"], "base-1")
+
     def test_case_seed_is_reproducible_and_case_specific(self):
         self.assertEqual(derived_case_seed(47, "case-a"),
                          derived_case_seed(47, "case-a"))
@@ -61,11 +87,23 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
     def test_retrieval_prefers_matching_profile(self):
         goal = {"symptoms": ["anxiety"], "cognitive_distortions": ["catastrophizing"]}
         profiles = [
-            {"source": "a", "persona_id": "other", "symptoms": ["low_mood"]},
+            {"source": "a", "persona_id": "other", "goal_category": "anxiety_crisis",
+             "symptoms": ["low_mood"]},
             {"source": "b", "persona_id": "match", "symptoms": ["anxiety"],
+             "goal_category": "anxiety_crisis",
              "cognitive_distortions": ["catastrophizing"]},
         ]
-        self.assertEqual(retrieve(goal, profiles, top_k=1)[0]["profile"]["persona_id"], "match")
+        self.assertEqual(retrieve(goal, profiles, crisis_label="anxiety_crisis",
+                                  top_k=1)[0]["profile"]["persona_id"], "match")
+
+    def test_retrieval_never_crosses_sample_category(self):
+        profiles = [
+            {"source": "a", "persona_id": "wrong", "goal_category": "self-harm"},
+            {"source": "b", "persona_id": "right", "goal_category": "violent_thoughts"},
+        ]
+        rows = retrieve({}, profiles, crisis_label="violent_thoughts", top_k=10,
+                        query_text="anger")
+        self.assertEqual([row["profile"]["persona_id"] for row in rows], ["right"])
 
     def test_minimum_four_turns_and_dynamic_stop(self):
         calls = []

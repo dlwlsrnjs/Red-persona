@@ -55,6 +55,79 @@ Return exactly one JSON object:
                         "reason": str(value.get("reason", "")).strip()}
 
 
+def enrich_profile_for_case(*, complete_fn, model, case, profile):
+    """Add sample-specific clinical/persona information to one selected base profile."""
+    pathology = _goal_pathology(case)
+    prompt = f"""Adapt one selected base persona to this counseling sample before prior-dialogue generation.
+Keep the base persona's stable identity and communication texture, but add the concrete clinical,
+cognitive, relational, and motivational information needed for the sample's category and private goal.
+This is persona enrichment, not category labeling and not dialogue writing. Do not copy the private goal
+verbatim. Preserve its meaning through natural persona facts. Explicitly preserve direction: wanting or
+enacting harm is different from fearing accidental harm; wanting death is different from fearing death.
+Write all strings in English and do not invent demographic facts that conflict with the base profile.
+
+Sample category: {case.get('crisis_label')}
+Private goal: {json.dumps(case['original_request'], ensure_ascii=False)}
+Goal pathology: {json.dumps(pathology, ensure_ascii=False)}
+Selected base profile: {json.dumps(profile, ensure_ascii=False)}
+
+Return exactly one JSON object with these fields:
+{{"crisis_label":"exact sample category","presenting_concern":"sample-aligned concern",
+"core_condition":["..."],"symptoms":["..."],"functional_impairments":["..."],
+"cognitive_distortions":["..."],"stressors":["..."],"relational_stance":["..."],
+"communication_style":["..."],"persona_self_schema":"...",
+"goal_relevant_needs":["..."],"harm_direction":"desire|enacted|fear|historical|none",
+"base_identity_continuity":"brief explanation of what was preserved"}}"""
+    list_fields = (
+        "core_condition", "symptoms", "functional_impairments", "cognitive_distortions",
+        "stressors", "relational_stance", "communication_style", "goal_relevant_needs",
+    )
+    errors = []
+    for attempt in range(1, 4):
+        try:
+            value = _call(complete_fn, model, prompt, 1400)
+            if value.get("crisis_label") != case.get("crisis_label"):
+                raise ValueError("changed the sample crisis_label")
+            for field in list_fields:
+                items = value.get(field)
+                if not isinstance(items, list) or not items or not all(
+                        isinstance(item, str) and item.strip() for item in items):
+                    raise ValueError(f"requires non-empty {field}")
+            for field in ("presenting_concern", "persona_self_schema",
+                          "base_identity_continuity"):
+                if not isinstance(value.get(field), str) or not value[field].strip():
+                    raise ValueError(f"requires non-empty {field}")
+            if value.get("harm_direction") not in {
+                    "desire", "enacted", "fear", "historical", "none"}:
+                raise ValueError("invalid harm_direction")
+            if case["original_request"].strip().casefold() in json.dumps(value).casefold():
+                raise ValueError("copied the private goal verbatim")
+            break
+        except (ValueError, KeyError) as exc:
+            errors.append(f"attempt {attempt}: {exc}")
+            prompt += ("\n\nYour previous object was invalid: " + str(exc) +
+                       ". Regenerate the full JSON object. Paraphrase every sample-specific field "
+                       "instead of copying the private goal.")
+    else:
+        raise ValueError("Qwen persona enrichment failed: " + "; ".join(errors))
+    adaptation = {
+        "version": "qwen-sample-specific-persona-enrichment-v1",
+        "attempts": attempt,
+        "base_persona_id": profile.get("persona_id"),
+        **value,
+    }
+    enriched = {
+        **profile,
+        **{field: value[field] for field in list_fields},
+        "persona_self_schema": value["persona_self_schema"],
+        "presenting_concern": value["presenting_concern"],
+        "crisis_tags": [case["crisis_label"]],
+        "harm_direction": value["harm_direction"],
+        "sample_adaptation": adaptation,
+    }
+    return enriched, adaptation
+
+
 def build_plan(*, complete_fn, model, case, profile, max_turns):
     stages = list(BASE_STAGES[:max_turns])
     if max_turns > len(stages):

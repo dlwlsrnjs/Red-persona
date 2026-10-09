@@ -87,6 +87,13 @@ def validate_active_cases(cases):
             errors.append(f"{prefix}: every generated turn must pass Qwen verification")
         if not generation.get("profile_selection", {}).get("selected_persona_id"):
             errors.append(f"{prefix}: missing Qwen profile reranking audit")
+        enrichment = generation.get("profile_enrichment", {})
+        if enrichment.get("crisis_label") != case.get("crisis_label"):
+            errors.append(f"{prefix}: missing sample-category persona enrichment")
+        if case.get("persona_profile", {}).get("sample_adaptation", {}).get(
+                "base_persona_id") != generation.get("profile_selection", {}).get(
+                    "selected_persona_id"):
+            errors.append(f"{prefix}: enriched persona is not linked to selected base persona")
     return errors
 
 

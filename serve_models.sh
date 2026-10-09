@@ -65,7 +65,7 @@ serve_qwen() {
     --model "$QWEN_ID" --revision "$QWEN_REV" --served-model-name "$QWEN_ID" \
     --host 127.0.0.1 --port "${QWEN_SERVE_PORT:-8000}" --enforce-eager \
     --gpu-memory-utilization "${QWEN_GPU_MEMORY_UTILIZATION:-0.90}" \
-    --max-model-len "${QWEN_MAX_MODEL_LEN:-16384}" \
+    --max-model-len "${QWEN_MAX_MODEL_LEN:-32768}" \
     --max-num-seqs "${QWEN_MAX_NUM_SEQS:-128}" \
     --max-num-batched-tokens "${QWEN_MAX_BATCHED_TOKENS:-32768}" \
     --dtype bfloat16

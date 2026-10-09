@@ -84,6 +84,7 @@ def test_dry_run_has_18_concurrent_jobs_and_pcsa_phase2(capsys):
         "target_count": 2,
         "method_count": 9,
         "qwen_replica_count": 1,
+        "job_retries": 2,
     }
     assert value["dataset"]["cases_per_job"] == 1
     assert value["pcsa_phase2"] == {
@@ -115,6 +116,21 @@ def test_full_matrix_uses_official_500(capsys):
     assert value["dataset"]["cases_per_job"] == 500
     assert value["dataset"]["cohort_index"] == str(MODULE.DEFAULT_COHORT_INDEX.resolve())
     assert all("--limit" not in job["command"] for job in value["jobs"])
+
+
+def test_matrix_can_filter_to_qwen_methods_without_pcsa_or_openai(capsys, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    arguments = ["--dry-run", "--target-name", "qwen7b_instruct"]
+    for method in MODULE.METHOD_PROFILES:
+        if method != "pcsa_phase2":
+            arguments.extend(("--method", method))
+    assert MODULE.main(arguments) == 0
+    value = json.loads(capsys.readouterr().out)
+    assert len(value["jobs"]) == 8
+    assert value["parallelism"]["target_count"] == 1
+    assert value["parallelism"]["method_count"] == 8
+    assert value["pcsa_phase2"]["status"] == "not_selected"
+    assert all(job["target"] == "qwen7b_instruct" for job in value["jobs"])
 
 
 def test_remote_target_requires_credential(monkeypatch):

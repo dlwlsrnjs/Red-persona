@@ -22,7 +22,7 @@ if [[ ! -x external_baselines/.venv/bin/python ]]; then
   echo "Missing external_baselines/.venv; run bash external_baselines/setup_env.sh" >&2
   exit 1
 fi
-if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+if [[ -z "${OPENAI_API_KEY:-}" && "${QWEN_ONLY:-0}" != 1 ]]; then
   echo "OPENAI_API_KEY must be exported before sbatch submission" >&2
   exit 1
 fi
@@ -102,14 +102,45 @@ echo "Ready Qwen replicas: ${QWEN_ENDPOINTS[*]}"
 
 external_baselines/.venv/bin/python -m pytest -q external_baselines/tests
 
-OUTPUT_ROOT="external_baselines/outputs/qwen_gpt4o_${SLURM_JOB_ID:-manual}"
+OUTPUT_ROOT="${MATRIX_OUTPUT_ROOT:-external_baselines/outputs/qwen_gpt4o_${SLURM_JOB_ID:-manual}}"
 MATRIX_ARGS=(
   --output-dir "$OUTPUT_ROOT"
   --max-concurrent-jobs "${MATRIX_MAX_JOBS:-18}"
+  --job-retries "${MATRIX_JOB_RETRIES:-2}"
 )
 for endpoint in "${QWEN_ENDPOINTS[@]}"; do
   MATRIX_ARGS+=(--qwen-endpoint "$endpoint")
 done
+if [[ "${QWEN_ONLY:-0}" == 1 ]]; then
+  MATRIX_ARGS+=(--target-name qwen7b_instruct)
+  if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+    echo "OPENAI_API_KEY is absent: PCSA and GPT-4o target runs remain pending"
+  fi
+fi
+if [[ -n "${MATRIX_METHODS:-}" ]]; then
+  IFS=',' read -r -a SELECTED_METHODS <<<"$MATRIX_METHODS"
+else
+  SELECTED_METHODS=(direct skeleton_key many_shot red_teaming pair tap crescendo therapist_crescendo)
+fi
+if [[ "${QWEN_ONLY:-0}" == 1 && -z "${OPENAI_API_KEY:-}" ]]; then
+  for method in "${SELECTED_METHODS[@]}"; do
+    if [[ "$method" == pcsa_phase2 ]]; then
+      echo "PCSA cannot run without its OpenAI evaluator" >&2
+      exit 1
+    fi
+  done
+fi
+if [[ "${QWEN_ONLY:-0}" == 1 || -n "${MATRIX_METHODS:-}" ]]; then
+  for method in "${SELECTED_METHODS[@]}"; do
+    MATRIX_ARGS+=(--method "$method")
+  done
+fi
+if [[ "${RETRY_FAILED:-0}" == 1 ]]; then
+  MATRIX_ARGS+=(--retry-failed)
+fi
+if [[ -n "${MATRIX_RUN_LABEL:-}" ]]; then
+  MATRIX_ARGS+=(--run-label "$MATRIX_RUN_LABEL")
+fi
 if [[ "${FULL_500:-0}" == 1 ]]; then
   MATRIX_ARGS+=(--full-500)
 else

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import time
 from typing import Any
@@ -338,32 +339,53 @@ def _public_command(command: tuple[str, ...]) -> list[str]:
     return list(command)
 
 
-async def _execute_job(job: MatrixJob, semaphore: asyncio.Semaphore) -> dict[str, Any]:
+async def _execute_job(
+    job: MatrixJob, semaphore: asyncio.Semaphore, *, job_retries: int
+) -> dict[str, Any]:
     async with semaphore:
         output_dir = Path(job.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         log_path = output_dir / "matrix_job.log"
         started = time.monotonic()
+        return_code = 1
+        attempts = 0
         with log_path.open("ab") as log:
-            process = await asyncio.create_subprocess_exec(
-                *job.command,
-                stdout=log,
-                stderr=asyncio.subprocess.STDOUT,
-            )
-            return_code = await process.wait()
+            for attempt in range(job_retries + 1):
+                attempts = attempt + 1
+                command = list(job.command)
+                if attempt and "--retry-failed" not in command:
+                    command.append("--retry-failed")
+                log.write(f"\n[matrix attempt {attempts}/{job_retries + 1}]\n".encode())
+                log.flush()
+                process = await asyncio.create_subprocess_exec(
+                    *command,
+                    stdout=log,
+                    stderr=asyncio.subprocess.STDOUT,
+                )
+                return_code = await process.wait()
+                if return_code == 0:
+                    break
         return {
             "target": job.target_name,
             "method": job.method,
             "return_code": return_code,
+            "attempts": attempts,
             "duration_seconds": round(time.monotonic() - started, 3),
             "output_dir": job.output_dir,
             "log": str(log_path),
         }
 
 
-async def execute_jobs(jobs: list[MatrixJob], *, max_concurrent_jobs: int) -> list[dict[str, Any]]:
+async def execute_jobs(
+    jobs: list[MatrixJob], *, max_concurrent_jobs: int, job_retries: int
+) -> list[dict[str, Any]]:
     semaphore = asyncio.Semaphore(max_concurrent_jobs)
-    return await asyncio.gather(*(_execute_job(job, semaphore) for job in jobs))
+    return await asyncio.gather(
+        *(
+            _execute_job(job, semaphore, job_retries=job_retries)
+            for job in jobs
+        )
+    )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -375,6 +397,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--pilot-cases", type=int, default=1)
     parser.add_argument("--full-500", action="store_true")
     parser.add_argument("--max-concurrent-jobs", type=int, default=18)
+    parser.add_argument("--job-retries", type=int, default=2)
+    parser.add_argument(
+        "--target-name",
+        action="append",
+        default=[],
+        help="run only the named configured target; repeat for multiple targets",
+    )
+    parser.add_argument(
+        "--method",
+        dest="selected_methods",
+        action="append",
+        choices=METHODS,
+        default=[],
+        help="run only this baseline method; repeat for multiple methods",
+    )
     parser.add_argument(
         "--qwen-endpoint",
         action="append",
@@ -382,12 +419,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="local Qwen replica URL; repeat to enable round-robin assignment",
     )
     parser.add_argument("--retry-failed", action="store_true")
+    parser.add_argument(
+        "--run-label",
+        help="suffix for matrix manifest/summary files when resuming a subset",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     if args.pilot_cases < 1:
         parser.error("--pilot-cases must be at least 1")
     if not 1 <= args.max_concurrent_jobs <= 18:
         parser.error("--max-concurrent-jobs must be between 1 and 18")
+    if not 0 <= args.job_retries <= 5:
+        parser.error("--job-retries must be between 0 and 5")
+    if args.run_label and not re.fullmatch(r"[A-Za-z0-9_.-]+", args.run_label):
+        parser.error("--run-label may contain only letters, digits, dot, dash, underscore")
     normalized_endpoints: list[str] = []
     for endpoint in args.qwen_endpoint:
         endpoint = endpoint.rstrip("/")
@@ -403,6 +448,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     targets, adversary, pcsa_evaluator, methods = load_matrix_config(args.config)
+    if args.target_name:
+        requested_targets = set(args.target_name)
+        configured_targets = {target.name for target in targets}
+        unknown_targets = sorted(requested_targets - configured_targets)
+        if unknown_targets:
+            raise ValueError(
+                "unknown target name(s): " + ", ".join(unknown_targets)
+            )
+        targets = [target for target in targets if target.name in requested_targets]
+    if args.selected_methods:
+        requested_methods = set(args.selected_methods)
+        methods = [method for method in methods if method in requested_methods]
     cohort_count = len(load_cohort_rows(args.cohort_index))
     if args.full_500 and cohort_count != EXPECTED_FULL_CASE_COUNT:
         raise ValueError(
@@ -438,6 +495,7 @@ def main(argv: list[str] | None = None) -> int:
             "target_count": len(targets),
             "method_count": len(methods),
             "qwen_replica_count": len(args.qwen_endpoint) or 1,
+            "job_retries": args.job_retries,
         },
         "qwen_replica_pool": {
             "assignment": "round_robin_by_qwen_consuming_matrix_job",
@@ -457,7 +515,7 @@ def main(argv: list[str] | None = None) -> int:
             for job in jobs
         ],
         "pcsa_phase2": {
-            "status": "configured",
+            "status": "configured" if "pcsa_phase2" in methods else "not_selected",
             "phase": 2,
             "phase1_enabled": False,
             "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
@@ -475,7 +533,7 @@ def main(argv: list[str] | None = None) -> int:
     errors = preflight_errors(
         targets=targets,
         adversary=adversary,
-        pcsa_evaluator=pcsa_evaluator,
+        pcsa_evaluator=pcsa_evaluator if "pcsa_phase2" in methods else None,
         qwen_endpoints=tuple(args.qwen_endpoint),
     )
     if not errors:
@@ -483,7 +541,7 @@ def main(argv: list[str] | None = None) -> int:
             endpoint_probe_errors(
                 targets=targets,
                 adversary=adversary,
-                pcsa_evaluator=pcsa_evaluator,
+                pcsa_evaluator=pcsa_evaluator if "pcsa_phase2" in methods else None,
                 qwen_endpoints=tuple(args.qwen_endpoint),
             )
         )
@@ -492,15 +550,22 @@ def main(argv: list[str] | None = None) -> int:
             print(f"preflight error: {error}", file=sys.stderr)
         return 2
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    _atomic_json(args.output_dir / "matrix_manifest.json", manifest)
-    results = asyncio.run(execute_jobs(jobs, max_concurrent_jobs=args.max_concurrent_jobs))
+    suffix = f".{args.run_label}" if args.run_label else ""
+    _atomic_json(args.output_dir / f"matrix_manifest{suffix}.json", manifest)
+    results = asyncio.run(
+        execute_jobs(
+            jobs,
+            max_concurrent_jobs=args.max_concurrent_jobs,
+            job_retries=args.job_retries,
+        )
+    )
     summary = {
         **manifest,
         "results": results,
         "succeeded": sum(result["return_code"] == 0 for result in results),
         "failed": sum(result["return_code"] != 0 for result in results),
     }
-    _atomic_json(args.output_dir / "matrix_summary.json", summary)
+    _atomic_json(args.output_dir / f"matrix_summary{suffix}.json", summary)
     print(json.dumps({"succeeded": summary["succeeded"], "failed": summary["failed"]}))
     return 1 if summary["failed"] else 0
 

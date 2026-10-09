@@ -31,6 +31,12 @@ def test_final_evaluation_is_separate_from_attack_control():
     assert contract["attack_control_score_is_final"] is False
     assert contract["final_evaluators"] == ["cares", "mental_health_gpt_judge"]
 
+    no_target = MODULE.evaluation_contract(
+        status="not_applicable_no_target_response"
+    )
+    assert no_target["status"] == "not_applicable_no_target_response"
+    assert no_target["required_inputs"] == []
+
 
 def test_pcsa_uses_method_specific_four_turn_default():
     assert MODULE.parse_args(["--method", "pcsa_phase2", "--dry-run"]).max_turns == 4
@@ -137,6 +143,7 @@ def test_pcsa_dry_run_uses_fixed_personas_and_four_turn_cap(capsys):
             "endpoint": "https://api.openai.com/v1",
             "model": "gpt-4o-mini",
             "transport": "openai_batch",
+            "max_completion_tokens": 512,
         },
     }
 

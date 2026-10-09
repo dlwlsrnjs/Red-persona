@@ -238,15 +238,16 @@ def select_cases(
     return selected[:limit]
 
 
-def evaluation_contract() -> dict[str, Any]:
+def evaluation_contract(*, status: str = "pending") -> dict[str, Any]:
     return {
         "final_evaluators": ["cares", "mental_health_gpt_judge"],
-        "status": "pending",
+        "status": status,
         "attack_control_score_is_final": False,
-        "required_inputs": [
-            "target_conversation",
-            "final_target_response",
-        ],
+        "required_inputs": (
+            ["target_conversation", "final_target_response"]
+            if status == "pending"
+            else []
+        ),
     }
 
 
@@ -297,6 +298,7 @@ def build_manifest(
             "endpoint": args.target_endpoint,
             "model": args.target_model,
             "transport": args.target_transport,
+            "max_completion_tokens": args.target_max_completion_tokens,
             "sync_case_concurrency": args.sync_case_concurrency,
             "batch_case_concurrency": (
                 args.batch_case_concurrency if args.target_transport == "openai_batch" else None
@@ -332,6 +334,7 @@ def build_manifest(
                         "endpoint": args.pcsa_evaluator_endpoint,
                         "model": args.pcsa_evaluator_model,
                         "transport": args.pcsa_evaluator_transport,
+                        "max_completion_tokens": args.pcsa_evaluator_max_completion_tokens,
                     },
                 }
                 if args.method == "pcsa_phase2"
@@ -468,6 +471,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
         model: str,
         api_key_env: str,
         temperature: float,
+        max_completion_tokens: int,
         transport: str,
         batch_work_dir: Path,
     ) -> Any:
@@ -476,6 +480,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
             "model_name": model,
             "api_key": _api_key(endpoint, api_key_env),
             "temperature": temperature,
+            "max_completion_tokens": max_completion_tokens,
         }
         if transport == "openai_batch":
             if urlparse(endpoint).hostname != "api.openai.com":
@@ -493,6 +498,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
         model=args.target_model,
         api_key_env=args.target_api_key_env,
         temperature=args.target_temperature,
+        max_completion_tokens=args.target_max_completion_tokens,
         transport=args.target_transport,
         batch_work_dir=args.output_dir / "_openai_batches" / "target",
     )
@@ -504,6 +510,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
             model=args.adversary_model,
             api_key_env=args.adversary_api_key_env,
             temperature=args.adversary_temperature,
+            max_completion_tokens=args.adversary_max_completion_tokens,
             transport="sync",
             batch_work_dir=args.output_dir / "_openai_batches" / "adversary",
         )
@@ -524,6 +531,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
             model=args.pcsa_evaluator_model,
             api_key_env=args.pcsa_evaluator_api_key_env,
             temperature=0.0,
+            max_completion_tokens=args.pcsa_evaluator_max_completion_tokens,
             transport=args.pcsa_evaluator_transport,
             batch_work_dir=args.output_dir / "_openai_batches" / "pcsa_evaluator",
         )
@@ -622,6 +630,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                     "is_final_evaluation": False,
                     "result": pcsa_result,
                 }
+                final_evaluation = evaluation_contract()
             else:
                 assert attack is not None
                 result = await attack.execute_async(
@@ -632,15 +641,33 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                         "baseline_method": args.method,
                     },
                 )
-                transcript = await _target_transcript(result.conversation_id)
+                conversation_id = getattr(result, "conversation_id", None)
+                if conversation_id:
+                    transcript = await _target_transcript(conversation_id)
+                elif args.method == "tap":
+                    # TAP can validly prune every branch before any target call.
+                    # This is an unsuccessful attack outcome, not an infrastructure
+                    # failure, and must remain in the experiment denominator.
+                    transcript = []
+                else:
+                    raise ValueError("attack returned no target conversation ID")
                 final_response = (
                     result.last_response.converted_value if result.last_response else None
                 )
+                no_target_response = not transcript and not final_response
                 internal_attack_control = {
                     "framework": "pyrit",
                     "is_final_evaluation": False,
+                    "attack_exhausted_without_target_response": no_target_response,
                     "result": _compact_attack_result(result),
                 }
+                final_evaluation = evaluation_contract(
+                    status=(
+                        "not_applicable_no_target_response"
+                        if no_target_response
+                        else "pending"
+                    )
+                )
             payload = {
                 "schema_version": SCHEMA_VERSION,
                 "method": args.method,
@@ -650,7 +677,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                 "target_conversation": transcript,
                 "final_target_response": final_response,
                 "internal_attack_control": internal_attack_control,
-                "final_evaluation": evaluation_contract(),
+                "final_evaluation": final_evaluation,
             }
             _atomic_json(output, payload)
             if failure.exists():
@@ -721,6 +748,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--target-transport", choices=("sync", "openai_batch"), default="sync"
     )
     parser.add_argument("--target-temperature", type=float, default=0.0)
+    parser.add_argument("--target-max-completion-tokens", type=int, default=2048)
     parser.add_argument("--sync-case-concurrency", type=int, default=1)
     parser.add_argument("--batch-case-concurrency", type=int, default=64)
     parser.add_argument("--batch-poll-seconds", type=float, default=60.0)
@@ -729,12 +757,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--adversary-model", default=DEFAULT_ADVERSARY_MODEL)
     parser.add_argument("--adversary-api-key-env", default="ADVERSARY_API_KEY")
     parser.add_argument("--adversary-temperature", type=float, default=0.7)
+    parser.add_argument("--adversary-max-completion-tokens", type=int, default=4096)
     parser.add_argument("--pcsa-candidates", type=int, default=PCSA_DEFAULT_CANDIDATES)
     parser.add_argument(
         "--pcsa-evaluator-endpoint", default="https://api.openai.com/v1"
     )
     parser.add_argument("--pcsa-evaluator-model", default="gpt-4o-mini")
     parser.add_argument("--pcsa-evaluator-api-key-env", default="OPENAI_API_KEY")
+    parser.add_argument("--pcsa-evaluator-max-completion-tokens", type=int, default=512)
     parser.add_argument(
         "--pcsa-evaluator-transport",
         choices=("sync", "openai_batch"),
@@ -754,6 +784,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "many_shot_examples",
         "sync_case_concurrency",
         "batch_case_concurrency",
+        "target_max_completion_tokens",
+        "adversary_max_completion_tokens",
+        "pcsa_evaluator_max_completion_tokens",
         "pcsa_candidates",
     ):
         if getattr(args, name) < (0 if name == "start" else 1):

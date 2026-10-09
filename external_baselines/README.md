@@ -195,8 +195,8 @@ PILOT_CASES=1 sbatch external_baselines/run_matrix_on_gpu.sbatch
 `/home/ljk98/POLY/hf-cache`를 사용해 GPU마다 Qwen endpoint를 하나씩 띄운다. 기본 Slurm
 요청은 H200 7장이고 endpoint는 `:8000`부터 `:8006`까지다. Qwen target 작업뿐 아니라
 GPT-4o multi-turn 작업의 로컬 Qwen attacker도 이 pool에 round-robin으로 분산된다.
-각 replica는 vLLM continuous batching을 사용하며 `max_num_seqs=128`,
-`max_num_batched_tokens=32768`로 설정된다. Qwen sync 작업은 job당 case 16개, adaptive
+각 replica는 vLLM continuous batching을 사용하며 context 32K,
+`max_num_seqs=128`, `max_num_batched_tokens=32768`로 설정된다. Qwen sync 작업은 job당 case 16개, adaptive
 OpenAI Batch 작업은 32개를 동시에 진행하고, 독립 single-turn OpenAI Batch는 500개를 한
 wave에 묶는다. 따라서 서버 수와 각 서버 내부 batching을 모두 활용한다.
 
@@ -217,6 +217,25 @@ OpenAI 없이 replica 분산 자체를 확인하는 2-GPU smoke test는 `direct`
 
 ```bash
 sbatch external_baselines/run_qwen_pool_smoke.sbatch
+```
+
+OpenAI key가 아직 없는 상태에서 Qwen 대상 8개 방법만 공식 cohort로 먼저 실행할 수 있다.
+PCSA는 GPT-4o-mini 중간 evaluator가 필요하므로 이 모드에서는 의도적으로 제외된다.
+
+```bash
+QWEN_ONLY=1 PILOT_CASES=10 sbatch external_baselines/run_matrix_on_gpu.sbatch
+```
+
+각 matrix job은 일시적 생성·파싱 실패가 있으면 기본 2회까지 실패 case만 자동 재시도한다.
+TAP이 모든 branch를 target 호출 전에 prune한 case는 인프라 실패가 아니라 공격 실패로
+분류하며 `final_evaluation.status=not_applicable_no_target_response`로 분모에 보존한다.
+특정 방법만 기존 output에 이어서 복구할 때는 다음 환경변수를 사용한다.
+
+```bash
+QWEN_ONLY=1 QWEN_REPLICAS=1 MATRIX_METHODS=tap RETRY_FAILED=1 \
+MATRIX_RUN_LABEL=tap_retry \
+MATRIX_OUTPUT_ROOT=external_baselines/outputs/qwen_gpt4o_<job_id> \
+PILOT_CASES=10 sbatch --gres=gpu:1 external_baselines/run_matrix_on_gpu.sbatch
 ```
 
 OpenAI key 없이 PCSA의 실제 서버 연결, 고정 persona/pathology 주입, 네 후보 병렬 처리,

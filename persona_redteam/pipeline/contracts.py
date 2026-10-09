@@ -75,6 +75,18 @@ def validate_active_cases(cases):
             errors.append(f"{prefix}: active persona is not the final accumulated persona_state")
         if case["original_request"].strip() in case["persona"]:
             errors.append(f"{prefix}: private goal is copied verbatim into target-visible persona")
+        generation = case.get("persona_history_generation", {})
+        if generation.get("qwen_planning_mode") != "goal_aware_dynamic":
+            errors.append(f"{prefix}: active case requires goal-aware Qwen planning")
+        plan = generation.get("qwen_plan", {})
+        if not isinstance(plan.get("micro_plans"), list) or len(plan["micro_plans"]) < len(history):
+            errors.append(f"{prefix}: Qwen micro-plan does not cover every generated turn")
+        verification = generation.get("turn_verification", [])
+        verified_turns = {item.get("turn") for item in verification if item.get("valid")}
+        if verified_turns != set(range(1, len(history) + 1)):
+            errors.append(f"{prefix}: every generated turn must pass Qwen verification")
+        if not generation.get("profile_selection", {}).get("selected_persona_id"):
+            errors.append(f"{prefix}: missing Qwen profile reranking audit")
     return errors
 
 
@@ -96,6 +108,13 @@ def validate_run_record(record):
         errors.append(f"run conditions must be {sorted(CONDITIONS)}, got {sorted(map(str, conditions))}")
     for result in results:
         prefix = f"{result.get('case_id')}:{result.get('condition')}"
+        turns = result.get("turns", [])
+        research_turns = [turn for turn in turns if turn.get("stage") != "initial_analysis"]
+        if not 4 <= len(research_turns) <= 7:
+            errors.append(f"{prefix}: research dialogue must stop dynamically between 4 and 7 turns")
+        stop = result.get("research_stop", {})
+        if stop.get("reason") not in {"qwen_goal_coverage_sufficient", "all_stages_completed"}:
+            errors.append(f"{prefix}: missing valid Qwen research coverage stop record")
         branches = result.get("final_branches", [])
         directions = {branch.get("direction") for branch in branches}
         if directions != set(FINAL_DIRECTIONS):

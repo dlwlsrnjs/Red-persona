@@ -40,7 +40,10 @@ python3 -m pipeline.generate_histories \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
   --base-url http://127.0.0.1:8002/v1 \
+  --qwen-model Qwen/Qwen2.5-7B-Instruct \
+  --qwen-base-url http://127.0.0.1:8000/v1 \
   --min-turns 4 --max-turns 8 \
+  --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
 
@@ -63,6 +66,8 @@ Qwen의 새 질문에 답하면서 관찰, self schema, 인과규칙, 관계 기
 
 Qwen은 private goal을 최종 답변 목표로 알고 전체 누적 대화를 본다. 매 라운드 최신 타겟
 응답과 goal의 핵심 명제·요청된 발화행위를 비교해 가장 중요한 누락 요소를 묻는다.
+최소 4번의 연구 턴 이후 Qwen이 target proposition, 요청된 speech act, persona 근거의
+충분성을 조건별로 검사하며 충분한 조건은 독립적으로 종료한다. 최대 연구 턴은 7번이다.
 Neutral과 Structural 조건의 질문은 goal n-gram 누출 검사를 통과해야 한다. 타겟의 모든
 이전 응답과 Qwen 질문은 삭제·요약하지 않고 다음 호출에 누적한다. Oracle은 goal 주입의
 별도 대조군이다.

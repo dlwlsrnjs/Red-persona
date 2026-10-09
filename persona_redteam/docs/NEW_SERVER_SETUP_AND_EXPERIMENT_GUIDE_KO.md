@@ -39,16 +39,16 @@ snapshot을 배치한 뒤, JMIR 625개 전체 실험을 생성·실행·평가�
 - 모델 두 개, Hugging Face cache와 산출물을 위한 여유 디스크 80GB 이상 권장
 - OpenAI API 접근 권한과 실행할 target/evaluator model 권한
 
-Qwen 연구자는 `transformers`로 프로세스 안에서 직접 로드된다. Lexi는
-`/v1/chat/completions`를 제공하는 별도 로컬 서버가 필요하다. target과 GPT evaluator는
-OpenAI API를 사용한다.
+History 생성 단계의 Qwen planner와 Lexi는 각각 `/v1/chat/completions`를 제공하는 로컬
+서버를 사용한다. 본 Qwen–target 단계의 Qwen 연구자는 고정 snapshot을 `transformers`로
+프로세스 안에서 직접 로드한다. target과 GPT evaluator는 OpenAI API를 사용한다.
 
 ### 병렬도 해석
 
 - `--target-workers 256`: 한 사례 내부의 final/manifestation target 요청 병렬도다.
 - `--workers 256`: 한 사례의 24개 평가 branch 병렬도다.
 - 사례 자체는 `run_batch`와 `evaluate_batch`에서 순차 처리된다.
-- `generate_histories`도 사례와 turn을 순차 처리한다.
+- `generate_histories`도 사례와 turn을 순차 처리하지만 사례별 checkpoint로 재개한다.
 - 256은 상한일 뿐 권장 시작값이 아니다. API rate limit이 낮으면 16 또는 32부터 시작한다.
 
 따라서 GPU를 여러 장 쓴다고 625개 사례가 자동 분산되지는 않는다. 여러 프로세스로 분할할
@@ -172,7 +172,22 @@ PY
 Qwen 본 실험은 기본적으로 첫 번째 고정 경로를 직접 읽는다. 다른 위치라면
 `run_batch`에 `--qwen-snapshot /absolute/path`를 전달한다.
 
-## 7. Lexi OpenAI-compatible server
+## 7. Qwen과 Lexi OpenAI-compatible server
+
+History 계획·profile reranking·턴 검증에 사용할 Qwen 서버:
+
+```bash
+export CUDA_VISIBLE_DEVICES=0
+python -m vllm.entrypoints.openai.api_server \
+  --model .cache/qwen2.5-7b-instruct/a09a35458c702b33eeacc393d103063234e8bc28 \
+  --served-model-name Qwen/Qwen2.5-7B-Instruct \
+  --dtype bfloat16 \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --gpu-memory-utilization 0.90
+```
+
+Lexi 서버는 다른 GPU에서 실행한다.
 
 예시 vLLM 명령은 다음과 같다. GPU 번호와 메모리 비율은 서버 상황에 맞춘다.
 
@@ -191,6 +206,7 @@ python -m vllm.entrypoints.openai.api_server \
 
 ```bash
 curl -fsS http://127.0.0.1:8002/v1/models
+curl -fsS http://127.0.0.1:8000/v1/models
 ```
 
 응답의 model id가 `--model`에 넘길 이름과 같아야 한다. 서버가 snapshot 경로만 model id로
@@ -315,19 +331,19 @@ cp configs/persona_history/coverage_prompt.template.txt \
 }
 ```
 
-coverage는 최소 4턴 이후 매 turn 호출된다. `sufficient=true`면 사례별 조기 종료하고,
+coverage prompt는 goal-aware Qwen에 최소 4턴 이후 매 turn 전달된다. `sufficient=true`면 사례별 조기 종료하고,
 그렇지 않으면 `max_turns`까지 간다.
 
-### Qwen micro-plan의 현재 상태
+### Qwen micro-plan 동작
 
-`generate_histories --plans`는 이미 계획 파일을 읽고 각 turn에 연결하지만, 저장소에는 625개
-계획을 일괄 생성하는 활성 CLI가 아직 없다. 현재 검증된 Qwen plan/rerank/turn verification은
-`experiments/pilot_qwen_lexi_persona_history.py`의 단일 사례 파일럿에만 있다.
+활성 `generate_histories`는 `--plans`가 없는 사례마다 Qwen을 호출해 profile top-12를
+rerank하고, 최대 turn 수만큼 goal-aware micro-plan을 만들며, Lexi가 만든 각 turn을 Qwen으로
+검증한다. 검증 실패 turn은 최대 3회 다시 생성한다. 최소 4턴 이후 Qwen coverage 결과가
+충분하면 사례별로 조기 종료한다.
 
-- `--plans` 없이 실행: 정상 동작하지만 모든 stage가 `unplanned`다.
-- `--plans` 사용: 외부에서 미리 만든 case-id keyed JSON이 필요하다.
-- Qwen decomposition이 본 실험의 필수 조작이라면 625개 batch planner를 구현·검증하기 전
-  전체 본 실행 결과를 최종 결과로 간주하면 안 된다.
+`--plans`는 재현을 위해 미리 고정한 계획을 주입할 때만 사용한다. 계획을 주입해도 Qwen
+profile reranking과 turn verification은 실행된다. `--skip-qwen-planning`은 명시적 ablation
+전용이며, 그 출력은 활성 본 실험 contract를 통과하지 않는다.
 
 계획 파일 허용 양식은 list, 단일 object, 또는 case-id keyed object다. 각 plan에는
 `micro_plans` list가 필수다.
@@ -357,18 +373,20 @@ python -m pipeline.generate_histories \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
   --base-url http://127.0.0.1:8002/v1 \
-  --top-k 5 \
+  --qwen-model Qwen/Qwen2.5-7B-Instruct \
+  --qwen-base-url http://127.0.0.1:8000/v1 \
+  --top-k 12 \
   --min-turns 4 \
   --max-turns 8 \
+  --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
 
 Qwen 계획을 준비했다면 `--plans data/prepared/plans/jmir_eval_full_qwen_plans.json`을 추가한다.
 
-persona profile JSONL은 최소한 고유 `id` 또는 `persona_id`를 가져야 한다. 검색은 pathology
-field overlap, crisis tag, goal text lexical coverage를 합산한다. 현재 본 생성기는 top-k 중
-점수가 가장 높은 첫 profile을 사용한다. Qwen reranking은 단일 파일럿에는 있지만 위 본
-생성 CLI에는 아직 통합되지 않았다.
+persona profile JSONL은 최소한 고유 `id` 또는 `persona_id`를 가져야 한다. 1차 검색은
+pathology field overlap, crisis tag, goal text lexical coverage를 합산한다. Qwen은 그 top-k를
+goal, pathology, profile 전체 내용으로 다시 평가해 최종 profile을 선택한다.
 
 출력 active case의 추가 필드:
 
@@ -383,9 +401,12 @@ field overlap, crisis tag, goal text lexical coverage를 합산한다. 현재 �
   "persona_history_generation": {
     "model": "...",
     "retrieval_top_k": [],
+    "profile_selection": {},
     "coverage_audit": [],
+    "turn_verification": [],
     "stop_reason": "coverage_sufficient",
-    "qwen_plan": null,
+    "qwen_plan": {"micro_plans": []},
+    "qwen_planning_mode": "goal_aware_dynamic",
     "persona_generation_status": "complete",
     "min_turns": 4,
     "max_turns": 8
@@ -400,9 +421,15 @@ python -m pipeline.preflight \
   --cases data/prepared/generated/jmir_eval_full_with_history.json
 ```
 
-주의: 이 단계는 현재 사례별 checkpoint/resume을 제공하지 않는다. 중간 실패 시 하나의 최종
-JSON을 쓰기 전까지 진행분이 보존되지 않는다. 전체 625개 전에 `--cases`용 소규모 JSON
-array를 만들어 2~5개를 먼저 확인하는 것이 안전하다.
+성공 사례는 checkpoint directory에 `<case_id>.json`, 실패는
+`<case_id>.failed.json`으로 저장된다. 재실행하면 성공 사례는 자동으로 건너뛰며 실패를 다시
+시도하려면 `--retry-failed`를 추가한다. 최종 output JSON은 성공 사례가 생길 때마다 원자적으로
+갱신된다. 하나라도 실패하면 명령은 exit code 1로 끝나므로 incomplete output을 본 실행에
+넘기지 않는다. checkpoint에는 입력 case와 persona pool checksum, 두 prompt 본문, 모델,
+turn 범위와 계획 설정의 fingerprint가 저장되며 완전히 같은 설정일 때만 재사용된다.
+
+History 생성이 끝나면 Qwen vLLM 서버를 종료해 GPU 0을 비운 뒤 다음 본 실험에서 같은
+snapshot을 `transformers`로 로드한다.
 
 ## 12. 단계 E: Qwen–target 본 실험
 
@@ -487,6 +514,10 @@ python -m pipeline.run_batch \
 
 조건은 `neutral`, `structural_hint`, `oracle_hint` 세 개다. final direction은 정확히 8개다.
 CARES에는 `manifestation_candidate_response.text`만 전달한다.
+각 조건의 누적 연구 대화는 최소 4턴 후 Qwen이 goal coverage를 검사한다. target이 target
+proposition, 원하는 speech act, 이를 연결하는 persona 근거를 충분히 스스로 서술했으면 해당
+조건만 종료하고, 부족하면 최대 7개 연구 stage까지 계속한다. `research_stop`과 마지막
+`goal_coverage_audit`에 종료 근거가 남는다.
 
 ## 13. 단계 F: GPT 평가와 집계
 
@@ -556,7 +587,7 @@ PY
 |---|---|---|---|
 | `experiments/build_jmir_eval_set_full.py` | 625 goal과 pathology join | 2개 JSONL | blueprint JSONL/report |
 | `pipeline/prepare.py` | canonical adapter CLI | blueprint JSONL | prepared case JSON |
-| `pipeline/generate_histories.py` | pool 검색 + Lexi history | prepared cases, profiles, prompts | active cases JSON |
+| `pipeline/generate_histories.py` | Qwen reranking/계획/검증 + Lexi history + checkpoint | prepared cases, profiles, prompts | active cases JSON |
 | `pipeline/run_batch.py` | checkpointed 본 실행 | active cases | 사례별 run JSON |
 | `pipeline/evaluate_batch.py` | checkpointed 평가·집계 | run directory | 사례별 eval/aggregate JSON |
 | `pipeline/preflight.py` | 모델 호출 없는 경계 검사 | 각 단계 artifact | stdout validation report |
@@ -568,6 +599,7 @@ PY
 | `pipeline/contracts.py` | 단계별 필수 field, 3x8 matrix, candidate-only CARES 계약 |
 | `pipeline/persona_pool.py` | 31,733 profile 로딩과 결정적 top-k 검색 |
 | `pipeline/persona_history.py` | template 치환, JSON parsing, turn/coverage 검증, 동적 종료 |
+| `pipeline/history_planning.py` | Qwen profile reranking, 최대 8단계 plan, turn 검증 계약 |
 | `experiments/model_io.py` | Lexi/OpenAI-compatible chat HTTP 호출 |
 | `experiments/prepare_jmir_persona_eval.py` | `status`, `merge`, `adapt` 실제 구현 |
 | `experiments/qwen_target_persona_research_dialogue.py` | Qwen 질문, target 누적 context, 3조건, 8 branch, candidate 분리 |
@@ -624,20 +656,19 @@ QWEN_DEVICE=cuda:3 python -m pipeline.run_batch ... --start 471 --stop 625 --out
 | OpenAI 429 | workers/rate limit 과다 | workers 축소 후 `--retry-failed` |
 | 평가 row가 24개 미만 | run branch 누락 또는 CARES 실패 | run preflight, 실패 JSON 확인 후 재실행 |
 | Safety Score가 null | harmful level 미annotation | 실험 전 독립 annotation 추가; label에서 추론 금지 |
-| history가 모두 `unplanned` | `--plans` 생략 | batch Qwen plans를 준비하거나 제한으로 명시 |
+| history가 `unplanned` | `--skip-qwen-planning` 사용 또는 구형 산출물 | ablation 옵션 제거 후 checkpoint를 새로 생성 |
 
-## 17. 현재 코드에서 남은 운영 제한
+## 17. 현재 코드에서 남은 운영 특성
 
 다른 서버에서 실행 전에 특히 다음을 인지해야 한다.
 
-1. 625개 Qwen history micro-plan/reranking/turn-verification batch CLI는 아직 없다.
-2. 본 `generate_histories`는 Lexi 사례별 checkpoint와 자동 resume이 없다.
-3. persona full-pool retrieval은 embedding 검색이 아니라 구조화 overlap + lexical coverage다.
-4. `run_batch`와 `evaluate_batch`는 사례 간 병렬화가 아니라 사례 내부 병렬화다.
-5. API model snapshot 이름이 계정에서 계속 제공되는지 실행 당일 확인해야 한다.
-6. raw/private data와 생성 결과는 `.gitignore` 대상이므로 Git clone만으로 복구되지 않는다.
+1. persona full-pool의 1차 후보 검색은 embedding 검색이 아니라 구조화 overlap + lexical
+   coverage이며, 그 뒤 Qwen이 top-12를 rerank한다.
+2. `run_batch`와 `evaluate_batch`는 사례 간 병렬화가 아니라 사례 내부 병렬화다.
+3. API model snapshot 이름이 계정에서 계속 제공되는지 실행 당일 확인해야 한다.
+4. raw/private data와 생성 결과는 `.gitignore` 대상이므로 Git clone만으로 복구되지 않는다.
 
-이 제한은 설치 실패와 실험 설계 미완료를 구분하기 위해 반드시 run log에 기록한다.
+이 운영 특성은 설치 실패와 실험 설정 차이를 구분하기 위해 run log에 기록한다.
 
 ## 18. 최종 실행 전 체크리스트
 

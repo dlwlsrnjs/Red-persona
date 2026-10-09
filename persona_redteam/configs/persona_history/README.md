@@ -4,7 +4,7 @@
 `pipeline/generate_histories.py`에 있으며 이 폴더에는 사용자가 편집하는 프롬프트만 둔다.
 
 - `generation_prompt.template.txt`: Lexi가 과거 대화 한 턴과 persona state를 생성
-- `coverage_prompt.template.txt`: 최소 4턴 이후 정보 충분성을 판정
+- `coverage_prompt.template.txt`: goal-aware Qwen이 최소 4턴 이후 정보 충분성을 판정
 
 템플릿은 `$goal_json`, `$goal_pathology_json`, `$persona_profile_json`, `$history_json`,
 `$current_persona_state_json`, `$current_micro_plan_json`, `$stage`, `$turn_index`, `$min_turns`,

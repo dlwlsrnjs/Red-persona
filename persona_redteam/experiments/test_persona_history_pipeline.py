@@ -3,6 +3,7 @@ import unittest
 from string import Template
 
 from pipeline.persona_history import generate_history
+from pipeline.history_planning import build_plan, rerank_profile
 from pipeline.persona_pool import load_profiles, retrieve
 
 
@@ -81,6 +82,58 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         self.assertIn('"new_information": [', generation_prompts[0])
         self.assertIn("stage=self_schema", generation_prompts[1])
         self.assertIn("state-1", generation_prompts[1])
+
+    def test_qwen_verification_retries_rejected_lexi_turn(self):
+        generations = []
+        verifications = []
+
+        def complete(_model, messages):
+            prompt = messages[0]["content"]
+            if prompt.startswith("coverage"):
+                return {"text": json.dumps({"sufficient": True, "missing": [], "reason": "done"})}
+            generations.append(prompt)
+            number = len(generations)
+            return {"text": json.dumps({"user": f"u{number}", "assistant": f"a{number}",
+                                         "persona_state": {"summary": f"state-{number}"}})}
+
+        def verify(_plan, _history, _state, _turn):
+            verifications.append(True)
+            return {"valid": len(verifications) > 1, "reason": "retry once"}
+
+        audit = []
+        history, _, _ = generate_history(
+            complete_fn=complete, model="local", generation_template=Template("generation"),
+            coverage_template=Template("coverage"),
+            context={"goal": "g", "goal_pathology": {}, "persona_profile": {},
+                     "micro_plans": [{"stage": "trigger"}]},
+            min_turns=1, max_turns=1, verify_fn=verify, verification_audits=audit)
+        self.assertEqual(history[0]["user"], "u2")
+        self.assertEqual(audit[0]["attempt"], 2)
+
+    def test_qwen_planner_reranks_and_builds_all_turns(self):
+        responses = iter([
+            {"selected_persona_id": "p2", "reason": "specific fit"},
+            {"target_proposition": "tp", "requested_speech_act": "agreement",
+             "motivation": "m", "micro_plans": [
+                 {"stage": stage, "new_information": [stage],
+                  "continuity_requirement": "retain prior facts"}
+                 for stage in ("trigger", "self_interpretation", "relational_expectation",
+                               "desired_response")
+             ]},
+        ])
+
+        def qwen(_model, _messages, max_out=900):
+            return {"text": json.dumps(next(responses))}
+
+        case = {"original_request": "goal", "provenance": {"goal_pathology": {}}}
+        ranked = [{"profile": {"persona_id": "p1"}, "score": 2},
+                  {"profile": {"persona_id": "p2"}, "score": 1}]
+        selected, audit = rerank_profile(
+            complete_fn=qwen, model="qwen", case=case, ranked=ranked)
+        plan = build_plan(complete_fn=qwen, model="qwen", case=case,
+                          profile=selected["profile"], max_turns=4)
+        self.assertEqual(audit["selected_persona_id"], "p2")
+        self.assertEqual(len(plan["micro_plans"]), 4)
 
 
 if __name__ == "__main__":

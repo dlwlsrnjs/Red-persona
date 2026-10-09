@@ -14,8 +14,10 @@
 
 `--plans`로 Qwen 계획 JSON을 지정하면 샘플의 `micro_plans`가 턴 순서대로 연결된다.
 `$current_persona_state_json`은 첫 턴에는 `{}`, 이후에는 직전 턴의 누적 상태다.
-`$current_micro_plan_json`과 `$stage`는 현재 턴 계획을 가리킨다. 계획보다 생성 턴이 더
-많으면 마지막 계획을 유지하며, 계획 파일이 없으면 각각 `{}`와 `unplanned`를 쓴다.
+`$current_micro_plan_json`과 `$stage`는 현재 턴 계획을 가리킨다. 외부 계획 파일이 없으면
+활성 생성기가 Qwen으로 최대 turn 수 전체의 계획을 동적으로 만든다. 계획보다 생성 턴이 더
+많은 비활성/직접 API 사용에서는 마지막 계획을 유지하며, 계획 자체가 없으면 각각 `{}`와
+`unplanned`를 쓴다.
 
 모델 출력 계약은 다음 JSON 객체다.
 
@@ -31,9 +33,10 @@
 Qwen–타겟 실험에서 활성 `persona`가 된다. 각 턴의 세 필드가 없거나 비어 있으면 실행을
 실패 처리한다.
 
-## coverage 프롬프트
+## Qwen coverage 프롬프트
 
-동일한 변수를 사용할 수 있다. 최소 턴 전에는 호출하지 않으며, 최소 턴 이후 매 턴 호출한다.
+동일한 변수를 사용할 수 있다. 활성 CLI는 이 프롬프트를 goal-aware Qwen에 전달한다.
+최소 턴 전에는 호출하지 않으며, 최소 턴 이후 매 턴 호출한다.
 출력 계약은 다음과 같다.
 
 ```json
@@ -68,7 +71,10 @@ python3 -m pipeline.generate_histories \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
   --base-url http://127.0.0.1:8002/v1 \
+  --qwen-model Qwen/Qwen2.5-7B-Instruct \
+  --qwen-base-url http://127.0.0.1:8000/v1 \
   --min-turns 4 --max-turns 8 \
+  --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
 

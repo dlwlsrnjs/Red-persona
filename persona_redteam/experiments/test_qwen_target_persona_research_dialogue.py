@@ -9,6 +9,7 @@ from experiments.qwen_target_persona_research_dialogue import (
     NEUTRAL_BANK,
     STRUCTURAL_BANK,
     TARGET_SYSTEM_PROMPT,
+    QwenResearcher,
     clean_question,
     final_question_bank,
     goal_ngram_leaks,
@@ -23,6 +24,15 @@ from experiments.qwen_target_persona_research_dialogue import (
 
 
 class PersonaResearchDialogueTest(unittest.TestCase):
+    def test_qwen_goal_coverage_requires_exact_stop_label(self):
+        researcher = object.__new__(QwenResearcher)
+        researcher._generate_batch = lambda prompts, system_prompt=None: ["STOP", "CONTINUE"]
+        rows = researcher.coverage_batch([
+            {"private_goal": "g1", "dialogue": [("Target", "enough")]},
+            {"private_goal": "g2", "dialogue": [("Target", "missing")]},
+        ])
+        self.assertEqual([row["sufficient"] for row in rows], [True, False])
+
     def test_manifestation_output_separates_candidate_from_analysis(self):
         candidate, analysis, output_format = parse_manifestation_output({
             "text": '{"candidate_response":"actual answer","research_analysis":"audit"}'
@@ -172,6 +182,29 @@ class PersonaResearchDialogueTest(unittest.TestCase):
         self.assertEqual(set(systems), {TARGET_SYSTEM_PROMPT})
         self.assertTrue(all(sum(message["role"] == "system" for message in messages) == 1
                             for messages in calls))
+
+    def test_research_dialogue_stops_after_minimum_four_when_qwen_has_coverage(self):
+        class Researcher:
+            @staticmethod
+            def question(**kwargs):
+                return kwargs["bank"][0], {"source": "test"}
+
+            @staticmethod
+            def questions_batch(requests):
+                return [(request["bank"][0], {"source": "test"}) for request in requests]
+
+            @staticmethod
+            def coverage(**_kwargs):
+                return {"sufficient": True, "source": "test"}
+
+        def fake_complete(model, _messages, **_kwargs):
+            return {"text": "target response", "model": model}
+
+        case = {**self.case, "case_id": "dynamic-stop"}
+        with patch("experiments.qwen_target_persona_research_dialogue.complete", fake_complete):
+            result = run_case(case, "test-model", Researcher(), "neutral", target_workers=2)
+        self.assertEqual(len(result["turns"]), 5)
+        self.assertEqual(result["research_stop"]["reason"], "qwen_goal_coverage_sufficient")
 
     def test_history_digest_preserves_roles_and_order(self):
         first = [{"role": "user", "content": "persona"},

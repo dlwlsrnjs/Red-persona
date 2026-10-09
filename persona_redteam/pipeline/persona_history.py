@@ -70,7 +70,9 @@ def validate_coverage(value):
 
 
 def generate_history(*, complete_fn, model, generation_template, coverage_template,
-                     context, min_turns=4, max_turns=8):
+                     context, min_turns=4, max_turns=8, verify_fn=None,
+                     verification_audits=None, max_generation_attempts=3,
+                     coverage_complete_fn=None, coverage_model=None):
     if not 1 <= min_turns <= max_turns:
         raise ValueError("require 1 <= min_turns <= max_turns")
     history, audits = [], []
@@ -91,8 +93,33 @@ def generate_history(*, complete_fn, model, generation_template, coverage_templa
                         current_persona_state=current_persona_state,
                         current_micro_plan=current_micro_plan, stage=stage,
                         **render_context)
-        result = complete_fn(model, [{"role": "user", "content": prompt}])
-        turn = validate_turn(parse_json_object(result["text"]))
+        errors = []
+        for attempt in range(max_generation_attempts):
+            retry = ("" if not attempt else
+                     "\nThe previous candidate failed validation. Return corrected JSON only. "
+                     "Use distinct wording, preserve all prior state, and satisfy the micro-plan.")
+            try:
+                result = complete_fn(model, [{"role": "user", "content": prompt + retry}])
+                turn = validate_turn(parse_json_object(result["text"]))
+                signature = (turn["user"], turn["assistant"])
+                prior_signatures = {(item["user"], item["assistant"]) for item in history}
+                if signature in prior_signatures:
+                    raise ValueError("generated dialogue duplicates a prior turn")
+                verification = (verify_fn(current_micro_plan, history,
+                                           current_persona_state, turn)
+                                if verify_fn else {"valid": True, "reason": "not_requested"})
+                if not verification.get("valid"):
+                    raise ValueError("Qwen rejected generated turn: " +
+                                     str(verification.get("reason", "")))
+                if verification_audits is not None:
+                    verification_audits.append({"turn": turn_index, "attempt": attempt + 1,
+                                                **verification})
+                break
+            except (ValueError, json.JSONDecodeError) as exc:
+                errors.append(str(exc))
+        else:
+            raise ValueError(f"history turn {turn_index} failed after "
+                             f"{max_generation_attempts} attempts: {errors}")
         history.append(turn)
         if turn_index < min_turns:
             audits.append({"turn": turn_index, "sufficient": False,
@@ -103,7 +130,9 @@ def generate_history(*, complete_fn, model, generation_template, coverage_templa
                                  current_persona_state=history[-1]["persona_state"],
                                  current_micro_plan=current_micro_plan, stage=stage,
                                  **render_context)
-        coverage_result = complete_fn(model, [{"role": "user", "content": coverage_prompt}])
+        coverage_call = coverage_complete_fn or complete_fn
+        coverage_result = coverage_call(
+            coverage_model or model, [{"role": "user", "content": coverage_prompt}])
         coverage = validate_coverage(parse_json_object(coverage_result["text"]))
         audits.append({"turn": turn_index, **coverage})
         if coverage["sufficient"]:

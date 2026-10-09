@@ -57,7 +57,9 @@ python3 -m pipeline.evaluate_batch ...
 - Lexi JSON 파싱, 구조화 persona state, 중복 턴 검사: 구현
 - 생성 이력을 최초 target context에 포함: 구현 및 테스트 완료
 - 8개 분기와 candidate-only CARES 연결: 구현 및 preflight 완료
-- Qwen–target 연구 대화의 최소 4턴 이후 coverage 기반 동적 종료: 아직 미구현
+- Qwen–target 연구 대화의 최소 4턴 이후 goal coverage 기반 조건별 동적 종료: 구현 및 테스트 완료
+- 전체 pool top-12 Qwen reranking, 최대 8단계 plan, Lexi 턴별 Qwen 검증: 구현 및 테스트 완료
+- Lexi 사례별 checkpoint/resume 및 실패 재시도: 구현 및 테스트 완료
 - Qwen–Lexi staged 생성의 전체 625개 본 실행: 아직 미실행
 
 ## 검증

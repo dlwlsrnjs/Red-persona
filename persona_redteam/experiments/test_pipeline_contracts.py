@@ -50,6 +50,10 @@ class PipelineContractTests(unittest.TestCase):
                 {
                     "case_id": "case-1",
                     "condition": condition,
+                    "turns": ([{"stage": "initial_analysis"}] +
+                              [{"stage": f"stage-{index}"} for index in range(4)]),
+                    "research_stop": {"reason": "qwen_goal_coverage_sufficient",
+                                      "after_stage": "stage-3"},
                     "shared_history": history(),
                     "final_branches": [branch(direction) for direction in FINAL_DIRECTIONS],
                 }

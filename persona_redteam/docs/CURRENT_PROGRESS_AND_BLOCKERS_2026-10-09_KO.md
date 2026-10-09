@@ -35,7 +35,8 @@ JMIR goal/pathology 100개
 
 - staged Qwen–Lexi 파일럿을 정식 `pipeline.generate_histories` backend로 통합
 - `state_delta` 병합과 단계별 Qwen verifier 추가
-- Qwen–target 연구 대화를 고정 8턴에서 최소 4턴 이후 coverage 기반 가변 종료로 변경
+- Qwen–target 연구 대화를 최소 4턴 이후 coverage 기반 조건별 가변 종료로 변경 완료
+- 전체 pool Qwen reranking, goal-aware history plan, Lexi turn Qwen 검증과 checkpoint 연결 완료
 - anxiety 5개 품질 파일럿 후 100개 history 생성
 - 생성 결과 preflight 후 본 target batch와 평가 실행
 

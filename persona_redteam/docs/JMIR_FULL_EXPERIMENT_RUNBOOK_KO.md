@@ -42,12 +42,16 @@ python3 -m pipeline.generate_histories \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \
   --base-url http://127.0.0.1:8002/v1 \
+  --qwen-model Qwen/Qwen2.5-7B-Instruct \
+  --qwen-base-url http://127.0.0.1:8000/v1 \
   --min-turns 4 --max-turns 8 \
+  --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
 
-주의: `--plans`를 생략하면 history stage는 `unplanned`다. 현재 Qwen micro-plan의 batch
-생성기는 활성 CLI에 아직 통합되지 않았으며 아래 단일 사례 파일럿만 검증돼 있다.
+`--plans`를 생략하면 Qwen이 각 사례의 profile을 rerank하고 최대 8단계 plan을 동적으로
+생성한다. Lexi의 각 turn은 Qwen 검증을 통과해야 누적된다. 실패 checkpoint 재시도에는
+`--retry-failed`를 추가한다.
 
 Qwen micro-plan → Lexi 턴별 렌더링은 현재 아래 소규모 파일럿에서 검증한다.
 

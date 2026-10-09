@@ -37,6 +37,13 @@ def test_pcsa_uses_method_specific_four_turn_default():
     assert MODULE.parse_args(["--method", "pair", "--dry-run"]).max_turns == 10
 
 
+def test_sync_case_concurrency_is_configurable():
+    args = MODULE.parse_args(
+        ["--method", "direct", "--sync-case-concurrency", "16", "--dry-run"]
+    )
+    assert args.sync_case_concurrency == 16
+
+
 def test_method_families_are_disjoint_and_complete():
     assert MODULE.MULTI_TURN_METHODS == {
         "crescendo",

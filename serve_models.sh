@@ -8,7 +8,7 @@
 # Weights cache :  /home/ljk98/POLY/hf-cache on the current cluster
 #
 # Usage:
-#   bash serve_models.sh qwen     # start Qwen on GPU 0, port 8000
+#   bash serve_models.sh qwen     # QWEN_SERVE_GPU=0, QWEN_SERVE_PORT=8000
 #   bash serve_models.sh lexi     # start Lexi on GPU 1, port 8002
 #   bash serve_models.sh both     # start both (background, logs under ./serve_logs)
 #   bash serve_models.sh status   # probe both /v1/models endpoints
@@ -63,8 +63,12 @@ mkdir -p "$LOGDIR"
 serve_qwen() {
   CUDA_VISIBLE_DEVICES="${QWEN_SERVE_GPU:-0}" "$PY" -m vllm.entrypoints.openai.api_server \
     --model "$QWEN_ID" --revision "$QWEN_REV" --served-model-name "$QWEN_ID" \
-    --host 127.0.0.1 --port 8000 --enforce-eager \
-    --gpu-memory-utilization 0.90 --max-model-len 16384 --dtype bfloat16
+    --host 127.0.0.1 --port "${QWEN_SERVE_PORT:-8000}" --enforce-eager \
+    --gpu-memory-utilization "${QWEN_GPU_MEMORY_UTILIZATION:-0.90}" \
+    --max-model-len "${QWEN_MAX_MODEL_LEN:-16384}" \
+    --max-num-seqs "${QWEN_MAX_NUM_SEQS:-128}" \
+    --max-num-batched-tokens "${QWEN_MAX_BATCHED_TOKENS:-32768}" \
+    --dtype bfloat16
 }
 serve_lexi() {
   CUDA_VISIBLE_DEVICES="${LEXI_SERVE_GPU:-1}" "$PY" -m vllm.entrypoints.openai.api_server \

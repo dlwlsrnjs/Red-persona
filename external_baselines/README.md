@@ -17,6 +17,7 @@ external_baselines/
 ├── matrix_qwen_gpt4o.json
 ├── run_baseline_matrix.py
 ├── run_matrix_on_gpu.sbatch
+├── run_qwen_pool_smoke.sbatch
 ├── run_pcsa_qwen_smoke.sbatch
 ├── run_pyrit_baseline.py
 ├── pcsa_phase2.py
@@ -157,6 +158,7 @@ Batch에서도 독립 후보 네 개가 각각 별도 순차 batch가 되지 않
 - 9 methods × 2 targets = 18개 job
 - pilot 기본값: method/target 조합마다 동일한 첫 case 1개
 - 동시 실행 기본값: 18개 job
+- GPU 실행 기본값: H200 7장에 Qwen replica 7개, Qwen을 사용하는 15개 job을 round-robin 배정
 
 각 방법의 특징을 유지하면서 pilot 비용을 줄이기 위해 Many-shot은 8 examples,
 RedTeaming/PAIR/TAP은 3 depth, 두 Crescendo와 PCSA는 4 turns를 사용한다. TAP만 width
@@ -190,10 +192,32 @@ PILOT_CASES=1 sbatch external_baselines/run_matrix_on_gpu.sbatch
 ```
 
 현재 클러스터에서는 저장소의 `persona_redteam/.venv`와
-`/home/ljk98/POLY/hf-cache`를 사용해 Qwen endpoint를 한 번만 띄운 뒤 18개 job이 공유한다.
+`/home/ljk98/POLY/hf-cache`를 사용해 GPU마다 Qwen endpoint를 하나씩 띄운다. 기본 Slurm
+요청은 H200 7장이고 endpoint는 `:8000`부터 `:8006`까지다. Qwen target 작업뿐 아니라
+GPT-4o multi-turn 작업의 로컬 Qwen attacker도 이 pool에 round-robin으로 분산된다.
+각 replica는 vLLM continuous batching을 사용하며 `max_num_seqs=128`,
+`max_num_batched_tokens=32768`로 설정된다. Qwen sync 작업은 job당 case 16개, adaptive
+OpenAI Batch 작업은 32개를 동시에 진행하고, 독립 single-turn OpenAI Batch는 500개를 한
+wave에 묶는다. 따라서 서버 수와 각 서버 내부 batching을 모두 활용한다.
+
 레거시 `/data1` 환경이 실제로 존재하면 `serve_models.sh`가 이를 우선 사용할 수 있으며,
 `RED_PERSONA_VENV`와 `HF_HOME`으로 명시적 override도 가능하다. Qwen 준비 확인, baseline
 테스트, 실행, 종료 정리까지 한 job 안에서 수행한다.
+
+GPU 수를 줄여 시험하려면 `QWEN_REPLICAS=4`처럼 지정할 수 있다. Slurm 스크립트의 GPU
+요청 수보다 replica 수를 늘릴 수는 없으며, 실제 할당된 GPU ID만 사용한다.
+
+```bash
+QWEN_REPLICAS=4 PILOT_CASES=1 \
+  sbatch --gres=gpu:4 external_baselines/run_matrix_on_gpu.sbatch
+```
+
+OpenAI 없이 replica 분산 자체를 확인하는 2-GPU smoke test는 `direct` 4 cases와
+`red_teaming` 2 cases를 서로 다른 Qwen 서버에서 동시에 실행한다.
+
+```bash
+sbatch external_baselines/run_qwen_pool_smoke.sbatch
+```
 
 OpenAI key 없이 PCSA의 실제 서버 연결, 고정 persona/pathology 주입, 네 후보 병렬 처리,
 최대 4턴 history 전달과 결과 schema만 먼저 확인하려면 다음 smoke job을 사용한다. 이 smoke의

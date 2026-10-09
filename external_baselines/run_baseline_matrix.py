@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 import json
 import os
@@ -22,6 +22,8 @@ from run_pyrit_baseline import (
     DEFAULT_INPUT,
     EXPECTED_FULL_CASE_COUNT,
     METHODS,
+    MULTI_TURN_METHODS,
+    SINGLE_TURN_METHODS,
     load_cohort_rows,
 )
 
@@ -30,7 +32,7 @@ REPO_ROOT = BASELINE_DIR.parent
 RUNNER = Path(__file__).resolve().with_name("run_pyrit_baseline.py")
 DEFAULT_CONFIG = BASELINE_DIR / "matrix_qwen_gpt4o.json"
 DEFAULT_OUTPUT = BASELINE_DIR / "outputs" / "qwen_gpt4o_pilot"
-MATRIX_SCHEMA_VERSION = "red-persona-baseline-matrix-v3"
+MATRIX_SCHEMA_VERSION = "red-persona-baseline-matrix-v4"
 
 # Small but method-distinct pilot budgets. The official 500-case run can use the
 # same profiles or override them after the pilot confirms latency and cost.
@@ -61,7 +63,9 @@ class EndpointConfig:
     model: str
     api_key_env: str
     transport: str
+    sync_case_concurrency: int
     batch_case_concurrency: int
+    adaptive_batch_case_concurrency: int
 
 
 @dataclass(frozen=True)
@@ -69,6 +73,7 @@ class MatrixJob:
     target_name: str
     method: str
     output_dir: str
+    qwen_endpoint: str | None
     command: tuple[str, ...]
 
 
@@ -96,7 +101,11 @@ def _endpoint(
     model = str(value["model"]).strip()
     api_key_env = str(value["api_key_env"]).strip()
     transport = str(value.get("transport", "sync")).strip()
+    sync_case_concurrency = int(value.get("sync_case_concurrency", 1))
     batch_case_concurrency = int(value.get("batch_case_concurrency", 64))
+    adaptive_batch_case_concurrency = int(
+        value.get("adaptive_batch_case_concurrency", batch_case_concurrency)
+    )
     parsed = urlparse(endpoint)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ValueError(f"invalid endpoint URL: {endpoint}")
@@ -106,15 +115,21 @@ def _endpoint(
         raise ValueError("endpoint transport must be sync or openai_batch")
     if require_sync and transport != "sync":
         raise ValueError("the local adversary must use sync transport")
-    if batch_case_concurrency < 1:
-        raise ValueError("batch_case_concurrency must be at least 1")
+    if min(
+        sync_case_concurrency,
+        batch_case_concurrency,
+        adaptive_batch_case_concurrency,
+    ) < 1:
+        raise ValueError("endpoint concurrency values must be at least 1")
     return EndpointConfig(
         name=name,
         endpoint=endpoint,
         model=model,
         api_key_env=api_key_env,
         transport=transport,
+        sync_case_concurrency=sync_case_concurrency,
         batch_case_concurrency=batch_case_concurrency,
+        adaptive_batch_case_concurrency=adaptive_batch_case_concurrency,
     )
 
 
@@ -153,10 +168,25 @@ def build_jobs(
     output_root: Path,
     pilot_cases: int | None,
     retry_failed: bool,
+    qwen_endpoints: tuple[str, ...] = (),
 ) -> list[MatrixJob]:
     jobs: list[MatrixJob] = []
+    qwen_pool = qwen_endpoints or (adversary.endpoint,)
+    qwen_assignment_index = 0
     for target in targets:
         for method in methods:
+            target_uses_qwen = (
+                target.transport == "sync" and target.model == adversary.model
+            )
+            adversary_uses_qwen = method in MULTI_TURN_METHODS
+            qwen_endpoint = None
+            if target_uses_qwen or adversary_uses_qwen:
+                qwen_endpoint = qwen_pool[qwen_assignment_index % len(qwen_pool)]
+                qwen_assignment_index += 1
+            target_endpoint = qwen_endpoint if target_uses_qwen else target.endpoint
+            adversary_endpoint = (
+                qwen_endpoint if adversary_uses_qwen else adversary.endpoint
+            )
             output_dir = output_root / target.name / method
             command = [
                 sys.executable,
@@ -170,7 +200,7 @@ def build_jobs(
                 "--output-dir",
                 str(output_dir),
                 "--target-endpoint",
-                target.endpoint,
+                target_endpoint,
                 "--target-model",
                 target.model,
                 "--target-api-key-env",
@@ -178,21 +208,28 @@ def build_jobs(
                 "--target-transport",
                 target.transport,
                 "--adversary-endpoint",
-                adversary.endpoint,
+                adversary_endpoint,
                 "--adversary-model",
                 adversary.model,
                 "--adversary-api-key-env",
                 adversary.api_key_env,
+                "--sync-case-concurrency",
+                str(target.sync_case_concurrency),
                 *METHOD_PROFILES[method],
             ]
-            batch_concurrency = (
-                target.batch_case_concurrency
-                if target.transport == "openai_batch"
-                else pcsa_evaluator.batch_case_concurrency
-                if method == "pcsa_phase2"
+            batch_limits: list[int] = []
+            if target.transport == "openai_batch":
+                batch_limits.append(
+                    target.batch_case_concurrency
+                    if method in SINGLE_TURN_METHODS
+                    else target.adaptive_batch_case_concurrency
+                )
+            if (
+                method == "pcsa_phase2"
                 and pcsa_evaluator.transport == "openai_batch"
-                else None
-            )
+            ):
+                batch_limits.append(pcsa_evaluator.adaptive_batch_case_concurrency)
+            batch_concurrency = min(batch_limits) if batch_limits else None
             if batch_concurrency is not None:
                 command.extend(("--batch-case-concurrency", str(batch_concurrency)))
             if method == "pcsa_phase2":
@@ -217,6 +254,7 @@ def build_jobs(
                     target_name=target.name,
                     method=method,
                     output_dir=str(output_dir),
+                    qwen_endpoint=qwen_endpoint,
                     command=tuple(command),
                 )
             )
@@ -228,10 +266,20 @@ def preflight_errors(
     targets: list[EndpointConfig],
     adversary: EndpointConfig,
     pcsa_evaluator: EndpointConfig | None = None,
+    qwen_endpoints: tuple[str, ...] = (),
 ) -> list[str]:
     errors: list[str] = []
     checked: set[tuple[str, str]] = set()
-    for item in [*targets, adversary, *([pcsa_evaluator] if pcsa_evaluator else [])]:
+    replicas = [
+        replace(adversary, name=f"qwen_replica_{index}", endpoint=endpoint)
+        for index, endpoint in enumerate(qwen_endpoints)
+    ]
+    for item in [
+        *targets,
+        adversary,
+        *replicas,
+        *([pcsa_evaluator] if pcsa_evaluator else []),
+    ]:
         key = (item.endpoint, item.api_key_env)
         if key in checked:
             continue
@@ -248,10 +296,20 @@ def endpoint_probe_errors(
     targets: list[EndpointConfig],
     adversary: EndpointConfig,
     pcsa_evaluator: EndpointConfig | None = None,
+    qwen_endpoints: tuple[str, ...] = (),
 ) -> list[str]:
     errors: list[str] = []
     checked: set[tuple[str, str]] = set()
-    for item in [*targets, adversary, *([pcsa_evaluator] if pcsa_evaluator else [])]:
+    replicas = [
+        replace(adversary, name=f"qwen_replica_{index}", endpoint=endpoint)
+        for index, endpoint in enumerate(qwen_endpoints)
+    ]
+    for item in [
+        *targets,
+        adversary,
+        *replicas,
+        *([pcsa_evaluator] if pcsa_evaluator else []),
+    ]:
         key = (item.endpoint, item.model)
         if key in checked:
             continue
@@ -317,6 +375,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--pilot-cases", type=int, default=1)
     parser.add_argument("--full-500", action="store_true")
     parser.add_argument("--max-concurrent-jobs", type=int, default=18)
+    parser.add_argument(
+        "--qwen-endpoint",
+        action="append",
+        default=[],
+        help="local Qwen replica URL; repeat to enable round-robin assignment",
+    )
     parser.add_argument("--retry-failed", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
@@ -324,6 +388,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--pilot-cases must be at least 1")
     if not 1 <= args.max_concurrent_jobs <= 18:
         parser.error("--max-concurrent-jobs must be between 1 and 18")
+    normalized_endpoints: list[str] = []
+    for endpoint in args.qwen_endpoint:
+        endpoint = endpoint.rstrip("/")
+        parsed = urlparse(endpoint)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            parser.error(f"invalid --qwen-endpoint URL: {endpoint}")
+        if endpoint not in normalized_endpoints:
+            normalized_endpoints.append(endpoint)
+    args.qwen_endpoint = normalized_endpoints
     return args
 
 
@@ -347,6 +420,7 @@ def main(argv: list[str] | None = None) -> int:
         output_root=args.output_dir,
         pilot_cases=pilot_cases,
         retry_failed=args.retry_failed,
+        qwen_endpoints=tuple(args.qwen_endpoint),
     )
     manifest = {
         "schema_version": MATRIX_SCHEMA_VERSION,
@@ -363,6 +437,11 @@ def main(argv: list[str] | None = None) -> int:
             "max_concurrent_jobs": args.max_concurrent_jobs,
             "target_count": len(targets),
             "method_count": len(methods),
+            "qwen_replica_count": len(args.qwen_endpoint) or 1,
+        },
+        "qwen_replica_pool": {
+            "assignment": "round_robin_by_qwen_consuming_matrix_job",
+            "endpoints": args.qwen_endpoint or [adversary.endpoint],
         },
         "targets": [asdict(target) for target in targets],
         "adversary": asdict(adversary),
@@ -372,6 +451,7 @@ def main(argv: list[str] | None = None) -> int:
                 "target": job.target_name,
                 "method": job.method,
                 "output_dir": job.output_dir,
+                "qwen_endpoint": job.qwen_endpoint,
                 "command": _public_command(job.command),
             }
             for job in jobs
@@ -396,6 +476,7 @@ def main(argv: list[str] | None = None) -> int:
         targets=targets,
         adversary=adversary,
         pcsa_evaluator=pcsa_evaluator,
+        qwen_endpoints=tuple(args.qwen_endpoint),
     )
     if not errors:
         errors.extend(
@@ -403,6 +484,7 @@ def main(argv: list[str] | None = None) -> int:
                 targets=targets,
                 adversary=adversary,
                 pcsa_evaluator=pcsa_evaluator,
+                qwen_endpoints=tuple(args.qwen_endpoint),
             )
         )
     if errors:

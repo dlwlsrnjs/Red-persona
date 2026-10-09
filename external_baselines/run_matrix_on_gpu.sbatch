@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=redpersona-9x2
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --partition=h200
+#SBATCH --gres=gpu:7
+#SBATCH --cpus-per-task=64
+#SBATCH --mem=256G
 #SBATCH --time=48:00:00
 
-# Start one shared Qwen vLLM endpoint on the allocated GPU, then run all nine
-# methods against Qwen and GPT-4o. Submit from the repository root:
+# Start one Qwen vLLM replica per allocated GPU, then distribute all nine
+# methods against Qwen and GPT-4o across the replica pool. Submit from the root:
 #   sbatch external_baselines/run_matrix_on_gpu.sbatch
 # Optional:
 #   PILOT_CASES=2 sbatch external_baselines/run_matrix_on_gpu.sbatch
 #   FULL_500=1 sbatch external_baselines/run_matrix_on_gpu.sbatch
+#   QWEN_REPLICAS=4 sbatch --gres=gpu:4 external_baselines/run_matrix_on_gpu.sbatch
 set -euo pipefail
 
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
@@ -32,31 +34,71 @@ export QWEN_TARGET_API_KEY="${QWEN_TARGET_API_KEY:-local}"
 export QWEN_ADVERSARY_API_KEY="${QWEN_ADVERSARY_API_KEY:-local}"
 
 mkdir -p serve_logs external_baselines/outputs
-SERVER_LOG="serve_logs/qwen-${SLURM_JOB_ID:-manual}.log"
-setsid bash serve_models.sh qwen >"$SERVER_LOG" 2>&1 &
-SERVER_PID=$!
+
+if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
+  IFS=',' read -r -a GPU_IDS <<<"$CUDA_VISIBLE_DEVICES"
+else
+  GPU_IDS=(0 1 2 3 4 5 6)
+fi
+REPLICA_COUNT="${QWEN_REPLICAS:-${#GPU_IDS[@]}}"
+if ! [[ "$REPLICA_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "QWEN_REPLICAS must be a positive integer" >&2
+  exit 1
+fi
+if (( REPLICA_COUNT > ${#GPU_IDS[@]} )); then
+  echo "Requested $REPLICA_COUNT Qwen replicas but only ${#GPU_IDS[@]} GPUs are allocated" >&2
+  exit 1
+fi
+
+SERVER_PIDS=()
+SERVER_LOGS=()
+QWEN_ENDPOINTS=()
+for ((index = 0; index < REPLICA_COUNT; index++)); do
+  port=$((8000 + index))
+  endpoint="http://127.0.0.1:${port}/v1"
+  log="serve_logs/qwen-${SLURM_JOB_ID:-manual}-replica-${index}.log"
+  setsid env \
+    QWEN_SERVE_GPU="${GPU_IDS[$index]}" \
+    QWEN_SERVE_PORT="$port" \
+    bash serve_models.sh qwen >"$log" 2>&1 &
+  SERVER_PIDS+=("$!")
+  SERVER_LOGS+=("$log")
+  QWEN_ENDPOINTS+=("$endpoint")
+done
+
 cleanup() {
-  kill -- -"$SERVER_PID" 2>/dev/null || true
-  wait "$SERVER_PID" 2>/dev/null || true
+  for pid in "${SERVER_PIDS[@]}"; do
+    kill -- -"$pid" 2>/dev/null || true
+  done
+  for pid in "${SERVER_PIDS[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
 }
 trap cleanup EXIT INT TERM
 
 READY=0
-for _ in $(seq 1 180); do
-  if curl --silent --fail --max-time 2 http://127.0.0.1:8000/v1/models >/dev/null; then
+for _ in $(seq 1 240); do
+  ALL_READY=1
+  for index in "${!QWEN_ENDPOINTS[@]}"; do
+    if ! kill -0 "${SERVER_PIDS[$index]}" 2>/dev/null; then
+      echo "Qwen replica $index exited during startup; see ${SERVER_LOGS[$index]}" >&2
+      exit 1
+    fi
+    if ! curl --silent --fail --max-time 2 "${QWEN_ENDPOINTS[$index]}/models" >/dev/null; then
+      ALL_READY=0
+    fi
+  done
+  if [[ "$ALL_READY" == 1 ]]; then
     READY=1
     break
-  fi
-  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    echo "Qwen server exited during startup; see $SERVER_LOG" >&2
-    exit 1
   fi
   sleep 2
 done
 if [[ "$READY" != 1 ]]; then
-  echo "Qwen server did not become ready within 360 seconds; see $SERVER_LOG" >&2
+  echo "Not all Qwen replicas became ready within 480 seconds" >&2
   exit 1
 fi
+echo "Ready Qwen replicas: ${QWEN_ENDPOINTS[*]}"
 
 external_baselines/.venv/bin/python -m pytest -q external_baselines/tests
 
@@ -65,6 +107,9 @@ MATRIX_ARGS=(
   --output-dir "$OUTPUT_ROOT"
   --max-concurrent-jobs "${MATRIX_MAX_JOBS:-18}"
 )
+for endpoint in "${QWEN_ENDPOINTS[@]}"; do
+  MATRIX_ARGS+=(--qwen-endpoint "$endpoint")
+done
 if [[ "${FULL_500:-0}" == 1 ]]; then
   MATRIX_ARGS+=(--full-500)
 else

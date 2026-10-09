@@ -51,7 +51,7 @@ DEFAULT_TARGET_ENDPOINT = "http://127.0.0.1:8002/v1"
 DEFAULT_TARGET_MODEL = "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2"
 DEFAULT_ADVERSARY_ENDPOINT = "http://127.0.0.1:8000/v1"
 DEFAULT_ADVERSARY_MODEL = "Qwen/Qwen2.5-7B-Instruct"
-SCHEMA_VERSION = "red-persona-external-baseline-v3"
+SCHEMA_VERSION = "red-persona-external-baseline-v4"
 DATASET_NAME = "red-persona-official-500"
 EXPECTED_SOURCE_CASE_COUNT = 625
 EXPECTED_FULL_CASE_COUNT = 500
@@ -297,6 +297,7 @@ def build_manifest(
             "endpoint": args.target_endpoint,
             "model": args.target_model,
             "transport": args.target_transport,
+            "sync_case_concurrency": args.sync_case_concurrency,
             "batch_case_concurrency": (
                 args.batch_case_concurrency if args.target_transport == "openai_batch" else None
             ),
@@ -674,17 +675,18 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
         args.method == "pcsa_phase2"
         and args.pcsa_evaluator_transport == "openai_batch"
     )
-    if uses_batch_transport:
-        semaphore = asyncio.Semaphore(args.batch_case_concurrency)
+    case_concurrency = (
+        args.batch_case_concurrency
+        if uses_batch_transport
+        else args.sync_case_concurrency
+    )
+    semaphore = asyncio.Semaphore(case_concurrency)
 
-        async def process_with_limit(case: dict[str, Any]) -> None:
-            async with semaphore:
-                await process_case(case)
-
-        await asyncio.gather(*(process_with_limit(case) for case in selected))
-    else:
-        for case in selected:
+    async def process_with_limit(case: dict[str, Any]) -> None:
+        async with semaphore:
             await process_case(case)
+
+    await asyncio.gather(*(process_with_limit(case) for case in selected))
     return counts
 
 
@@ -719,6 +721,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--target-transport", choices=("sync", "openai_batch"), default="sync"
     )
     parser.add_argument("--target-temperature", type=float, default=0.0)
+    parser.add_argument("--sync-case-concurrency", type=int, default=1)
     parser.add_argument("--batch-case-concurrency", type=int, default=64)
     parser.add_argument("--batch-poll-seconds", type=float, default=60.0)
     parser.add_argument("--batch-flush-seconds", type=float, default=1.0)
@@ -749,6 +752,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "tree_width",
         "branching_factor",
         "many_shot_examples",
+        "sync_case_concurrency",
         "batch_case_concurrency",
         "pcsa_candidates",
     ):

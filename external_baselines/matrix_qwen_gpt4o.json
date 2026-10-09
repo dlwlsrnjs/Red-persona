@@ -5,7 +5,8 @@
       "endpoint": "http://127.0.0.1:8000/v1",
       "model": "Qwen/Qwen2.5-7B-Instruct",
       "api_key_env": "QWEN_TARGET_API_KEY",
-      "transport": "sync"
+      "transport": "sync",
+      "sync_case_concurrency": 16
     },
     {
       "name": "gpt4o",
@@ -13,13 +14,15 @@
       "model": "gpt-4o",
       "api_key_env": "OPENAI_API_KEY",
       "transport": "openai_batch",
-      "batch_case_concurrency": 500
+      "batch_case_concurrency": 500,
+      "adaptive_batch_case_concurrency": 32
     }
   ],
   "adversary": {
     "endpoint": "http://127.0.0.1:8000/v1",
     "model": "Qwen/Qwen2.5-7B-Instruct",
-    "api_key_env": "QWEN_ADVERSARY_API_KEY"
+    "api_key_env": "QWEN_ADVERSARY_API_KEY",
+    "sync_case_concurrency": 16
   },
   "pcsa_evaluator": {
     "name": "pcsa_evaluator",
@@ -27,7 +30,8 @@
     "model": "gpt-4o-mini",
     "api_key_env": "OPENAI_API_KEY",
     "transport": "openai_batch",
-    "batch_case_concurrency": 500
+    "batch_case_concurrency": 500,
+    "adaptive_batch_case_concurrency": 32
   },
   "methods": [
     "direct",

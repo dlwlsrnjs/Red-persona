@@ -82,6 +82,11 @@ def classify_batch(batch, model, base_url, attempts):
         except Exception as exc:
             errors.append(f"attempt {attempt}: {type(exc).__name__}: {exc}")
             prompt += "\nThe previous output was invalid. Return the complete valid JSON object only."
+    if len(batch) > 1:
+        rows = []
+        for profile in batch:
+            rows.extend(classify_batch([profile], model, base_url, attempts))
+        return rows
     raise RuntimeError("; ".join(errors))
 
 

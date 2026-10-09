@@ -18,6 +18,8 @@
       "path": "data/source/personas/personas.jsonl",
       "override": "PERSONA_POOL_PATH",
       "rows": 31733,
+      "bytes": 88256864,
+      "sha256": "1942e4982b1775f39f6be49adb34af9e3b6c75fd155edb59ad3dfc8be0425928",
       "composition": {"cactus": 31577, "cbt_dp": 156}
     }
   },

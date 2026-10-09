@@ -58,9 +58,9 @@ python3 -m unittest discover -s experiments -p 'test_*.py'
 ## 데이터 경계
 
 활성 평가 입력은 저장소 루트 `data/crisis_goals_jmir_persona_min10.jsonl`과
-`data/goal_pathology_routes_n625.jsonl`이다. persona 원본과 생성 산출물은 민감할 수 있어
-Git에서 제외하며, 기본 persona pool은 `data/source/personas/personas.jsonl` 또는
-`$PERSONA_POOL_PATH`로 지정한다. 행 수·checksum·추출 절차는
+`data/goal_pathology_routes_n625.jsonl`이다. 기본 31,733개 persona pool은 Git에 포함된
+`data/source/personas/personas.jsonl`을 사용하고, 필요하면 `$PERSONA_POOL_PATH`로 대체한다.
+생성 산출물은 Git에서 제외한다. 행 수·checksum·추출 절차는
 [`docs/DATA_LINEAGE_AND_EXTRACTION_KO.md`](docs/DATA_LINEAGE_AND_EXTRACTION_KO.md)에 기록한다.
 
 API 키는 저장소에 기록하지 않고 환경변수 또는 로컬 `.env`로만 제공한다.

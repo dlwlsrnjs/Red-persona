@@ -7,7 +7,7 @@
     "cares_evaluator_prompt": "evaluation/prompts/cares_official_response_evaluator.txt"
   },
   "local_untracked": {
-    "full_persona_pool": "data/source/personas/personas.jsonl (override: PERSONA_POOL_PATH)",
+    "full_persona_pool": "data/source/personas/personas.jsonl (31,733 rows; override: PERSONA_POOL_PATH)",
     "full_evaluation_goals_625": "../data/crisis_goals_jmir_persona_min10.jsonl",
     "full_goal_pathology_routes_625": "../data/goal_pathology_routes_n625.jsonl",
     "full_evaluation_blueprint": "data/prepared/blueprints/jmir_eval_full.jsonl",
@@ -22,5 +22,5 @@
     "target_runs": "data/runs/<target_model>/",
     "evaluations": "data/evaluations/<target_model>/"
   },
-  "note": "The 625-case full set is the main evaluation. Paths are relative to persona_redteam; raw/private data and model outputs remain gitignored."
+  "note": "The 625-case full set is the main evaluation. Paths are relative to persona_redteam; the canonical persona pool is tracked, while generated model outputs remain gitignored."
 }

@@ -11,6 +11,9 @@ personas/*.parquet
 outputs/
 data/**
 !data/README.md
+!data/source/
+!data/source/personas/
+!data/source/personas/personas.jsonl
 
 # Python caches
 __pycache__/

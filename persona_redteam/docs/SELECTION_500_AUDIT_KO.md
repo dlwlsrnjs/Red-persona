@@ -175,7 +175,7 @@ ideation 범주다. 다른 다섯 범주의 유효 사례는 모두 최종 500�
 | 대상 | 사례 수 | SHA-256 |
 |---|---:|---|
 | active-case 파일 | 625 | `e2ed9f9bc869070dddbc1d6eb362152132ce9d0a3b936381f35f6c7c760f94d2` |
-| category-balanced selection checkpoint | 250 신규 | `5737a1f098b1cc75c5bfd0e7a85750c86af57ff37ba32bfa39146ea928016d38` |
+| category-balanced selection checkpoint | 500 최종 ID 포함 | `065e148226a005008304a4aae903378b9347a0578b171aae5105615352d0ae30` |
 | 기존 유효 ID 목록 | 250 | `79477226836e2ad5f8d612a71c669d4f5cd958a84d54676222a8438da5ffb3d9` |
 | 신규 ID 목록 | 250 | `310828e787b03e033f45a6ea65372f8c26aaaacdc41c4e23536aaa8f384ca9fa` |
 | 최종 정렬 ID 목록 | 500 | `69a3b3368caf27c66bf0f24953cb7375219c5d9e72d77a43aac56fd24f77fb5d` |

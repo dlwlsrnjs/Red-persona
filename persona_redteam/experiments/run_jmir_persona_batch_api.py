@@ -84,6 +84,10 @@ def selected_cases(cases, existing_dirs, target_total, selection_path):
                 "selection path with the current selector"
             )
         ids = selection["case_ids"]
+        if set(selection.get("existing_case_ids", [])) != existing:
+            raise RuntimeError("selection checkpoint existing_case_ids no longer match valid runs")
+        if set(selection.get("final_case_ids", [])) != existing | set(ids):
+            raise RuntimeError("selection checkpoint final_case_ids are inconsistent")
     else:
         selected, category_audit = select_new_cases(
             cases, existing, invalid_inputs, target_total,
@@ -96,7 +100,16 @@ def selected_cases(cases, existing_dirs, target_total, selection_path):
             "target_total": target_total, "valid_existing_cases": len(existing),
             "excluded_input_case_ids": sorted(invalid_inputs),
             "excluded_existing_runs": excluded_existing,
-            "new_cases": count, "case_ids": ids, **category_audit,
+            "new_cases": count,
+            "case_ids": ids,
+            "existing_case_ids": sorted(existing),
+            "final_case_ids": sorted(existing | set(ids)),
+            "deferred_case_ids": sorted(
+                case["case_id"] for case in cases
+                if case["case_id"] not in invalid_inputs and
+                case["case_id"] not in existing and case["case_id"] not in set(ids)
+            ),
+            **category_audit,
         })
     selected_invalid = [case_id for case_id in ids if case_id in invalid_inputs]
     if selected_invalid:

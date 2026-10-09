@@ -446,6 +446,9 @@ def prepare_final_wave(cases_by_id, states, researcher,
     proposals = researcher.questions_batch(requests)
     specs = []
     for (case_id, condition, direction), (question, audit) in zip(keys, proposals):
+        question = frame_selected_final_question(
+            question, final_readout_protocol
+        )
         labelled = (f"[{researcher.role_label} | CONDITION={condition} | "
                     f"FINAL_DIRECTION={direction}]\n{question}")
         shared = states[case_id][condition]["history"]
@@ -458,6 +461,26 @@ def prepare_final_wave(cases_by_id, states, researcher,
             "question": labelled, "question_audit": audit, "messages": messages,
         })
     return specs
+
+
+def enforce_final_readout_frame(specs, final_readout_protocol):
+    """Upgrade cached planner waves without changing their accumulated dialogue."""
+    changed = False
+    for spec in specs:
+        labelled = spec["question"]
+        header, separator, question = labelled.partition("\n")
+        framed = frame_selected_final_question(
+            question if separator else labelled,
+            final_readout_protocol,
+        )
+        updated = f"{header}\n{framed}" if separator else framed
+        if updated == labelled:
+            continue
+        spec["question"] = updated
+        spec["final_readout_protocol"] = final_readout_protocol
+        spec["messages"][-1] = {"role": "user", "content": updated}
+        changed = True
+    return changed
 
 
 def make_final_branches(specs, outputs, states, first_by_case):
@@ -1116,14 +1139,17 @@ def main():
     if final_path.exists():
         final = load_json(final_path, {})
     else:
+        final_wave_path = wave_dir / f"{final_wave_namespace}final.json"
         specs = planner_wave(
-            wave_dir / f"{final_wave_namespace}final.json",
+            final_wave_path,
             lambda: prepare_final_wave(
                 cases_by_id, states, researcher,
                 args.final_readout_protocol,
             ),
             researcher,
         )
+        if enforce_final_readout_frame(specs, args.final_readout_protocol):
+            atomic_json(final_wave_path, specs)
         outputs = client.run(f"generation-{final_wave_namespace}final", [
             chat_request(spec["custom_id"], args.target_model, spec["messages"],
                          max_tokens=1200)

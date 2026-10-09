@@ -8,6 +8,7 @@ from pathlib import Path
 
 from experiments.model_io import respond
 from experiments.persona_pilot import atomic_json
+from experiments.run_jmir_persona_eval_batch import select_cases
 from pipeline.history_planning import build_plan, rerank_profile, verify_turn
 from pipeline.persona_history import generate_history, load_template
 from pipeline.persona_pool import FULL_PERSONA_POOL, load_profiles, retrieve
@@ -60,6 +61,10 @@ def main():
                         help="Explicit ablation: use retrieval rank 1, no planning or verification")
     parser.add_argument("--checkpoint-dir", type=Path)
     parser.add_argument("--retry-failed", action="store_true")
+    parser.add_argument("--start", type=int, default=0)
+    parser.add_argument("--stop", type=int)
+    parser.add_argument("--crisis-label", action="append", default=[])
+    parser.add_argument("--per-label", type=int)
     parser.add_argument("--top-k", type=int, default=12)
     parser.add_argument("--min-turns", type=int, default=4)
     parser.add_argument("--max-turns", type=int, default=8)
@@ -68,7 +73,12 @@ def main():
         parser.error("require 1 <= --min-turns <= --max-turns")
     if args.top_k < 1:
         parser.error("--top-k must be at least 1")
-    cases = json.loads(args.cases.read_text(encoding="utf-8"))
+    if args.per_label is not None and args.per_label < 1:
+        parser.error("--per-label must be at least 1")
+    all_cases = json.loads(args.cases.read_text(encoding="utf-8"))
+    cases = [case for _, case in select_cases(
+        all_cases, args.start, args.stop, args.crisis_label, args.per_label
+    )]
     profiles = load_profiles(args.profiles)
     generation_template = load_template(args.generation_prompt)
     coverage_template = load_template(args.coverage_prompt)
@@ -91,6 +101,7 @@ def main():
         "min_turns": args.min_turns,
         "max_turns": args.max_turns,
         "skip_qwen_planning": args.skip_qwen_planning,
+        "selected_case_ids": [case["case_id"] for case in cases],
     }
     generation_fingerprint = hashlib.sha256(json.dumps(
         fingerprint_payload, ensure_ascii=False, sort_keys=True

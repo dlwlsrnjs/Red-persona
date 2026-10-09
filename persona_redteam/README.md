@@ -45,6 +45,8 @@
 [`docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md`](docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md)를 본다.
 JMIR 전체 625개 blueprint를 매칭·이력 생성·활성 스키마 변환한 뒤 checkpoint/resume 배치로
 실행하는 명령은 [`docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md`](docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md)에 있다.
+새 서버 설치, 고정 snapshot 다운로드, 비추적 데이터 복사, 단계별 입출력 스키마와 장애
+복구는 [`docs/NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md`](docs/NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md)를 따른다.
 활성 코드의 단계별 구조, 데이터 인덱스와 단계 간 계약 검사는
 [`pipeline/README.md`](pipeline/README.md)를 기준으로 한다.
 

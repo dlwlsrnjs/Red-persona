@@ -62,7 +62,7 @@ python3 -m pipeline.prepare adapt \
 ```bash
 python3 -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
-  --profiles /home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl \
+  --profiles data/source/personas/personas.jsonl \
   --generation-prompt prompts/persona_history_generation.txt \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \

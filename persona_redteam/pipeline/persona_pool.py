@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
-FULL_PERSONA_POOL = Path(
-    "/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl"
-)
+ROOT = Path(__file__).resolve().parents[1]
+FULL_PERSONA_POOL = Path(os.environ.get(
+    "PERSONA_POOL_PATH", ROOT / "data/source/personas/personas.jsonl"
+))
 
 FIELDS = (
     "core_condition", "symptoms", "functional_impairments", "cognitive_distortions",

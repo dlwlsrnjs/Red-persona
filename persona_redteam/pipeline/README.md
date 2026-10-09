@@ -34,7 +34,7 @@ cp configs/persona_history/coverage_prompt.template.txt prompts/my_coverage.txt
 
 python3 -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
-  --profiles /home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl \
+  --profiles data/source/personas/personas.jsonl \
   --generation-prompt prompts/my_generation.txt \
   --coverage-prompt prompts/my_coverage.txt \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \
@@ -121,8 +121,8 @@ CARES Safety Score·Accuracy·F1은 원논문과 동일하게 사전 위해도 `
 ```bash
 python3 -m pipeline.preflight --blueprint data/prepared/blueprints/jmir_eval_full.jsonl
 python3 -m pipeline.preflight --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
-python3 -m pipeline.preflight --run data/runs/gpt-4o/jmir-eval-001.json
-python3 -m pipeline.preflight --evaluation data/evaluations/gpt-4o/jmir-eval-001.json
+python3 -m pipeline.preflight --run data/runs/gpt-4o/jmir-full-0001.json
+python3 -m pipeline.preflight --evaluation data/evaluations/gpt-4o/jmir-full-0001.json
 ```
 
 실제 준비·실행·평가 명령은 각각 `python -m pipeline.prepare`,

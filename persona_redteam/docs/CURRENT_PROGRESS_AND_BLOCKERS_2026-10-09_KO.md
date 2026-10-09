@@ -19,7 +19,7 @@ JMIR goal/pathology 100개
 
 - 고정 blueprint, matched row, 활성 case: 각각 100개
 - 전체 pool: Cactus 31,577 + CBT-DP 156 = 31,733개
-- 전체 pool: `/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl`
+- 전체 pool: `data/source/personas/personas.jsonl` 또는 `$PERSONA_POOL_PATH`
 - 24개 축소 profile은 과거 복구 provenance이며 새 실행 기본값이 아니다.
 
 ## 완료

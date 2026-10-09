@@ -20,6 +20,24 @@ METRICS = (
 )
 
 
+def artifact_paths(directory, *, evaluation=False):
+    """Find case artifacts by schema instead of a stale case-id filename prefix."""
+    selected = []
+    for path in sorted(Path(directory).glob("*.json")):
+        if path.name.endswith(".failed.json") or path.name in {
+            "run_summary.json", "aggregate_summary.json"
+        }:
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        required = {"rows", "summary", "source"} if evaluation else {"case", "results"}
+        if required <= set(value):
+            selected.append(path)
+    return selected
+
+
 def metric_value(row, metric):
     if metric in row:
         return bool(row[metric])
@@ -76,8 +94,7 @@ def main():
     if not 1 <= args.workers <= 256:
         parser.error("--workers must be between 1 and 256")
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    sources = sorted(path for path in args.input_dir.glob("jmir-eval-*.json")
-                     if ".failed." not in path.name)
+    sources = artifact_paths(args.input_dir)
     completed = failed = skipped = 0
     for source in sources:
         output = args.output_dir / source.name
@@ -98,9 +115,7 @@ def main():
                           "skipped": skipped, "failed": failed}), flush=True)
 
     records = []
-    for path in sorted(args.output_dir.glob("jmir-eval-*.json")):
-        if ".failed." in path.name:
-            continue
+    for path in artifact_paths(args.output_dir, evaluation=True):
         evaluation = json.loads(path.read_text(encoding="utf-8"))
         source = json.loads(Path(evaluation["source"]).read_text(encoding="utf-8"))
         records.append({"case_id": source["case"]["case_id"],

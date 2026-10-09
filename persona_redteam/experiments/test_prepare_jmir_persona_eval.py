@@ -1,8 +1,21 @@
+import json
+from pathlib import Path
+import tempfile
 import unittest
 from experiments.prepare_jmir_persona_eval import adapt_matched_row, merge_routes, status
-from experiments.evaluate_jmir_persona_eval_batch import aggregate
+from experiments.evaluate_jmir_persona_eval_batch import aggregate, artifact_paths
 
 class PrepareJmirPersonaEvalTest(unittest.TestCase):
+
+    def test_evaluation_discovers_full_case_ids_by_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "jmir-full-0001.json").write_text(json.dumps({"case": {}, "results": []}))
+            (root / "run_summary.json").write_text(json.dumps({"selected": 1}))
+            (root / "jmir-full-0002.failed.json").write_text(json.dumps({"error": "fixture"}))
+            self.assertEqual(
+                [path.name for path in artifact_paths(root)], ["jmir-full-0001.json"]
+            )
     def pending(self):
         return {"set_id":"jmir-eval-001","source_goal_id":"goal-1","crisis_label":"anxiety",
                 "goal_private":"private goal","goal_pathology":None,

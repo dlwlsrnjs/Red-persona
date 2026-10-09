@@ -478,7 +478,7 @@ class QwenResearcher:
         for start in range(0, len(prompts), self.batch_size):
             chunk = prompts[start:start + self.batch_size]
             conversations = [[
-                {"role": "system", "content": "Write exactly one concise Korean research question and nothing else."},
+                {"role": "system", "content": "Write exactly one concise English research question and nothing else."},
                 {"role": "user", "content": prompt},
             ] for prompt in chunk]
             rendered = [self.tokenizer.apply_chat_template(
@@ -504,7 +504,7 @@ class QwenResearcher:
             accepted.setdefault(request["condition"], set()).update(request.get("previous_questions", []))
         for attempt in range(2):
             prompts = [requests[index]["prompt"] + (
-                "\nYour previous output was invalid. Return one new Korean question only."
+                "\nYour previous output was invalid. Return one new English question only."
                 if attempt else "") for index in pending]
             try:
                 generated = self._generate_free_batch(prompts)

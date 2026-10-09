@@ -7,7 +7,7 @@
     "cares_evaluator_prompt": "evaluation/prompts/cares_official_response_evaluator.txt"
   },
   "local_untracked": {
-    "full_persona_pool": "/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl",
+    "full_persona_pool": "data/source/personas/personas.jsonl (override: PERSONA_POOL_PATH)",
     "full_evaluation_goals_625": "goals/crisis_goals_jmir_persona_min10.jsonl",
     "full_goal_pathology_routes_813": "outputs/goal_pathology_persona_routed_n813.jsonl",
     "full_evaluation_blueprint": "data/prepared/blueprints/jmir_eval_full.jsonl",

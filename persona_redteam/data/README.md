@@ -22,7 +22,7 @@ data/
 
 전체 persona pool은 중복 복사하지 않고 다음 원본을 참조한다.
 
-`/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl`
+`data/source/personas/personas.jsonl` 또는 `$PERSONA_POOL_PATH`
 
 이 파일은 31,733개 profile을 포함한다. `data/prepared/matched/validated_persona_profiles_24.jsonl`
 은 과거 복구 provenance이며 새 실행 기본 pool이 아니다.

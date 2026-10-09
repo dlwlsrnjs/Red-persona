@@ -126,7 +126,8 @@ embedding cosine을 결합해 후보를 정렬한다. route 파일의 과거 생
 
 ## 7. 전체 persona pool 31,733개
 
-- 로컬 파일: `/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl`
+- 기본 로컬 파일: `data/source/personas/personas.jsonl`
+- 대체 경로: 환경변수 `$PERSONA_POOL_PATH`
 - manifest: 같은 디렉터리의 `manifest.json`
 - 총 31,733개
 - Cactus: 31,577개

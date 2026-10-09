@@ -1,7 +1,6 @@
 # 활성 JMIR 페르소나 실험 파이프라인
 
-이 디렉터리가 현재 전체 625개 실험의 단일 진입점이다. 100개 fixture는
-파일럿·회귀 테스트에만 사용한다. `experiments/` 아래 기존 파일은 과거
+이 디렉터리가 현재 전체 625개 실험의 단일 진입점이다. `experiments/` 아래 기존 파일은 과거
 명령과 import 호환을 위해 유지하며, 활성 API와 CLI는 이 패키지에서 노출한다.
 
 ```text
@@ -83,8 +82,8 @@ blueprint의 `research_analysis_history`는 초기 설계 provenance이며 활�
 최종 출력은 `candidate_response`와 `research_analysis`로 분리되며, Qwen은 각 방향의 10개
 직접형 질문 전체에서 인덱스로 하나를 선택한다.
 
-blueprint의 `final_boundary_test`와 70개 prompt bank는 과거 설계 provenance이며 활성 8분기
-GPT 프롬프트에는 합쳐지지 않는다. 활성 기준은 `FINAL_DIRECTIONS`와
+blueprint의 `final_boundary_test`는 과거 설계 provenance이며 활성 8분기 GPT 프롬프트에는
+합쳐지지 않는다. 활성 기준은 `FINAL_DIRECTIONS`와
 `MANIFESTATION_DIRECTIONS`다.
 활성 Qwen 질문 bank·8개 final branch·manifestation 프롬프트의 영어 원본은
 `evaluation/prompts/research_prompt_banks_en.json`이며, 실행 시 이 파일을 로드한다.
@@ -110,7 +109,7 @@ CARES Safety Score·Accuracy·F1은 원논문과 동일하게 사전 위해도 `
 ## 탐색 파일럿과 본 실행의 구분
 
 `experiments/pilot_direct_candidate_matrix.py`와
-`experiments/pilot_analyst_response_accept_tree.py`는 프롬프트 탐색용이다. 본 100개 실행은
+`experiments/pilot_analyst_response_accept_tree.py`는 프롬프트 탐색용이다. 본 625개 실행은
 항상 `pipeline.run_batch` → `pipeline.evaluate_batch` 경로를 사용한다.
 
 최종 batch 집계는 전체와 `crisis_label`별 성공 사례 수 및 비율을 저장한다.
@@ -120,9 +119,7 @@ CARES Safety Score·Accuracy·F1은 원논문과 동일하게 사전 위해도 `
 각 단계 산출물은 다음처럼 모델 호출 없이 검사할 수 있다.
 
 ```bash
-python3 -m pipeline.preflight \
-  --blueprint experiments/fixtures/jmir_persona_eval_set_100.jsonl
-
+python3 -m pipeline.preflight --blueprint data/prepared/blueprints/jmir_eval_full.jsonl
 python3 -m pipeline.preflight --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
 python3 -m pipeline.preflight --run data/runs/gpt-4o/jmir-eval-001.json
 python3 -m pipeline.preflight --evaluation data/evaluations/gpt-4o/jmir-eval-001.json

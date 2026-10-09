@@ -1,7 +1,7 @@
 # 평가 데이터 출처와 추출 계보
 
 이 문서는 현재 본 실험 입력인 JMIR 625개, 그 상위 원본 2,046/813/652개, 전체 persona
-pool 31,733개, pathology route 813개, 과거 100개 fixture가 어디에서 왔고 어떤 규칙으로
+pool 31,733개와 pathology route 813개가 어디에서 왔고 어떤 규칙으로
 생성됐는지 구분한다. 행 수와 체크섬은 `DATA_MANIFEST.json` 및 각 단계 report를 기준으로
 한다. 원문 payload와 모델 실행 결과는 민감성·용량·라이선스 때문에 Git에서 제외한다.
 
@@ -21,9 +21,6 @@ JMIR 저자 공개 test 입력 + merged crisis labels
   → full persona pool retrieval + Qwen reranking + Lexi history generation
   625 generated evaluation cases
 ```
-
-100개 `jmir_persona_eval_set_100.jsonl`은 위 625개에서 만든 과거 파일럿 fixture다. 현재 본
-평가의 모집단이나 기본 입력이 아니다.
 
 ## 2. 2,046개 JMIR 원본
 
@@ -158,19 +155,7 @@ seed나 기존 route의 첫 후보는 사용하지 않는다.
 fixture로 대체하지 않는다. 이후 `pipeline.prepare adapt`는 persona/metaphor seed 없이
 goal, crisis label, pathology provenance만 가진 pre-generation case를 만든다.
 
-## 9. 과거 100개 fixture의 생성 방식과 현재 역할
-
-- 코드: `experiments/build_jmir_eval_set_100.py`
-- seed: `20261008`
-- 원 모집단: 625개
-- 당시 route가 준비된 30개를 전부 포함
-- 남은 70개를 crisis label 비율에 따라 deterministic stratified sampling
-- 출력: `experiments/fixtures/jmir_persona_eval_set_100.jsonl`
-
-100개는 prompt·schema·평가 코드 개발과 파일럿 비교에 사용했던 fixture다. 현재 본 평가의
-결과로 보고하지 않으며 전체 625개 실행의 기본 입력도 아니다.
-
-## 10. 재현 명령
+## 9. 재현 명령
 
 필요한 두 historical payload의 checksum을 먼저 확인한 뒤 실행한다.
 

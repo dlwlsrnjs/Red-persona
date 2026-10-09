@@ -6,7 +6,7 @@
 ## 전체 흐름
 
 ```text
-JMIR goal 100개
+JMIR goal 625개
   → goal pathology
   → 전체 persona pool 31,733개에서 동적 검색
   → Qwen 의미 계획 / Lexi 과거 대화 렌더링
@@ -31,10 +31,8 @@ JMIR goal 100개
 
 ## 활성 데이터
 
-- 고정 100개 blueprint: `experiments/fixtures/jmir_persona_eval_set_100.jsonl`
 - 전체 625개 blueprint: `data/prepared/blueprints/jmir_eval_full.jsonl`
 - 전체 seedless 준비 사례: `data/prepared/cases/jmir_eval_full_pre_generation.json`
-- 100개 fixture와 기존 산출물은 파일럿·회귀 검증용으로만 유지
 - 전체 persona pool: `/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl`
 - 전체 pool 크기: 31,733개(Cactus 31,577 + CBT-DP 156)
 - 24개 축소 profile: 과거 복구 provenance이며 새 실행 기본값이 아님

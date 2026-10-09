@@ -17,7 +17,7 @@
 - `pilot_direct_candidate_matrix.py`: 직접형 질문 탐색
 - `pilot_analyst_response_accept_tree.py`: analyst-response 탐색
 
-파일명이 `pilot_`인 코드는 본 100개 실행 경로가 아니다. 파일럿 결과는
+파일명이 `pilot_`인 코드는 본 625개 실행 경로가 아니다. 파일럿 결과는
 `data/pilots/<pilot-name>/`에 둔다.
 
 ## 테스트

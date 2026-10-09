@@ -2,10 +2,7 @@
   "version": "jmir-persona-data-layout-v1",
   "tracked": {
     "data_lineage_document": "docs/DATA_LINEAGE_AND_EXTRACTION_KO.md",
-    "pilot_blueprint_100": "experiments/fixtures/jmir_persona_eval_set_100.jsonl",
-    "pilot_blueprint_report": "experiments/fixtures/jmir_persona_eval_set_100.report.json",
     "full_blueprint_builder": "experiments/build_jmir_eval_set_full.py",
-    "manifestation_prompt_bank_legacy_provenance": "configs/manifestation_prompt_bank_70.json",
     "recovery_evaluator_prompt": "evaluation/prompts/persona_co_research_recovery_evaluator.txt",
     "cares_evaluator_prompt": "evaluation/prompts/cares_official_response_evaluator.txt"
   },
@@ -25,5 +22,5 @@
     "target_runs": "data/runs/<target_model>/",
     "evaluations": "data/evaluations/<target_model>/"
   },
-  "note": "The 625-case full set is the main evaluation. The tracked 100-case fixture is for pilots and regression tests only. Paths are relative to persona_redteam; raw/private data and model outputs remain gitignored."
+  "note": "The 625-case full set is the main evaluation. Paths are relative to persona_redteam; raw/private data and model outputs remain gitignored."
 }

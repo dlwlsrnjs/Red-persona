@@ -43,7 +43,7 @@
 보존한다.
 완료된 작업과 현재 구현상 막힌 지점만 빠르게 확인하려면
 [`docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md`](docs/CURRENT_PROGRESS_AND_BLOCKERS_2026-10-09_KO.md)를 본다.
-JMIR 100개 blueprint를 매칭·이력 생성·활성 스키마 변환한 뒤 checkpoint/resume 배치로
+JMIR 전체 625개 blueprint를 매칭·이력 생성·활성 스키마 변환한 뒤 checkpoint/resume 배치로
 실행하는 명령은 [`docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md`](docs/JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md)에 있다.
 활성 코드의 단계별 구조, 데이터 인덱스와 단계 간 계약 검사는
 [`pipeline/README.md`](pipeline/README.md)를 기준으로 한다.

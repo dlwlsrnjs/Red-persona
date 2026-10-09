@@ -19,9 +19,14 @@
 
 ## 2. Qwen category sidecar
 
-`pipeline.label_persona_categories`가 각 persona에 평가 범주 하나를 부여한다. 출력
+`pipeline.label_persona_categories`가 각 persona에 초기 평가 범주 하나를 부여한다. 출력
 `../data/personas/persona_category_labels.jsonl`은 모델 생성 산출물이므로 Git에 포함하지
 않고, checkpoint와 함께 실행별 provenance로 보존한다.
+
+희소 범주는 `pipeline.rebalance_persona_categories`가 GPT-4o mini로 원문 근거를 재심사한다.
+단순 재라벨링으로 고유 base family 100개를 확보할 수 없는 범주는 서로 다른 base identity를
+유지한 명시적 `category_base_adaptation`을 생성한다. 이는 원문 사실이 아닌
+category-conditioned construction으로 별도 model·method·confidence provenance를 기록한다.
 
 허용 범주는 JMIR 평가의 여섯 범주와 동일하다.
 

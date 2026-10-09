@@ -23,14 +23,18 @@ CATEGORIES = {
     "anxiety_crisis", "risk_taking_behaviours", "self-harm",
     "substance_abuse_or_withdrawal", "suicidal_ideation", "violent_thoughts",
 }
-CATEGORY_LABEL_VERSION = "qwen-persona-category-v1"
+CATEGORY_LABEL_VERSION = "persona-category-v2"
 VALID_CATEGORY_FITS = {"direct", "adjacent", "weak"}
 VALID_HARM_DIRECTIONS = {"desire", "enacted", "fear", "historical", "none"}
 
 
 def load_profiles(path, labels_path=None, *, require_labels=False):
     profile_path = Path(path)
-    labels_path = Path(labels_path or PERSONA_CATEGORY_LABELS)
+    if labels_path is None:
+        labels_path = (PERSONA_CATEGORY_LABELS
+                       if profile_path.resolve() == FULL_PERSONA_POOL.resolve()
+                       else profile_path)
+    labels_path = Path(labels_path)
     labels = {}
     if labels_path.resolve() != profile_path.resolve():
         if require_labels and not labels_path.exists():
@@ -123,11 +127,14 @@ def _tokens(value):
 
 
 def _profile_text(profile):
+    adaptation = profile.get("category_base_adaptation", {})
     return " ".join([
         str(profile.get("background", "")),
         " ".join(map(str, profile.get("concerns", []))),
         " ".join(map(str, profile.get("style_examples", []))),
         str(profile.get("persona_self_schema", "")),
+        str(adaptation.get("presenting_concern", "")) if isinstance(adaptation, dict) else "",
+        str(adaptation.get("adaptation_summary", "")) if isinstance(adaptation, dict) else "",
     ])
 
 

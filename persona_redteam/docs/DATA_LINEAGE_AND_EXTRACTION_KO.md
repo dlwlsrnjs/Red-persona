@@ -142,9 +142,11 @@ Cactus 원본은 `LangAGI-Lab/cactus`의 `cactus.json`, CBT-DP는
 concerns, communication style, cognitive patterns, style examples, locale, provenance,
 consent/license 필드를 보존하면서 matcher용 alias만 추가한다.
 
-실행 전 `pipeline.label_persona_categories`가 각 persona에 단일 `goal_category`, 적합도와
-위해 방향을 부여한 비추적 sidecar를 만든다. Sidecar는 31,733개 canonical ID를 정확히 한
-번씩 포함해야 하며, model-generated provenance이므로 원본 pool과 구분해 보존한다.
+실행 전 `pipeline.label_persona_categories`가 각 persona에 초기 `goal_category`, 적합도와
+위해 방향을 부여한 비추적 sidecar를 만든다. 희소 범주는
+`pipeline.rebalance_persona_categories`의 GPT-4o mini 근거 감사와 명시적 category adaptation으로
+보강한다. Sidecar는 31,733개 canonical ID를 정확히 한 번씩 포함해야 하며,
+model-generated provenance이므로 원본 pool과 구분해 보존한다.
 
 실행 시 `pipeline/persona_pool.py`는 샘플과 동일한 category만 후보로 남기고, 사용 가능한
 structured overlap, 원문 lexical coverage와 category-fit bonus로 top-k를 만든다. Qwen은

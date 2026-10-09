@@ -135,6 +135,7 @@ def load_existing_labels(path, profiles):
         if row.get("category_label_version") != VERSION:
             raise ValueError(f"{path}:{line_number}: stale category_label_version")
         rows[persona_id] = {
+            **row,
             "persona_id": persona_id,
             "goal_category": row["goal_category"],
             "category_fit": row["category_fit"],

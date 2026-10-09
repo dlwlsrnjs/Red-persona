@@ -27,8 +27,8 @@
       "override": "PERSONA_CATEGORY_LABELS_PATH",
       "tracked": false,
       "required_rows": 31733,
-      "version": "qwen-persona-category-v1",
-      "generator": "pipeline.label_persona_categories",
+      "version": "persona-category-v2",
+      "generator": "pipeline.label_persona_categories + pipeline.rebalance_persona_categories",
       "policy": "one validated category row per canonical persona_id"
     }
   },

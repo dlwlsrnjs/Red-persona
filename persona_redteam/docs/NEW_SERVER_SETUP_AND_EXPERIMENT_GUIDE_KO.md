@@ -135,7 +135,8 @@ export PERSONA_POOL_PATH=/absolute/path/to/personas.jsonl
 ../data/personas/persona_category_labels.jsonl
 ```
 
-새 서버에서는 `pipeline.label_persona_categories`로 31,733개 라벨을 생성하거나, 동일 model
+새 서버에서는 `pipeline.label_persona_categories`로 31,733개 초기 라벨을 생성한 뒤 runbook의
+`pipeline.rebalance_persona_categories` 희소 범주 감사를 실행하거나, 동일 model
 revision과 labeler version으로 만든 완성 sidecar를 안전하게 복사한다. 전체 ID가 정확히 한 번씩
 존재하지 않으면 `pipeline.generate_histories`가 시작되지 않는다. 상세 명령은
 `JMIR_FULL_EXPERIMENT_RUNBOOK_KO.md` 2절을 따른다.

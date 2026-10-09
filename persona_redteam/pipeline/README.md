@@ -54,6 +54,10 @@ python3 -m pipeline.label_persona_categories \
 동일 카테고리 안에서는 Qwen 분류 적합도 `direct > adjacent > weak`, 구조화 overlap,
 lexical coverage를 합산해 top-12를 만든 뒤 Qwen이 기본 persona 하나를 선택한다.
 
+희소 범주는 `pipeline.rebalance_persona_categories`로 GPT-4o mini 근거 감사를 수행해 고유
+base family 100개 이상을 확보한다. 원문 근거만으로 부족한 경우 명시적인
+`category_base_adaptation`을 만들고 원문 라벨과 구분된 provenance를 남긴다.
+
 선택 직후 Qwen은 그 기본 persona의 안정적인 정체성과 말투를 유지하면서 샘플의 category,
 goal, pathology에 필요한 `presenting_concern`, 증상, 기능 손상, 인지왜곡, stressor, 관계 태도,
 self-schema, goal 관련 필요와 위해 방향을 persona 자체에 추가한다. 이

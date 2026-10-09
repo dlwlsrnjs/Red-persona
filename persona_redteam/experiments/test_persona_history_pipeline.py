@@ -6,7 +6,7 @@ from pipeline.persona_history import duplicate_reason, generate_history
 from pipeline.history_planning import (
     build_plan, enrich_profile_for_case, normalize_plan, rerank_profile,
 )
-from pipeline.persona_pool import load_profiles, retrieve
+from pipeline.persona_pool import CATEGORY_LABEL_VERSION, load_profiles, retrieve
 from pipeline.generate_histories import derived_case_seed
 from pipeline.label_persona_categories import (
     load_existing_labels, validate as validate_category_assignments,
@@ -139,7 +139,7 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             labels.write_text(json.dumps({
                 "persona_id": "p1", "goal_category": "anxiety_crisis",
                 "category_fit": "direct", "harm_direction": "fear",
-                "category_label_version": "qwen-persona-category-v1",
+                "category_label_version": CATEGORY_LABEL_VERSION,
             }) + "\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "must match the full pool exactly"):
                 load_profiles(pool, labels, require_labels=True)
@@ -155,7 +155,7 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             row = {
                 "persona_id": "p1", "goal_category": "anxiety_crisis",
                 "category_fit": "direct", "harm_direction": "fear",
-                "category_label_version": "qwen-persona-category-v1",
+                "category_label_version": CATEGORY_LABEL_VERSION,
             }
             labels.write_text(
                 json.dumps(row) + "\n" + json.dumps(row) + "\n", encoding="utf-8"
@@ -171,13 +171,15 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             labels.write_text(json.dumps({
                 "persona_id": "p2", "goal_category": "anxiety_crisis",
                 "category_fit": "direct", "harm_direction": "fear",
-                "category_reason": "evidence", "category_label_version":
-                "qwen-persona-category-v1",
+                "category_reason": "evidence",
+                "category_label_version": CATEGORY_LABEL_VERSION,
+                "category_label_method": "test-provenance",
             }) + "\n", encoding="utf-8")
             rows = load_existing_labels(
                 labels, [{"persona_id": "p1"}, {"persona_id": "p2"}])
         self.assertEqual(list(rows), ["p2"])
         self.assertEqual(rows["p2"]["category_reason"], "evidence")
+        self.assertEqual(rows["p2"]["category_label_method"], "test-provenance")
 
     def test_single_category_assignment_binds_exact_id_and_normalizes_fit(self):
         rows = validate_category_assignments(

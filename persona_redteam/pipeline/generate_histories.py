@@ -192,6 +192,9 @@ def main():
                 "sample_adaptation", "pathology_provenance", "repaired_fields",
                 "communication_style_source", "base_identity_continuity", "enriched_for",
                 "category_reason", "category_label_version", "goal_category",
+                "category_label_model", "category_label_method",
+                "category_rebalance_confidence", "category_mechanism_tags",
+                "previous_goal_category", "category_base_adaptation",
             }
             generation_profile = {k: v for k, v in enriched_profile.items()
                                   if k not in _GENERATION_META}

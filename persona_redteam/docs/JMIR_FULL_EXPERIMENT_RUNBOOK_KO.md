@@ -45,6 +45,21 @@ python3 -m pipeline.label_persona_categories \
 기존 partial JSONL만 있고 checkpoint가 없다면 `--resume-from <partial.jsonl>`을 추가한다.
 완료된 행은 파일 순서와 무관하게 `persona_id`로 검증·재사용하고 누락된 persona만 생성한다.
 
+희소 범주를 고유 base family 100개 이상으로 보강하려면 다음 targeted audit을 실행한다.
+
+```bash
+python3 -m pipeline.rebalance_persona_categories \
+  --profiles ../data/personas/personas.jsonl \
+  --labels ../data/personas/persona_category_labels.jsonl \
+  --output ../data/personas/persona_category_labels.jsonl \
+  --checkpoint-dir ../data/personas/category_checkpoints/gpt4omini-rebalance-v2 \
+  --model gpt-4o-mini-2024-07-18 \
+  --minimum 100 --candidate-limit 1600 --workers 64 --retry-failed
+```
+
+GPT 원문 근거 판정과 명시적 category adaptation은 구분해 provenance에 남는다. 숫자를 맞추기
+위해 근거 없는 profile을 원문상 direct 사례로 재라벨링하지 않는다.
+
 명령은 일부 batch가 실패하면 non-zero로 종료한다. `--retry-failed`로 재실행해 최종 summary의
 `complete=31733`, `failed=0`을 확인한다. Partial sidecar로 history 생성을 시작할 수 없다.
 

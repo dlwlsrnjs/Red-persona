@@ -527,6 +527,59 @@ python -m pipeline.run_batch \
 성공한 사례 JSON이 있으면 자동 skip한다. 실패는 `<case_id>.failed.json`에 오류 종류와
 메시지를 저장하며, 명시적으로 `--retry-failed`를 주기 전까지 skip한다.
 
+### 250개 이후: OpenAI Batch API로 전환
+
+앞의 250개까지는 위 `pipeline.run_batch`와 `pipeline.evaluate_batch` 일반 API 경로를
+사용한다. 251번째 사례부터는 아래 Batch API 경로를 사용한다. Batch 요청은 의존성이 있는
+대화 단계를 wave별로 제출하고, 각 wave의 응답을 checkpoint한 뒤 다음 wave를 만든다.
+따라서 중단 후 같은 명령을 다시 실행해도 완료된 batch를 재사용한다.
+
+```bash
+python -m pipeline.run_openai_batch \
+  --cases data/prepared/generated/jmir_eval_full_with_history.json \
+  --existing-run-dir data/runs/gpt-4o-2024-11-20_parallel \
+  --existing-run-dir data/runs/gpt-4o-2024-11-20_parallel24 \
+  --existing-run-dir data/runs/gpt-4o-2024-11-20_standard4_to250 \
+  --output-dir data/runs/gpt-4o-2024-11-20_batch_after250_to500 \
+  --campaign-dir data/campaigns/batch_after250_to500/generation \
+  --target-total 500 \
+  --target-model gpt-4o-2024-11-20 \
+  --max-budget-usd 150
+```
+
+`--target-total`은 이번 batch에서 새로 만들 개수가 아니라, 모든 `--existing-run-dir`과 새
+산출물을 합친 목표 유효 사례 수다. 문자열 누출 또는 active-case 계약 위반 사례는 기존
+완료 수에서 제외되고, 선택된 신규 입력도 제출 전에 같은 검사를 통과해야 한다.
+실패·불완전 run도 완료 수에서 제외하므로 목표 수가 정확히 채워질 때까지 다음 유효 사례로
+자동 보충한다. 과거 8방향 산출물은 현재 네 방향 projection이 완전할 때만 호환 사례로 센다.
+
+여러 GPU에서 나눌 때는 먼저 `--prepare-only --selection-path <공유 JSON>`으로 전체 선택을
+한 번 고정한다. 이후 모든 worker가 같은 `--selection-path`와 `--target-total`을 사용하고,
+서로 겹치지 않는 `--start N --stop M`, 별도 `--campaign-dir`과 `--output-dir`을 사용한다.
+각 worker의 `QWEN_DEVICE`도 서로 다른 GPU로 지정한다.
+
+생성이 끝난 뒤 미평가 사례만 Batch API로 평가한다.
+
+```bash
+python -m pipeline.evaluate_openai_batch \
+  --run-dir data/runs/gpt-4o-2024-11-20_parallel \
+  --run-dir data/runs/gpt-4o-2024-11-20_parallel24 \
+  --run-dir data/runs/gpt-4o-2024-11-20_standard4_to250 \
+  --run-dir data/runs/gpt-4o-2024-11-20_batch_after250_to500 \
+  --existing-evaluation-dir data/evaluations/gpt-4o-2024-11-20_parallel \
+  --existing-evaluation-dir data/evaluations/gpt-4o-2024-11-20_parallel24 \
+  --existing-evaluation-dir data/evaluations/gpt-4o-2024-11-20_standard4_to250 \
+  --output-dir data/evaluations/gpt-4o-2024-11-20_batch_after250_to500 \
+  --campaign-dir data/campaigns/batch_after250_to500/evaluation \
+  --expected-total 500 \
+  --max-budget-usd 20
+```
+
+각 campaign의 `openai_batches/usage_ledger.json`에 실제 토큰 비용이 누적된다.
+`--max-budget-usd`는 해당 generation 또는 evaluation campaign 안에서 새 batch를 제출하기
+전 적용되는 상한이다. Batch API의 `completion_window`는 `24h`이며 완료 시간은 보장되지
+않으므로, 250개까지의 즉시 실행에는 일반 API 경로를 유지한다.
+
 사례별 run JSON 핵심 구조:
 
 ```json

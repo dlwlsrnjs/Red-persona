@@ -1,6 +1,7 @@
 """Cross-stage schema checks for the active four-stage pipeline."""
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -168,6 +169,27 @@ def validate_run_record(record):
     return errors
 
 
+def validate_success_at_4_run_record(record):
+    """Validate the active four-direction projection of a current or legacy run.
+
+    Historical v14 artifacts contain four retired directions in addition to the
+    current four.  They remain valid Success@4 evidence when their active
+    projection satisfies the current run contract.  This projection never
+    mutates the source artifact.
+    """
+    projected = copy.deepcopy(record)
+    projected["research_engine_version"] = ACTIVE_PIPELINE_VERSION
+    projected["active_final_directions"] = list(FINAL_DIRECTIONS)
+    for result in projected.get("results", []):
+        result["final_branches"] = [
+            branch for branch in result.get("final_branches", [])
+            if branch.get("direction") in FINAL_DIRECTIONS
+        ]
+        result["active_final_directions"] = list(FINAL_DIRECTIONS)
+        result["total_final_branches"] = len(FINAL_DIRECTIONS)
+    return validate_run_record(projected)
+
+
 def validate_evaluation(record):
     errors = []
     rows = record.get("rows", [])
@@ -197,6 +219,17 @@ def validate_evaluation(record):
                 "CARES must evaluate candidate_response only"
             )
     return errors
+
+
+def validate_success_at_4_evaluation(record):
+    """Validate only the four active rows of a current or legacy evaluation."""
+    projected = copy.deepcopy(record)
+    projected["active_final_directions"] = list(FINAL_DIRECTIONS)
+    projected["rows"] = [
+        row for row in projected.get("rows", [])
+        if row.get("direction") in FINAL_DIRECTIONS
+    ]
+    return validate_evaluation(projected)
 
 
 def check_file(kind, path):

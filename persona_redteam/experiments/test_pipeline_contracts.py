@@ -2,7 +2,8 @@ import unittest
 
 from pipeline.contracts import (
     CONDITIONS, validate_active_cases, validate_evaluation, validate_prepared_cases,
-    validate_run_record,
+    validate_run_record, validate_success_at_4_evaluation,
+    validate_success_at_4_run_record,
 )
 from pipeline.research_context import (
     ACTIVE_PIPELINE_VERSION,
@@ -100,6 +101,18 @@ class PipelineContractTests(unittest.TestCase):
         self.assertTrue(any("stale research engine" in error for error in errors))
         self.assertTrue(any("missing separated candidate_response" in error for error in errors))
 
+    def test_legacy_run_is_valid_when_four_direction_projection_is_complete(self):
+        record = self.make_run()
+        record["research_engine_version"] = "legacy-eight-direction-version"
+        record["active_final_directions"].append("retired_direction")
+        for result in record["results"]:
+            result["active_final_directions"].append("retired_direction")
+            result["total_final_branches"] += 1
+            result["final_branches"].append(branch("retired_direction"))
+
+        self.assertTrue(validate_run_record(record))
+        self.assertEqual(validate_success_at_4_run_record(record), [])
+
     def test_system_prompt_must_be_exactly_current_one(self):
         record = self.make_run()
         record["results"][0]["shared_history"]["full_messages"] = []
@@ -133,6 +146,28 @@ class PipelineContractTests(unittest.TestCase):
             "rows": rows,
         })
         self.assertTrue(any("candidate_response only" in error for error in errors))
+
+    def test_legacy_evaluation_projects_to_four_directions(self):
+        rows = []
+        for condition in CONDITIONS:
+            for direction in (*FINAL_DIRECTIONS, "retired_direction"):
+                rows.append({
+                    "condition": condition,
+                    "direction": direction,
+                    "custom": {
+                        "raw_recovery_success": False,
+                        "target_originated_recovery_success": False,
+                        "unsafe_manifestation_success": False,
+                    },
+                    "official_cares": {
+                        "response_source": "manifestation_candidate_response.text"
+                    },
+                })
+        record = {"active_final_directions": [*FINAL_DIRECTIONS, "retired_direction"],
+                  "rows": rows}
+
+        self.assertTrue(validate_evaluation(record))
+        self.assertEqual(validate_success_at_4_evaluation(record), [])
 
 
 if __name__ == "__main__":

@@ -11,6 +11,15 @@
 250개 결과는 [`docs/PAPER_METHODS_RESULTS_KO.md`](docs/PAPER_METHODS_RESULTS_KO.md)에 정리했다.
 625개 후보에서 손상 사례를 제외하고 사람 검수를 거쳐 최종 500개를 구성한 기준은
 [`docs/SELECTION_500_AUDIT_KO.md`](docs/SELECTION_500_AUDIT_KO.md)에 별도로 고정했다.
+논문 메서드 그림의 실제 사례와 panel별 데이터 흐름은
+[`docs/FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md`](docs/FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md),
+full dialogue 대 no-research-dialogue paired 설계와 추가 Qwen target arm은
+[`ablation/README_KO.md`](ablation/README_KO.md)에 기록했다.
+두 target의 공식 500개 paired 결과, exact McNemar 검정, 비용과 QA는
+[`ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md)에
+고정했다.
+Qwen target 공식 500개의 모델 revision, 7-GPU shard, 질문 provenance, 빈 출력 검사 결과는
+[`docs/QWEN_TARGET_500_RUN_AUDIT_KO.md`](docs/QWEN_TARGET_500_RUN_AUDIT_KO.md)에 고정했다.
 
 ## 활성 흐름
 
@@ -26,6 +35,11 @@
   -> candidate_response만 CARES에 전달
   -> Recovery/Behavior/CARES 및 범주별 집계
 ```
+
+기본 GPT-4o target arm에서는 Qwen2.5-7B-Instruct가 goal-aware planner다. 추가 모델 일반성
+arm에서는 `Qwen/Qwen2.5-7B-Instruct`가 goal-blind target이고, 같은 모델 계열을 양쪽 역할에
+쓰는 confound를 피하기 위해 표준 `meta-llama/Llama-3.1-8B-Instruct`가 planner를 맡는다.
+Lexi-Uncensored는 과거 persona history renderer일 뿐 target이나 추가 arm의 planner가 아니다.
 
 새 샘플도 고정 seed를 선택하지 않는다. `pipeline.route_goals`로 pathology를 생성한 뒤 전체
 pool 검색과 Qwen reranking을 동일하게 적용한다.

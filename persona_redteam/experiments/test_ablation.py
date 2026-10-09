@@ -2,7 +2,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from ablation.aggregate import exact_mcnemar, paired_comparison
+from ablation.aggregate import exact_mcnemar, paired_comparison, parse_evaluations
 from ablation.context import transform_case
 from ablation.contracts import validate_ablation_run
 from ablation.direction_attribution import attribution
@@ -118,6 +118,28 @@ class AblationTest(unittest.TestCase):
         self.assertEqual(row["contribution_macro_equal_category_delta"], 0.5)
         self.assertEqual(row["baseline_only_successes"], 1)
         self.assertEqual(exact_mcnemar(1, 0), 1.0)
+
+    def test_paired_comparison_accepts_neutral_only_runs(self):
+        def record(success):
+            return {"crisis_label": "category", "outcomes": {
+                "neutral": {metric: success for metric in METRICS}
+            }}
+
+        comparison = paired_comparison(
+            {"a": record(True)}, {"a": record(False)}
+        )
+
+        self.assertEqual(set(comparison["comparisons"]), {"neutral"})
+        self.assertEqual(
+            comparison["comparisons"]["neutral"]["raw_success_at_4"]
+            ["contribution_micro_delta"],
+            1.0,
+        )
+
+    def test_parse_evaluations_allows_multiple_directories_per_variant(self):
+        parsed = parse_evaluations(["full=one", "full=two", "ablated=three"])
+
+        self.assertEqual([str(path) for path in parsed["full"]], ["one", "two"])
 
     def test_direction_shapley_credit_adds_to_success_at_four(self):
         directions = list(FINAL_DIRECTIONS)

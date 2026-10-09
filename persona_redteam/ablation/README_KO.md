@@ -22,6 +22,8 @@ Success@4는 방향 간 중복이 있으므로 단독 성공률을 더하면 기
 credit의 네 방향 합은 full Success@4와 정확히 같아야 한다.
 
 현재 유효 250개에 대한 무호출 산출 결과는 `RESULTS_DIRECTION_EXISTING250_KO.md`에 요약했다.
+공식 500개 full dialogue 대 no-research-dialogue의 GPT/Qwen paired 결과는
+`RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`에 요약했다.
 
 ```bash
 python -m ablation.direction_attribution \
@@ -74,6 +76,114 @@ micro가 공식 500개 cohort에 대한 주 분석이다. macro는 희소 범주
 
 ## 3. 실행
 
+### 공식 주 비교: neutral full dialogue 대 no research dialogue
+
+공식 500개에 대한 주 ablation은 `neutral` 조건만 사용하며, 사례 ID와 초기 persona analysis
+응답, target model, 네 final direction을 고정한 paired comparison이다. 두 arm의 유일한 구조적
+차이는 initial analysis 뒤에 반복 Qwen 연구 대화를 수행하는지 여부다. `no_research_dialogue`는
+initial analysis 직후 네 방향으로 분기한다. 따라서 이 비교의 delta는 세 intervention condition의
+차이가 아니라 **반복 연구 대화 전체가 추가한 기여**를 추정한다.
+
+기존 250개는 당시 full run에 실제 사용된 system/user/assistant 초기 prefix를 byte-for-byte
+재사용한다. 과거 응답의 `finish_reason`까지 그대로 유지하는 이유는, 여기서 초기 응답만 새로
+생성하면 full과 ablation 사이에 연구 대화 외의 차이가 생겨 paired contrast가 훼손되기 때문이다.
+신규 250개는 full과 no-dialogue가 모두 같은 length-repaired 초기 prefix를 공유한다.
+
+이 설계 변경은 초기 250개의 세 condition 결과를 확인한 뒤, 비용 제약 아래 공식 500개를
+완성하기 위해 채택한 protocol amendment다. 논문에는 사전등록된 결정처럼 쓰지 않고,
+기존 250개의 세-condition 결과는 탐색적 분석, 500개의 neutral paired contrast는 이후 확장된
+주 분석이라고 시점을 명시한다.
+
+### 추가 target-model arm: Qwen2.5-7B-Instruct
+
+GPT-4o 결과의 모델 일반성을 확인하기 위해 공식 500개 전체에
+`Qwen/Qwen2.5-7B-Instruct` target arm을 별도 디렉터리로 추가한다. 이때 hidden goal을 보는
+planner까지 Qwen으로 두면 같은 모델 계열의 표현 습관이 양쪽 역할에 공유되는 confound가
+생긴다. 따라서 Qwen target arm의 goal-aware planner는 표준 instruction-tuned
+`meta-llama/Llama-3.1-8B-Instruct`로 교체한다. Lexi/uncensored 변형은 사용하지 않는다.
+
+- target: `Qwen/Qwen2.5-7B-Instruct`, revision
+  `a09a35458c702b33eeacc393d103063234e8bc28`
+- goal-aware planner: `meta-llama/Llama-3.1-8B-Instruct`, revision
+  `0e9e39f249a16976918f6564b8830bc894c89659`
+- target condition: `neutral`
+- final directions: 같은 등록된 네 방향
+- paired arm: full dialogue와 `no_research_dialogue`
+- serving: localhost vLLM; OpenAI target 호출 비용 0
+
+두 모델이 같은 prompt나 hidden state를 공유한다는 뜻이 아니다. planner만 private goal을 받고,
+target은 generic system prompt, persona packet, target 자신이 생성한 누적 응답과 planner가 고른
+질문만 본다. artifact의 `researcher_model`, `researcher_revision`, `researcher_role_label`,
+`target_system_prompt`가 이 역할 분리를 명시한다.
+
+```bash
+# GPU 2: goal-blind Qwen target server
+CUDA_VISIBLE_DEVICES=2 python -m vllm.entrypoints.openai.api_server \
+  --model .cache/qwen2.5-7b-instruct/a09a35458c702b33eeacc393d103063234e8bc28 \
+  --served-model-name Qwen/Qwen2.5-7B-Instruct \
+  --dtype bfloat16 --host 127.0.0.1 --port 8001 \
+  --max-model-len 32768 --enable-prefix-caching
+
+# planner GPU 한 장으로 재현하는 기본 명령; target 생성은 위 localhost vLLM이 담당
+QWEN_DEVICE=cuda:3 QWEN_BATCH_SIZE=18 python \
+  experiments/run_jmir_persona_batch_api.py \
+  --cases data/prepared/generated/jmir_eval_full_with_history.json \
+  --selection-path data/campaigns/batch_after250_to500_v2/selection.json \
+  --selection-key final_case_ids --target-total 500 --condition neutral \
+  --output-dir data/runs/qwen2.5-7b-instruct_official500_neutral \
+  --no-research-dialogue-output-dir \
+    data/ablation/runs/no_research_dialogue_qwen2.5-7b-instruct_official500 \
+  --campaign-dir data/campaigns/qwen2.5-7b-instruct_official500_neutral \
+  --target-model Qwen/Qwen2.5-7B-Instruct \
+  --target-base-url http://127.0.0.1:8001/v1 --target-workers 128 \
+  --researcher-snapshot /path/to/meta-llama/Llama-3.1-8B-Instruct/PINNED_REVISION \
+  --researcher-model meta-llama/Llama-3.1-8B-Instruct \
+  --researcher-revision 0e9e39f249a16976918f6564b8830bc894c89659
+```
+
+표준 Llama tokenizer처럼 pad token이 없는 checkpoint는 runner가 `pad_token=eos_token`을 설정한다.
+OOM이 나면 planner micro-batch를 직전 크기의 75%로 낮추고 같은 질문 집합을 계속 생성한다.
+
+공식 실행은 wall-clock 시간을 줄이기 위해 `--start/--stop`으로 고정된 500개 index를
+`72/72/72/71/71/71/71`의 연속 7개 샤드로 나눴다. 각 샤드는 별도의 campaign, full output,
+no-dialogue output 디렉터리를 사용하고, goal-aware Llama planner 한 개를 서로 다른 GPU에
+올린다. 일곱 runner의 target 요청은 동일한 localhost Qwen vLLM 서버로 보낸다. 이는 사례 간
+병렬화일 뿐이다. 한 사례 안에서는 initial analysis, 연구 stage, final branch, manifestation의
+의존 순서를 그대로 유지하며, 완료 후 `case_id`로 합쳐 정확히 같은 공식 500개를 만든다.
+
+```bash
+python experiments/merge_run_shards.py \
+  --shard-dir data/runs/qwen2.5-7b-instruct_official500_neutral_shards/shard-01 \
+  --shard-dir data/runs/qwen2.5-7b-instruct_official500_neutral_shards/shard-02 \
+  --shard-dir data/runs/qwen2.5-7b-instruct_official500_neutral_shards/shard-03 \
+  --shard-dir data/runs/qwen2.5-7b-instruct_official500_neutral_shards/shard-04 \
+  --shard-dir data/runs/qwen2.5-7b-instruct_official500_neutral_shards/shard-05 \
+  --shard-dir data/runs/qwen2.5-7b-instruct_official500_neutral_shards/shard-06 \
+  --shard-dir data/runs/qwen2.5-7b-instruct_official500_neutral_shards/shard-07 \
+  --output-dir data/runs/qwen2.5-7b-instruct_official500_neutral \
+  --expected-total 500
+```
+
+merge runner는 중복 `case_id`, 계약 위반, target/condition/direction 불일치를 거부한다. 같은
+명령을 no-dialogue 샤드에도 적용해 별도의 공식 500개 폴더를 만든다.
+
+```bash
+python experiments/run_existing250_no_research_batch_api.py \
+  --existing-run-dir data/runs/gpt-4o-2024-11-20_standard4_to250 \
+  --existing-run-dir data/runs/gpt-4o-2024-11-20_parallel24 \
+  --existing-run-dir data/runs/gpt-4o-2024-11-20_parallel \
+  --selection-path data/campaigns/batch_after250_to500_v2/selection.json \
+  --output-dir data/ablation/runs/no_research_dialogue_existing250 \
+  --campaign-dir data/campaigns/batch_existing250_no_research_v1 \
+  --batch-state-dir data/campaigns/batch_after250_to500_v2/openai_batches \
+  --max-budget-usd 120
+```
+
+`--batch-state-dir`은 신규 250개 생성과 기존 250개 ablation이 하나의 누적 비용 장부와
+hard cap을 공유하게 한다. 이 후속 실행에서 승인된 global cap은 **USD 120**이며, 중복 완료된
+Batch도 결과에 쓰였는지와 무관하게 실제 비용 장부에 포함한다. 로컬 Qwen 질문만 먼저
+준비하려면 `--prepare-final-only`를 추가한다. 이는 OpenAI Batch를 제출하지 않는다.
+
 Git에 추적되는 공식 index가 기존 250개와 신규 250개를 합친 membership의 단일 기준이다.
 로컬 selection checkpoint를 함께 주면 두 목록이 완전히 같은지도 검사한다. 먼저 적은 수로
 실행 계약을 확인한 뒤 paired subset을 늘린다.
@@ -109,10 +219,17 @@ python -m ablation.evaluate \
 
 마지막으로 공통 case ID만 사용해 paired delta와 exact McNemar 검정을 만든다.
 
+한 variant가 여러 디렉터리에 나뉘어 있으면 같은 이름을 반복한다. 아래 형식은 기존 250개와
+신규 250개를 복사하거나 합치지 않고 500개로 읽는다.
+
 ```bash
 python -m ablation.aggregate \
-  --evaluation full=data/ablation/evaluations/full \
-  --evaluation no_prior_dialogue=data/ablation/evaluations/no_prior_dialogue \
+  --evaluation full=data/evaluations/gpt-4o-2024-11-20_standard4_to250 \
+  --evaluation full=data/evaluations/gpt-4o-2024-11-20_parallel24 \
+  --evaluation full=data/evaluations/gpt-4o-2024-11-20_parallel \
+  --evaluation full=data/evaluations/gpt-4o-2024-11-20_batch_after250_to500_v2 \
+  --evaluation no_research_dialogue=data/ablation/evaluations/no_research_dialogue_existing250 \
+  --evaluation no_research_dialogue=data/ablation/evaluations/no_research_dialogue_batch_after250_to500_v2 \
   --baseline full \
   --output-json data/ablation/component_contributions.json \
   --output-md data/ablation/component_contributions.md

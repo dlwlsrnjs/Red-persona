@@ -43,7 +43,9 @@ def response_record(body):
 
 
 class BatchChatClient:
-    def __init__(self, state_dir, *, max_budget_usd=60.0, poll_seconds=20):
+    api_mode = "openai_batch"
+
+    def __init__(self, state_dir, *, max_budget_usd=120.0, poll_seconds=20):
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.max_budget_usd = float(max_budget_usd)
@@ -169,6 +171,11 @@ class BatchChatClient:
                 last_status = batch.status
             if batch.status == "completed":
                 break
+            # A user-cancelled Batch can still contain billable completed rows.
+            # Preserve and charge those rows, then let run() retry only the
+            # missing custom IDs instead of discarding paid partial output.
+            if batch.status == "cancelled" and batch.output_file_id:
+                break
             if batch.status in TERMINAL_FAILURES:
                 raise RuntimeError(f"{label}: batch {batch_id} ended as {batch.status}")
             time.sleep(self.poll_seconds)
@@ -198,6 +205,7 @@ class BatchChatClient:
         atomic_json(label_dir / "request_errors.json", errors)
 
         ledger = self._ledger()
+        ledger["max_budget_usd"] = self.max_budget_usd
         ledger["batches"][batch_id] = {
             "label": label,
             "requests": len(requests),

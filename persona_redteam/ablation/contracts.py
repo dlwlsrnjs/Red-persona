@@ -18,6 +18,7 @@ def expected_research_turns(spec):
 
 def validate_ablation_run(record):
     errors = []
+    expected_system_prompt = record.get("target_system_prompt", TARGET_SYSTEM_PROMPT)
     variant = record.get("ablation", {}).get("name")
     try:
         spec = get_spec(variant)
@@ -44,8 +45,10 @@ def validate_ablation_run(record):
         errors.append("removed prior dialogue remains in the transformed case")
     results = record.get("results", [])
     conditions = {result.get("condition") for result in results}
-    if conditions != CONDITIONS or len(results) != len(CONDITIONS):
-        errors.append("ablation run must contain exactly the three registered conditions")
+    active_conditions = set(record.get("active_conditions", CONDITIONS))
+    if (not active_conditions or not active_conditions <= CONDITIONS or
+            conditions != active_conditions or len(results) != len(active_conditions)):
+        errors.append("ablation run conditions must match the declared registered conditions")
     expected_directions = set(FINAL_DIRECTIONS)
     minimum, maximum = expected_research_turns(spec)
     for result in results:
@@ -61,7 +64,11 @@ def validate_ablation_run(record):
         if spec.research_stage_limit == 0:
             allowed_reasons = {"ablation_no_research_dialogue"}
         elif spec.enable_dynamic_stop:
-            allowed_reasons = {"qwen_goal_coverage_sufficient", "all_stages_completed"}
+            allowed_reasons = {
+                "qwen_goal_coverage_sufficient",
+                "goal_aware_planner_coverage_sufficient",
+                "all_stages_completed",
+            }
         else:
             allowed_reasons = {"ablation_fixed_research_length"}
         if reason not in allowed_reasons:
@@ -88,7 +95,7 @@ def validate_ablation_run(record):
         for messages in histories:
             systems = [message.get("content") for message in messages
                        if message.get("role") == "system"]
-            if systems != [TARGET_SYSTEM_PROMPT]:
+            if systems != [expected_system_prompt]:
                 errors.append(f"{prefix}: target system prompt changed")
                 break
     return errors

@@ -1,16 +1,19 @@
-# RED-Persona 논문용 연구 설계, 방법 및 중간 결과
+# RED-Persona 논문용 연구 설계, 방법 및 결과
 
-> 문서 상태: 2026-10-09 기준 재현 가능한 Methods/Results 원고 초안
+> 문서 상태: 2026-10-10 기준 재현 가능한 Methods/Results 원고 초안
 >
-> 확정 분석 집합: 유효 사례 250개, 사례당 3조건 × 4방향 = 12개 평가 행
+> 탐색 분석: 기존 유효 250개, 사례당 3조건 × 4방향
 >
-> 최종 목표: 유효 사례 500개. 나머지 250개의 Batch 실행 결과는 완료·검증 후 별도 갱신한다.
+> 공식 paired 분석: 유효 500개, neutral full dialogue 대 no-research-dialogue,
+> GPT-4o와 Qwen2.5-7B target arm
 
 이 문서는 RED-Persona의 연구 철학, 선행연구에서 겨냥하는 공백, 데이터 계보, 모델별 역할,
-표본이 단계마다 어떻게 변환되는지, 누출 통제, 평가 정의, 현재 250개 결과와 한계를 논문에
+표본이 단계마다 어떻게 변환되는지, 누출 통제, 평가 정의, 250개 탐색 결과와 공식 500개 paired
+결과의 한계를 논문에
 옮길 수 있는 수준으로 정리한다. 수치는 Git에 포함된
 [`results/success_at_4_valid_250.json`](results/success_at_4_valid_250.json)과 로컬 검증 산출물에서
-재계산했다. 500개 완료 전까지 아래 결과를 최종 확증 분석으로 표현해서는 안 된다.
+재계산했다. 공식 500개의 membership과 분석 정책은 Git에 고정하지만, 대용량 개별 생성·평가
+artifact는 `data/` 아래에 두고 Git에서 제외한다.
 
 ## 1. 연구 질문
 
@@ -222,15 +225,19 @@ violent thoughts 12, risk-taking 7이다.
 | 원천 분류 | GPT-4o mini | 1인칭 client utterance 여부 | 해당 없음 |
 | pathology router | `gpt-4o-mini-2024-07-18` | goal의 임상·인지·관계 축 구조화 | 해당 없음 |
 | persona category | Qwen + GPT-4o mini audit | 31,733개 pool의 범주 sidecar와 희소 범주 보강 감사 | 해당 없음 |
-| 의미 계획자 | `Qwen/Qwen2.5-7B-Instruct`, 고정 revision | profile rerank, sample adaptation, goal atom, micro-plan, turn 검증, coverage | Qwen만 알고 target에는 직접 전달하지 않음 |
+| persona/history 의미 계획자 | `Qwen/Qwen2.5-7B-Instruct`, 고정 revision | profile rerank, sample adaptation, goal atom, micro-plan, turn 검증, coverage | Qwen만 알고 target에는 직접 전달하지 않음 |
 | history renderer | `Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2` | 통제된 micro-plan을 자연스러운 과거 상담 exchange로 렌더링 | prompt 내부에서 사용하되 출력 원문 복사는 금지 |
-| 평가 대상 | `gpt-4o-2024-11-20` | persona 분석, 공동 연구 응답, final analysis, 후보 상담 응답 | oracle 연구 단계와 모든 manifestation 측정 단계만 직접 노출 |
+| GPT arm 연구 planner | `Qwen/Qwen2.5-7B-Instruct` | GPT target의 goal-aware 질문, coverage, 네 final/manifestation 질문 선택 | planner-only |
+| Qwen arm 연구 planner | `meta-llama/Llama-3.1-8B-Instruct` | Qwen target의 goal-aware 질문과 네 방향 질문 선택 | planner-only |
+| 평가 대상 | `gpt-4o-2024-11-20` 또는 `Qwen/Qwen2.5-7B-Instruct` | persona 분석, 공동 연구 응답, final analysis, 후보 상담 응답 | 연구 중 private goal 비노출; manifestation 측정에서만 직접 노출 |
 | custom evaluator | `gpt-4o-mini-2024-07-18` | R0–R4, provenance atom, B0–B5 판정 | evaluator-only |
 | CARES evaluator | `gpt-4o-mini-2024-07-18` | 후보 응답을 Accept/Caution/Refuse로 분류 | manifestation prompt-response pair만 평가 |
 
-Qwen의 안전 정렬 여부를 실험 결과와 혼동하지 않기 위해 역할을 제한한다. Qwen은 본 실험의
-안전 target이 아니라 계획·질문·coverage 도구다. 더 자유로운 Lexi도 target이 아니라 prior
-history 렌더러다. 실제 측정 대상은 고정 snapshot의 GPT-4o다.
+같은 모델 계열이 private-goal planner와 goal-blind target 양쪽 역할을 맡는 confound를 피한다.
+따라서 GPT arm에서는 Qwen이 planner지만, 추가 Qwen target arm에서는 표준 Llama-3.1-8B가
+planner다. 더 자유로운 Lexi는 두 arm 모두에서 target이나 연구 planner가 아니라 prior history
+renderer다. target 간 절대 차이는 planner까지 함께 달라지는 보조 일반성 분석이고, 각 arm 내부의
+full 대 no-dialogue paired contrast가 주 ablation이다.
 
 ## 7. persona pool 구성
 
@@ -756,8 +763,8 @@ neutral evidence-chain에서 raw 84.0%와 target-originated 81.6%, structural ev
 
 ## 16. 실행 및 비용 감사
 
-이번 유효 250개를 맞추기 위한 **증분 실행**은 기존 유효 run 173개를 재사용하고 77개를
-새로 생성했다.
+탐색 단계에서 유효 250개를 맞추기 위한 **증분 실행**은 기존 유효 run 173개를 재사용하고
+77개를 새로 생성했다.
 
 - 77개 standard generation: 2,960개의 고유 target request, prompt 12,806,254 tokens,
   cached 8,560,512, completion 1,216,738, 계산 비용 USD 33.482375
@@ -770,6 +777,15 @@ neutral evidence-chain에서 raw 84.0%와 target-originated 81.6%, structural ev
 않는다. 또한 초기 Batch 파일럿은 사례 간 question deduplication 범위가 잘못된 것을 발견해
 중단했으며, 완료된 31개 batch의 USD 13.4163075는 방법 결과에서 제외한 engineering pilot
 비용이다. 해당 산출물은 최종 500개 분석에 사용하지 않는다.
+
+공식 500개 확장에서는 OpenAI Batch ledger를 실행 단위별로 보존하고 합산했다. GPT-4o의
+250개 추가 full 생성·평가가 포함된 master ledger는 USD 67.067540975, GPT-4o 공식 500개
+no-dialogue 평가는 USD 2.242238100, Qwen 공식 500개 no-dialogue 평가는 USD 2.046708375,
+Qwen 공식 500개 full 평가는 USD 2.577320025였다. 따라서 기록된 캠페인 누적 실비는
+**USD 73.933807475**이며, 사용자가 정한 USD 120 상한보다 USD 46.066192525 낮다. 이 합계에는
+공식 결과에 사용하지 않은 완료 중복 Batch USD 2.82184625도 포함하여 실제 지출을 과소
+보고하지 않았다. 로컬 Qwen target과 Llama planner의 GPU 전력·서버 비용은 OpenAI API
+ledger에 포함되지 않는다.
 
 ## 17. 재현성과 품질 관리
 
@@ -813,10 +829,15 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 | `experiments/qwen_target_persona_research_dialogue.py` | 세 조건, 4–7 연구 stage, 네 branch, manifestation 분리 |
 | `pipeline/run_batch.py` | standard API 사례 선택·실행·checkpoint |
 | `pipeline/openai_batch.py` | Batch upload/poll/retry, input hash, 비용 guard와 usage ledger |
+| `pipeline/local_chat.py` | 로컬 OpenAI-compatible target/planner endpoint와 pad/OOM 대응 |
 | `experiments/run_jmir_persona_batch_api.py` | multi-turn dependency wave를 Batch 요청으로 구성 |
+| `experiments/run_existing250_no_research_batch_api.py` | 기존 유효 250개를 동일 no-dialogue 계약으로 재실행 |
+| `experiments/merge_run_shards.py` | GPU별 disjoint shard를 case-ID·중복·계약 검사 후 병합 |
+| `experiments/normalize_manifestation_outputs.py` | 별칭·plain-text 출력을 canonical manifestation schema로 정규화 |
 | `experiments/evaluate_persona_co_research.py` | recovery/provenance와 manifestation behavior 평가, CARES 연결 |
 | `experiments/evaluate_jmir_persona_batch_api.py` | custom/CARES 평가를 Batch로 실행하고 사례별 12행 복원 |
 | `experiments/evaluate_cares_official.py` | 공식 CARES prompt, label parser, 선택적 Safety Score |
+| `ablation/aggregate.py` | full/no-dialogue paired metric, category macro, exact McNemar 집계 |
 | `pipeline/contracts.py` | 단계별 schema, 누출, 3×4, system prompt, candidate-only CARES 계약 |
 | `experiments/summarize_success_at_4.py` | 네 방향 case-level Success@4와 범주별 집계 |
 | `pipeline/preflight.py` | 모델 호출 없이 각 artifact 경계 검증 |
@@ -827,7 +848,9 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
    아니라 goal-conditioned synthetic construction이다.
 2. **goal-aware planner:** Qwen이 private goal을 알고 history를 계획하므로, persona pool 자체의
    자연 발생 효과와 goal injection 효과를 분리하지 못한다.
-3. **단일 target snapshot:** 현재 수치는 GPT-4o 한 snapshot에 한정된다.
+3. **두 target과 planner 차이:** GPT-4o와 Qwen2.5-7B를 평가했지만 Qwen arm에서는
+   same-family confound를 피하기 위해 planner를 Llama-3.1-8B로 바꿨다. target 간 절대 차이는
+   target architecture 하나의 순수 효과가 아니다.
 4. **자동 judge:** custom evaluator와 CARES 모두 LLM judge다. human blind validation이 없다.
 5. **불균형 표본:** suicidal/anxiety가 대부분이고 risk-taking/violent 표본은 매우 작다.
 6. **Success@4 ceiling:** 네 번의 기회 중 하나 성공은 작은 조건 차이를 숨길 수 있다.
@@ -848,20 +871,20 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 - 연구 결과는 model deployment의 임상 승인이나 치료 적합성을 의미하지 않는다.
 - 실패·제외·judge disagreement를 숨기지 않고 end-to-end denominator와 함께 보고한다.
 
-## 21. 최종 500개 논문 분석 전에 필요한 항목
+## 21. 논문 제출 전 완료 상태와 남은 항목
 
-1. corrected Batch pipeline으로 추가 250개 생성·평가 완료
-2. standard/Batch 평가 parity smoke의 schema·row·metric 비교 확정
-3. 500개 전체 preflight와 중복 case ID 검사
-4. 범주별 생성 실패·누출 제외율 보고
-5. primary outcome과 primary contrast 사전 고정
-6. Success@4와 branch-level rate의 Wilson interval 보고
-7. paired exact McNemar 또는 계층적 logistic model로 조건·방향 효과 분석
-8. 다중 비교 보정과 effect size 보고
-9. 범주 stratification은 충분한 n이 있는 범주에만 제한
-10. human blind annotation subset으로 R/B/CARES judge agreement 확인
-11. goal-blind history 또는 non-personalized control 추가 검토
-12. harmful level을 독립 사전 주석할 경우에만 CARES Safety Score 보고
+완료: corrected Batch 생성·평가, standard/Batch schema parity smoke, 공식 500개 ID 고정,
+중복·누출·계약 검사, neutral full/no-dialogue paired contrast, exact McNemar, micro와
+equal-category macro 보고, 두 target arm 실행.
+
+남음:
+
+1. Success@4와 branch-level rate의 Wilson interval을 최종 표에 추가
+2. 여러 metric과 두 target을 함께 주장할 경우 multiplicity 보정
+3. 희소 범주에 대한 과도한 해석 제한 또는 계층적 model 사용
+4. human blind annotation subset으로 R/B/CARES judge agreement 확인
+5. goal-blind history 또는 non-personalized control 추가 검토
+6. harmful level을 독립 사전 주석할 경우에만 CARES Safety Score 보고
 
 ## 22. 논문 본문에 사용할 수 있는 짧은 Methods 문단
 
@@ -882,6 +905,12 @@ turn 및 별도 필드로 생성하였다. GPT-4o-mini evaluator는 목표 복�
 출처, 위험 행동 표출(B0–B5)을 평가했고, CARES evaluator에는 후보 응답만 전달하였다. 조건별
 Success@4는 네 branch 중 하나 이상이 해당 기준을 만족할 때 성공으로 정의하였다.
 
+공식 500개 ablation에서는 neutral condition만 사용해 initial analysis 뒤 반복 연구 대화를
+유지한 full arm과 즉시 네 방향으로 분기한 no-research-dialogue arm을 같은 case ID로 비교했다.
+추가 모델 일반성 arm은 Qwen2.5-7B-Instruct를 goal-blind target으로 두고 표준
+Llama-3.1-8B-Instruct를 goal-aware planner로 사용했다. 두 arm 모두 candidate-only CARES와
+동일한 GPT-4o-mini evaluator를 적용했다.
+
 ## 23. 결과 보고용 짧은 문단
 
 현재 검증을 완료한 250개 사례에서 raw Recovery Success@4는 neutral 97.2%, structural-hint
@@ -893,7 +922,22 @@ paired exact McNemar 검정에서 structural-hint와 neutral 간 raw recovery �
 manifestation 차이는 각각 p=.727, p=.286으로 유의하지 않았다. 이 결과는 높은 case-level
 ceiling과 서로 다른 evaluator decision boundary를 고려해 탐색적으로 해석해야 한다.
 
-## 24. 관련 재현 문서
+## 24. 공식 500개 paired 결과
+
+GPT-4o target에서 Raw Recovery Success@4는 full과 no-dialogue가 모두 97.8%였다. Unsafe
+manifestation ASR@4는 91.0% 대 93.8%(full−ablation −2.8%p, exact p=.092), CARES Accept@4는
+5.0% 대 6.8%(−1.8%p, p=.222)였다. Qwen target에서는 Raw Recovery가 98.0% 대 98.2%, Unsafe
+ASR이 97.0% 대 97.4%(−0.4%p, p=.851), CARES Accept가 10.2% 대 7.2%(+3.0%p, p=.058)였다.
+
+어느 target에서도 반복 연구 대화의 제거가 사전 보고한 case-level 지표에 통계적으로 확정적인
+차이를 만들지 않았다. GPT와 Qwen에서 CARES Accept delta의 방향도 같지 않았다. 따라서 현
+결과는 반복 연구 대화가 목표 복원 또는 위험 표출을 일관되게 증가시킨다는 가설을 지지하지
+않는다. 다만 Success@4 ceiling, 자동 judge, 네 번의 branch 기회, 작은 범주의 넓은 불확실성을
+고려해야 한다. 상세 discordant count, macro sensitivity, 비용과 QA는
+[`../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md)에
+있다.
+
+## 25. 관련 재현 문서
 
 - [`../PIPELINE_OVERVIEW_KO.md`](../PIPELINE_OVERVIEW_KO.md): 활성 파이프라인 개요
 - [`DATA_LINEAGE_AND_EXTRACTION_KO.md`](DATA_LINEAGE_AND_EXTRACTION_KO.md): 2,046→625 계보와 checksum
@@ -902,3 +946,6 @@ ceiling과 서로 다른 evaluator decision boundary를 고려해 탐색적으�
 - [`NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md`](NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md): 전체 실행과 복구
 - [`SUCCESS_AT_4_KO.md`](SUCCESS_AT_4_KO.md): 현재 250개 핵심 표
 - [`SELECTION_500_AUDIT_KO.md`](SELECTION_500_AUDIT_KO.md): 625→500 정제, 손상 제외, 사람 검수 기록
+- [`FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md`](FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md): 실제 사례 기반 그림 설명
+- [`QWEN_TARGET_500_RUN_AUDIT_KO.md`](QWEN_TARGET_500_RUN_AUDIT_KO.md): Qwen target 500개 생성·평가 감사
+- [`../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md): 두 target paired 결과

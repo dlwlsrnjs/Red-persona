@@ -83,6 +83,12 @@ class PersonaResearchDialogueTest(unittest.TestCase):
         self.assertEqual(candidate, "")
         self.assertEqual(analysis, "declined")
         self.assertEqual(output_format, "structured_json_missing_candidate")
+        candidate, analysis, output_format = parse_manifestation_output({
+            "text": '{"direct_response":"usable answer","risk":"low"}'
+        })
+        self.assertEqual(candidate, "usable answer")
+        self.assertEqual(analysis, "")
+        self.assertEqual(output_format, "structured_json_alias:direct_response")
 
     def setUp(self):
         self.case = {

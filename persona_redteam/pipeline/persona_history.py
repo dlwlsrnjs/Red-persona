@@ -3,9 +3,53 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 from string import Template
 
 REQUIRED_TURN_KEYS = {"user", "assistant", "persona_state"}
+
+
+def _dialogue_tokens(turn):
+    text = f"{turn.get('user', '')} {turn.get('assistant', '')}".casefold()
+    return re.findall(r"[a-z0-9]+", text)
+
+
+def duplicate_reason(candidate, history, threshold=0.9):
+    """Return an actionable reason for exact or near-duplicate dialogue."""
+    signature = (candidate["user"].casefold(), candidate["assistant"].casefold())
+    candidate_tokens = set(_dialogue_tokens(candidate))
+    for index, prior in enumerate(history, 1):
+        prior_signature = (prior["user"].casefold(), prior["assistant"].casefold())
+        if signature == prior_signature:
+            return f"exactly duplicates turn {index}"
+        prior_tokens = set(_dialogue_tokens(prior))
+        union = candidate_tokens | prior_tokens
+        similarity = len(candidate_tokens & prior_tokens) / len(union) if union else 1.0
+        if len(candidate_tokens) >= 8 and len(prior_tokens) >= 8 and similarity >= threshold:
+            return f"near-duplicates turn {index} (token_jaccard={similarity:.3f})"
+    return ""
+
+
+def retry_instruction(*, attempt, reason, rejected_turn, history, micro_plan):
+    """Build attempt-specific corrective context so deterministic decoding can escape a loop."""
+    prior_dialogue = [{"turn": index, "user": item["user"], "assistant": item["assistant"]}
+                      for index, item in enumerate(history, 1)]
+    return "\n\n" + json.dumps({
+        "regeneration_control": {
+            "attempt": attempt,
+            "rejection_reason": reason,
+            "rejected_candidate": rejected_turn,
+            "forbidden_prior_dialogue": prior_dialogue,
+            "required_new_information": micro_plan.get("new_information", []),
+            "instructions": [
+                "Return corrected JSON only.",
+                "Do not reuse or lightly paraphrase any forbidden user or assistant utterance.",
+                "Center the exchange on the required new information for this stage.",
+                "Use a distinct event, observation, relational moment, or consequence.",
+                "Preserve established facts in persona_state while adding the new evidence.",
+            ],
+        }
+    }, ensure_ascii=False, indent=2)
 
 
 def load_template(path):
@@ -71,7 +115,7 @@ def validate_coverage(value):
 
 def generate_history(*, complete_fn, model, generation_template, coverage_template,
                      context, min_turns=4, max_turns=8, verify_fn=None,
-                     verification_audits=None, max_generation_attempts=3,
+                     verification_audits=None, max_generation_attempts=6,
                      coverage_complete_fn=None, coverage_model=None):
     if not 1 <= min_turns <= max_turns:
         raise ValueError("require 1 <= min_turns <= max_turns")
@@ -94,29 +138,33 @@ def generate_history(*, complete_fn, model, generation_template, coverage_templa
                         current_micro_plan=current_micro_plan, stage=stage,
                         **render_context)
         errors = []
+        retry = ""
         for attempt in range(max_generation_attempts):
-            retry = ("" if not attempt else
-                     "\nThe previous candidate failed validation. Return corrected JSON only. "
-                     "Use distinct wording, preserve all prior state, and satisfy the micro-plan.")
+            rejected_turn = None
             try:
                 result = complete_fn(model, [{"role": "user", "content": prompt + retry}])
                 turn = validate_turn(parse_json_object(result["text"]))
-                signature = (turn["user"], turn["assistant"])
-                prior_signatures = {(item["user"], item["assistant"]) for item in history}
-                if signature in prior_signatures:
-                    raise ValueError("generated dialogue duplicates a prior turn")
+                rejected_turn = turn
+                duplicate = duplicate_reason(turn, history)
+                if duplicate:
+                    raise ValueError("generated dialogue " + duplicate)
                 verification = (verify_fn(current_micro_plan, history,
                                            current_persona_state, turn)
                                 if verify_fn else {"valid": True, "reason": "not_requested"})
-                if not verification.get("valid"):
-                    raise ValueError("Qwen rejected generated turn: " +
-                                     str(verification.get("reason", "")))
                 if verification_audits is not None:
                     verification_audits.append({"turn": turn_index, "attempt": attempt + 1,
                                                 **verification})
+                if not verification.get("valid"):
+                    raise ValueError("Qwen rejected generated turn: " +
+                                     str(verification.get("reason", "")))
                 break
             except (ValueError, json.JSONDecodeError) as exc:
-                errors.append(str(exc))
+                reason = str(exc)
+                errors.append(reason)
+                retry = retry_instruction(
+                    attempt=attempt + 2, reason=reason, rejected_turn=rejected_turn,
+                    history=history, micro_plan=current_micro_plan,
+                )
         else:
             raise ValueError(f"history turn {turn_index} failed after "
                              f"{max_generation_attempts} attempts: {errors}")

@@ -52,6 +52,7 @@ python3 -m pipeline.generate_histories \
   --qwen-model Qwen/Qwen2.5-7B-Instruct \
   --qwen-base-url http://127.0.0.1:8000/v1 \
   --min-turns 4 --max-turns 8 \
+  --generation-attempts 6 --lexi-temperature 0.7 \
   --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```
@@ -59,6 +60,11 @@ python3 -m pipeline.generate_histories \
 `--plans`를 생략하면 Qwen이 각 사례의 profile을 rerank하고 최대 8단계 plan을 동적으로
 생성한다. Lexi의 각 turn은 Qwen 검증을 통과해야 누적된다. 실패 checkpoint 재시도에는
 `--retry-failed`를 추가한다.
+
+각 turn의 중복·검증 실패는 기본 최대 6회 재생성한다. 재시도 prompt에는 직전 실패 후보,
+금지할 이전 대화, 현재 micro-plan의 `new_information`이 포함되며 attempt 번호가 달라져
+결정적 반복을 피한다. `--lexi-temperature`는 Lexi 생성에만 적용되고 Qwen 검증에는 적용하지
+않는다.
 
 Qwen micro-plan → Lexi 턴별 렌더링과 검증은 `pipeline.generate_histories` 안에서 수행되며,
 사례별 checkpoint에 계획·생성·검증 결과가 함께 저장된다.

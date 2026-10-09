@@ -32,6 +32,8 @@ metaphor를 만들지 않는다. 전체 pool 검색·Qwen reranking·Lexi 누적
 분리되어 있으며 `configs/persona_history/*.template.txt`를 복사해 사용자가 작성한다.
 충분성 판정은 최소 4턴 이후 매 턴 실행되고, 충분하면 샘플별로 종료한다. 마지막
 `persona_state`가 활성 `persona`가 되며 전체 `persona_history`도 별도 필드로 보존된다.
+중복 또는 Qwen 검증 실패 시 실패 후보·이전 대화·현재 micro-plan의 새 정보 차원을 포함한
+attempt별 교정 prompt를 만들며, Lexi는 기본 0.7 temperature에서 최대 6회 재생성한다.
 
 ```bash
 cp configs/persona_history/generation_prompt.template.txt prompts/my_generation.txt
@@ -48,6 +50,7 @@ python3 -m pipeline.generate_histories \
   --qwen-model Qwen/Qwen2.5-7B-Instruct \
   --qwen-base-url http://127.0.0.1:8000/v1 \
   --min-turns 4 --max-turns 8 \
+  --generation-attempts 6 --lexi-temperature 0.7 \
   --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
 ```

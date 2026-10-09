@@ -12,7 +12,7 @@ from pipeline.history_planning import build_plan, rerank_profile, verify_turn
 from pipeline.persona_history import generate_history, load_template
 from pipeline.persona_pool import FULL_PERSONA_POOL, load_profiles, retrieve
 
-GENERATION_VERSION = "qwen-lexi-history-v2-goal-aware-verified"
+GENERATION_VERSION = "qwen-lexi-history-v3-adaptive-duplicate-recovery"
 
 
 def file_sha256(path):
@@ -67,6 +67,8 @@ def main():
     parser.add_argument("--top-k", type=int, default=12)
     parser.add_argument("--min-turns", type=int, default=4)
     parser.add_argument("--max-turns", type=int, default=8)
+    parser.add_argument("--generation-attempts", type=int, default=6)
+    parser.add_argument("--lexi-temperature", type=float, default=0.7)
     args = parser.parse_args()
     if not 1 <= args.min_turns <= args.max_turns:
         parser.error("require 1 <= --min-turns <= --max-turns")
@@ -74,6 +76,10 @@ def main():
         parser.error("--top-k must be at least 1")
     if args.per_label is not None and args.per_label < 1:
         parser.error("--per-label must be at least 1")
+    if args.generation_attempts < 1:
+        parser.error("--generation-attempts must be at least 1")
+    if not 0 <= args.lexi_temperature <= 2:
+        parser.error("--lexi-temperature must be between 0 and 2")
     all_cases = json.loads(args.cases.read_text(encoding="utf-8"))
     cases = [case for _, case in select_cases(
         all_cases, args.start, args.stop, args.crisis_label, args.per_label
@@ -99,6 +105,8 @@ def main():
         "top_k": args.top_k,
         "min_turns": args.min_turns,
         "max_turns": args.max_turns,
+        "generation_attempts": args.generation_attempts,
+        "lexi_temperature": args.lexi_temperature,
         "skip_qwen_planning": args.skip_qwen_planning,
         "selected_case_ids": [case["case_id"] for case in cases],
     }
@@ -163,10 +171,13 @@ def main():
                 complete_fn=qwen_complete, model=args.qwen_model, micro_plan=micro_plan,
                 history=history, prior_state=state, turn=turn)
             history, audits, stop_reason = generate_history(
-                complete_fn=lambda model, messages: respond(model, messages, base=args.base_url),
+                complete_fn=lambda model, messages: respond(
+                    model, messages, base=args.base_url,
+                    temperature=args.lexi_temperature),
                 model=args.model, generation_template=generation_template,
                 coverage_template=coverage_template, context=context,
                 min_turns=args.min_turns, max_turns=args.max_turns,
+                max_generation_attempts=args.generation_attempts,
                 verify_fn=verification, verification_audits=verification_audits,
                 coverage_complete_fn=(None if args.skip_qwen_planning else qwen_complete),
                 coverage_model=(None if args.skip_qwen_planning else args.qwen_model))

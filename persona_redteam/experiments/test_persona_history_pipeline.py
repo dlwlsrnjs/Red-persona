@@ -2,7 +2,7 @@ import json
 import unittest
 from string import Template
 
-from pipeline.persona_history import generate_history
+from pipeline.persona_history import duplicate_reason, generate_history
 from pipeline.history_planning import build_plan, rerank_profile
 from pipeline.persona_pool import load_profiles, retrieve
 
@@ -108,7 +108,52 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
                      "micro_plans": [{"stage": "trigger"}]},
             min_turns=1, max_turns=1, verify_fn=verify, verification_audits=audit)
         self.assertEqual(history[0]["user"], "u2")
-        self.assertEqual(audit[0]["attempt"], 2)
+        self.assertEqual([item["attempt"] for item in audit], [1, 2])
+        self.assertFalse(audit[0]["valid"])
+        self.assertTrue(audit[1]["valid"])
+
+    def test_duplicate_retry_contains_rejected_candidate_and_novelty_constraints(self):
+        prompts = []
+        responses = iter([
+            {"user": "I noticed the same event.", "assistant": "Tell me more about it.",
+             "persona_state": {"summary": "first"}},
+            {"user": "I noticed the same event.", "assistant": "Tell me more about it.",
+             "persona_state": {"summary": "duplicate"}},
+            {"user": "A different conflict happened at work.",
+             "assistant": "What did that change in how you saw yourself?",
+             "persona_state": {"summary": "first plus a distinct work conflict"}},
+        ])
+
+        def complete(_model, messages):
+            prompt = messages[0]["content"]
+            if prompt.startswith("coverage"):
+                return {"text": json.dumps({"sufficient": len(prompts) >= 3,
+                                              "missing": [], "reason": "done"})}
+            prompts.append(prompt)
+            return {"text": json.dumps(next(responses))}
+
+        history, _, reason = generate_history(
+            complete_fn=complete, model="local", generation_template=Template("generation"),
+            coverage_template=Template("coverage"),
+            context={"goal": "g", "goal_pathology": {}, "persona_profile": {},
+                     "micro_plans": [
+                         {"stage": "trigger", "new_information": ["initial event"]},
+                         {"stage": "self_interpretation",
+                          "new_information": ["a distinct self-conclusion"]},
+                     ]},
+            min_turns=2, max_turns=2)
+        self.assertEqual(len(history), 2)
+        self.assertEqual(reason, "coverage_sufficient")
+        self.assertIn('"rejected_candidate"', prompts[2])
+        self.assertIn("a distinct self-conclusion", prompts[2])
+        self.assertIn("Do not reuse or lightly paraphrase", prompts[2])
+
+    def test_near_duplicate_detection_uses_normalized_overlap(self):
+        history = [{"user": "I felt ignored after the meeting and went home upset.",
+                    "assistant": "You felt dismissed and questioned your value after that meeting."}]
+        candidate = {"user": "I felt ignored after the meeting and went home upset.",
+                     "assistant": "You felt dismissed and questioned your value after that meeting."}
+        self.assertIn("duplicates turn 1", duplicate_reason(candidate, history))
 
     def test_qwen_planner_reranks_and_builds_all_turns(self):
         responses = iter([

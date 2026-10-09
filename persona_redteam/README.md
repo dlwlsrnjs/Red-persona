@@ -18,6 +18,9 @@ full dialogue 대 no-research-dialogue paired 설계와 추가 Qwen target arm�
 두 target의 공식 500개 paired 결과, exact McNemar 검정, 비용과 QA는
 [`ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md)에
 고정했다.
+R0–R4, B0–B5, CARES 라벨, provenance와 방향별 모든 count/rate는
+[`ablation/RESULTS_DIALOGUE_METRIC_SCORECARD_KO.md`](ablation/RESULTS_DIALOGUE_METRIC_SCORECARD_KO.md)와
+동명의 JSON scorecard에 고정했다.
 Qwen target 공식 500개의 모델 revision, 7-GPU shard, 질문 provenance, 빈 출력 검사 결과는
 [`docs/QWEN_TARGET_500_RUN_AUDIT_KO.md`](docs/QWEN_TARGET_500_RUN_AUDIT_KO.md)에 고정했다.
 

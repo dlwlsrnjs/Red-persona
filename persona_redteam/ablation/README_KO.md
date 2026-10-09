@@ -24,6 +24,9 @@ credit의 네 방향 합은 full Success@4와 정확히 같아야 한다.
 현재 유효 250개에 대한 무호출 산출 결과는 `RESULTS_DIRECTION_EXISTING250_KO.md`에 요약했다.
 공식 500개 full dialogue 대 no-research-dialogue의 GPT/Qwen paired 결과는
 `RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`에 요약했다.
+같은 공식 500개의 전체 평가 score 분포와 방향별 수치는
+`RESULTS_DIALOGUE_METRIC_SCORECARD_KO.md` 및 동명의 JSON에 기록한다. 이 scorecard는 저장된
+평가만 읽으므로 추가 API 호출이 없다.
 
 ```bash
 python -m ablation.direction_attribution \

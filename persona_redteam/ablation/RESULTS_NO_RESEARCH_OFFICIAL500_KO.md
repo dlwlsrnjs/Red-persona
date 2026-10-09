@@ -79,6 +79,9 @@ Qwen full의 500개 모두 7개 연구 stage를 완료했다. 연구 질문 3,50
 
 ## 재현 산출물
 
+- 전체 평가 scorecard: `RESULTS_DIALOGUE_METRIC_SCORECARD_KO.md`와
+  `RESULTS_DIALOGUE_METRIC_SCORECARD.json`
+- scorecard 재계산 코드: `dialogue_scorecard.py`
 - GPT paired JSON/Markdown: `data/ablation/gpt4o_component_contributions_official500.*`
 - Qwen paired JSON/Markdown: `data/ablation/qwen2.5-7b-instruct_component_contributions.*`
 - GPT no-dialogue evaluations: `data/ablation/evaluations/no_research_dialogue_gpt4o_official500/`

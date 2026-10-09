@@ -13,6 +13,8 @@ sys.path.insert(0, str(ROOT))
 from pipeline.runtime_io import atomic_json
 from pipeline.contracts import validate_active_cases, validate_success_at_4_run_record
 from pipeline.openai_batch import BatchChatClient, chat_request
+from pipeline.stratified_selection import METHOD as STRATIFIED_SELECTION_METHOD
+from pipeline.stratified_selection import select_new_cases
 from experiments.qwen_target_persona_research_dialogue import (
     ACTIVE_PIPELINE_VERSION, DIRECT_MANIFESTATION_MODES, FINAL_DIRECTIONS,
     INTERVENTION_LEVELS, MANIFESTATION_DIRECTIONS, SNAPSHOT,
@@ -39,7 +41,7 @@ def run_artifacts(directories):
                 value = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 continue
-            if {"case", "results"} <= set(value):
+            if isinstance(value, dict) and {"case", "results"} <= set(value):
                 yield path, value
 
 
@@ -76,12 +78,17 @@ def selected_cases(cases, existing_dirs, target_total, selection_path):
                 f"selection checkpoint targets {selection.get('target_total')}, "
                 f"not requested total {target_total}"
             )
+        if selection.get("selection_method") != STRATIFIED_SELECTION_METHOD:
+            raise RuntimeError(
+                "selection checkpoint is not category-stratified; create a new "
+                "selection path with the current selector"
+            )
         ids = selection["case_ids"]
     else:
-        ids = [
-            case["case_id"] for case in cases
-            if case["case_id"] not in existing and case["case_id"] not in invalid_inputs
-        ][:count]
+        selected, category_audit = select_new_cases(
+            cases, existing, invalid_inputs, target_total,
+        )
+        ids = [case["case_id"] for _, case in selected]
         if len(ids) != count:
             raise RuntimeError(f"only {len(ids)} unseen cases are available; requested {count}")
         atomic_json(selection_path, {
@@ -89,7 +96,7 @@ def selected_cases(cases, existing_dirs, target_total, selection_path):
             "target_total": target_total, "valid_existing_cases": len(existing),
             "excluded_input_case_ids": sorted(invalid_inputs),
             "excluded_existing_runs": excluded_existing,
-            "new_cases": count, "case_ids": ids,
+            "new_cases": count, "case_ids": ids, **category_audit,
         })
     selected_invalid = [case_id for case_id in ids if case_id in invalid_inputs]
     if selected_invalid:

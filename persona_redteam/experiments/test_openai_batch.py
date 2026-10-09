@@ -11,6 +11,7 @@ from pipeline.openai_batch import (
     model_family,
     response_record,
 )
+from pipeline.stratified_selection import balanced_quotas, select_new_cases
 
 
 class OpenAIBatchHelpersTest(unittest.TestCase):
@@ -97,6 +98,44 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
         self.assertEqual([case["case_id"] for _, case in selected], ["replacement"])
         self.assertEqual(manifest["valid_existing_cases"], 1)
         self.assertEqual(manifest["excluded_input_case_ids"], ["leaking"])
+        self.assertEqual(
+            manifest["selection_method"],
+            "capacity_constrained_balanced_crisis_label_v1",
+        )
+
+    def test_balanced_selection_fills_underrepresented_categories_first(self):
+        cases = [
+            {"case_id": f"a-{index}", "crisis_label": "a"}
+            for index in range(7)
+        ] + [
+            {"case_id": f"b-{index}", "crisis_label": "b"}
+            for index in range(3)
+        ]
+
+        selected, audit = select_new_cases(
+            cases, {"a-0", "b-0"}, set(), 6,
+        )
+
+        self.assertEqual(audit["target_by_category"], {"a": 3, "b": 3})
+        self.assertEqual(audit["new_by_category"], {"a": 2, "b": 2})
+        self.assertEqual(audit["deferred_by_category"], {"a": 4, "b": 0})
+        self.assertEqual(
+            [case["case_id"] for _, case in selected],
+            ["a-1", "a-2", "b-1", "b-2"],
+        )
+
+    def test_quota_respects_completed_case_lower_bound(self):
+        cases = [
+            {"case_id": f"a-{index}", "crisis_label": "a"}
+            for index in range(8)
+        ] + [
+            {"case_id": f"b-{index}", "crisis_label": "b"}
+            for index in range(2)
+        ]
+
+        quotas = balanced_quotas(cases, 5, lower_bounds={"b": 2})
+
+        self.assertEqual(quotas, {"a": 3, "b": 2})
 
 
 if __name__ == "__main__":

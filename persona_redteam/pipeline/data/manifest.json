@@ -1,6 +1,7 @@
 {
   "version": "jmir-persona-data-layout-v1",
   "tracked": {
+    "data_lineage_document": "docs/DATA_LINEAGE_AND_EXTRACTION_KO.md",
     "pilot_blueprint_100": "experiments/fixtures/jmir_persona_eval_set_100.jsonl",
     "pilot_blueprint_report": "experiments/fixtures/jmir_persona_eval_set_100.report.json",
     "full_blueprint_builder": "experiments/build_jmir_eval_set_full.py",

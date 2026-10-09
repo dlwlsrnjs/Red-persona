@@ -1,0 +1,193 @@
+# 평가 데이터 출처와 추출 계보
+
+이 문서는 현재 본 실험 입력인 JMIR 625개, 그 상위 원본 2,046/813/652개, 전체 persona
+pool 31,733개, pathology route 813개, 과거 100개 fixture가 어디에서 왔고 어떤 규칙으로
+생성됐는지 구분한다. 행 수와 체크섬은 `DATA_MANIFEST.json` 및 각 단계 report를 기준으로
+한다. 원문 payload와 모델 실행 결과는 민감성·용량·라이선스 때문에 Git에서 제외한다.
+
+## 1. 전체 흐름
+
+```text
+JMIR 저자 공개 test 입력 + merged crisis labels
+  2,046 rows
+  → six crisis labels only
+  813 rows
+  → GPT-4o-mini first-person client-utterance classification
+  652 rows
+  → deterministic minimum-length rule: Unicode word count >= 10
+  625 rows (main evaluation set)
+  → join with goal pathology routes by goal_id
+  625 full evaluation blueprints
+  → full persona pool retrieval + Qwen reranking + Lexi history generation
+  625 generated evaluation cases
+```
+
+100개 `jmir_persona_eval_set_100.jsonl`은 위 625개에서 만든 과거 파일럿 fixture다. 현재 본
+평가의 모집단이나 기본 입력이 아니다.
+
+## 2. 2,046개 JMIR 원본
+
+- 논문: *Between Help and Harm: An Evaluation of Mental Health Crisis Handling by LLMs*
+- 저자 저장소: <https://github.com/ellisalicante/LLMs-Mental-Health-Crisis>
+- 로컬 계보 파일: `goals/crisis_goals_jmir_n2046.jsonl`
+- 행 수: 2,046
+- SHA256: `df04f0e1740618d01c9260d5884916fab5fc0e9c1caefcd721d63609081c0422`
+- 크기: 2,406,201 bytes
+
+저자 공개 test 입력을 merged crisis label과 원본 ID로 연결한 단계다. 저장 필드는
+`goal_id`, 원문 `goal`, `crisis_label`, `source_hf`를 포함한다. 현재 저장소에는 이 import를
+처음 수행한 완전한 downloader/joiner가 없으므로, manifest의 checksum과 일치하는 보존
+파일이 정확한 재현 기준이다. 이 한계를 숨기지 않는다.
+
+## 3. 2,046 → 813 crisis subset
+
+`no_crisis` 1,231개와 label 누락 2개를 제거하고 아래 여섯 crisis label만 유지했다.
+
+| label | rows |
+|---|---:|
+| suicidal_ideation | 380 |
+| anxiety_crisis | 177 |
+| substance_abuse_or_withdrawal | 77 |
+| self-harm | 139 |
+| violent_thoughts | 21 |
+| risk_taking_behaviours | 19 |
+| 합계 | 813 |
+
+- 파일: `goals/crisis_goals_jmir_n813.jsonl`
+- SHA256: `879ca00b9e57e7ffc62a2fcaa19dc5186572fd5790ac5f2f2f79938383d4c09a`
+
+이 단계는 label에 따른 결정적 필터다. 새로운 위기 문장을 생성하거나 원문을 다시 쓰지
+않는다.
+
+## 4. 813 → 652 first-person client utterances
+
+- 코드: `goals/filter_client_utterances.py`
+- 모델: `gpt-4o-mini`, temperature 0
+- 입력: 각 `goal`의 첫 400문자
+- 출력 필드: `is_client_utterance`, `is_request`
+- 유지 규칙: `is_client_utterance == yes`
+- 파일: `goals/crisis_goals_jmir_client.jsonl`
+- SHA256: `9088ed6845a0eab01c199384acf8612fcf03820887b6950f9634974bd054d40b`
+
+분류 프롬프트는 자신의 정신적 고통을 상담자에게 말하는 1인칭 client utterance인지
+판정한다. 타인 위해 지시, 제3자 질문, 추상적 의견·상식 문장은 `no`로 분류한다. 5회 실패한
+호출은 `None`으로 남아 유지되지 않는다. 따라서 이 단계는 모델 판정이며 완전히 결정적인
+사람 라벨이 아니다. 정확한 652개를 재현하려면 보존 파일 checksum을 사용해야 한다.
+
+| label | 813 | kept 652 |
+|---|---:|---:|
+| suicidal_ideation | 380 | 312 |
+| anxiety_crisis | 177 | 177 |
+| substance_abuse_or_withdrawal | 77 | 76 |
+| self-harm | 139 | 68 |
+| violent_thoughts | 21 | 12 |
+| risk_taking_behaviours | 19 | 7 |
+
+652개 중 `is_request=true`는 258개, disclosure는 394개다.
+
+## 5. 652 → 625 main evaluation goals
+
+- 코드: `goals/filter_persona_goal_length.py`
+- 규칙 버전: `persona-goal-length-v1`
+- tokenizer: Unicode word token과 내부 ASCII/curly apostrophe
+- 유지 규칙: `word_count(goal) >= 10`
+- 유지: 625개
+- 제외: 27개
+- 파일: `goals/crisis_goals_jmir_persona_min10.jsonl`
+- SHA256: `b87a5dd018db36e9706a4dedfcda11635a7891d57f5015ca2f652c4f7e8246fd`
+- report: `goals/crisis_goals_jmir_persona_min10.report.json`
+
+짧은 문장은 persona-grounded goal internalization을 평가할 문맥이 부족하다는 사전 규칙으로
+제외했다. 이 단계는 모델 호출이 없는 결정적 필터이며, 제외된 27개는 원문 전체와 word
+count 및 제외 사유를 별도 JSONL에 보존하도록 구현돼 있다.
+
+| label | kept 625 |
+|---|---:|
+| suicidal_ideation | 298 |
+| anxiety_crisis | 177 |
+| substance_abuse_or_withdrawal | 68 |
+| self-harm | 63 |
+| violent_thoughts | 12 |
+| risk_taking_behaviours | 7 |
+
+## 6. Goal pathology와 813개 route
+
+- 파일: `outputs/goal_pathology_persona_routed_n813.jsonl`
+- 행 수: 813
+- SHA256: `281a615f1e8d91c2c26582003b2f7d7429de26d22bd08788734b0d0614143b31`
+- 현재 matcher: `matching/match_pathology.py`
+
+Goal pathology는 core condition, risk state, symptoms, functional impairments, cognitive
+distortions, stressors, relational stance, communication style, self schema, compliance lever를
+구조화한다. matcher는 위기 label/risk compatibility를 먼저 적용한 뒤 구조화 overlap과
+embedding cosine을 결합해 후보를 정렬한다. route 파일의 과거 생성에 사용된 모든 추출
+호출과 profile payload는 현재 Git 배포에 포함되지 않으므로, 동일 checksum의 route 파일이
+정확한 historical join 기준이다.
+
+현재 seedless 파이프라인은 route에 저장된 고정 persona 후보를 타겟 persona로 사용하지
+않는다. route의 `pathology`만 가져오고, 실행 시 31,733개 전체 pool을 다시 검색한다.
+
+## 7. 전체 persona pool 31,733개
+
+- 로컬 파일: `/home/jklee/Documents/Codex/2026-09-30-new-chat/derived/full_dataset/personas.jsonl`
+- manifest: 같은 디렉터리의 `manifest.json`
+- 총 31,733개
+- Cactus: 31,577개
+- CBT-Bench CBT-DP reference: 156개
+
+Cactus 원본은 `LangAGI-Lab/cactus`의 `cactus.json`, CBT-DP는
+`Psychotherapy-LLM/CBT-Bench`의 reference JSON 10개에서 왔다. upstream 행은 모두
+유지하고 synthetic name은 파생 prompt에서 제거했다. 현재 loader는 원본 `id`, background,
+concerns, communication style, cognitive patterns, style examples, locale, provenance,
+consent/license 필드를 보존하면서 matcher용 alias만 추가한다.
+
+실행 시 `pipeline/persona_pool.py`가 goal pathology와 원문 goal을 사용해 전부 점수화하고
+top-k를 만든다. Qwen은 이 top-k를 sample별로 다시 rerank한다. 준비 단계의 고정 persona
+seed나 기존 route의 첫 후보는 사용하지 않는다.
+
+## 8. 전체 625개 blueprint 생성
+
+- 코드: `experiments/build_jmir_eval_set_full.py`
+- 입력 1: `goals/crisis_goals_jmir_persona_min10.jsonl`
+- 입력 2: `outputs/goal_pathology_persona_routed_n813.jsonl`
+- join key: `goal_id`
+- 출력: `data/prepared/blueprints/jmir_eval_full.jsonl`
+- 표본추출: 없음
+
+625개 중 pathology route가 하나라도 없으면 builder는 실패한다. 누락 사례를 버리거나 100개
+fixture로 대체하지 않는다. 이후 `pipeline.prepare adapt`는 persona/metaphor seed 없이
+goal, crisis label, pathology provenance만 가진 pre-generation case를 만든다.
+
+## 9. 과거 100개 fixture의 생성 방식과 현재 역할
+
+- 코드: `experiments/build_jmir_eval_set_100.py`
+- seed: `20261008`
+- 원 모집단: 625개
+- 당시 route가 준비된 30개를 전부 포함
+- 남은 70개를 crisis label 비율에 따라 deterministic stratified sampling
+- 출력: `experiments/fixtures/jmir_persona_eval_set_100.jsonl`
+
+100개는 prompt·schema·평가 코드 개발과 파일럿 비교에 사용했던 fixture다. 현재 본 평가의
+결과로 보고하지 않으며 전체 625개 실행의 기본 입력도 아니다.
+
+## 10. 재현 명령
+
+필요한 두 historical payload의 checksum을 먼저 확인한 뒤 실행한다.
+
+```bash
+sha256sum goals/crisis_goals_jmir_persona_min10.jsonl
+sha256sum outputs/goal_pathology_persona_routed_n813.jsonl
+
+python3 experiments/build_jmir_eval_set_full.py
+python3 -m pipeline.preflight \
+  --blueprint data/prepared/blueprints/jmir_eval_full.jsonl
+python3 -m pipeline.prepare adapt \
+  --input data/prepared/blueprints/jmir_eval_full.jsonl \
+  --output data/prepared/cases/jmir_eval_full_pre_generation.json
+python3 -m pipeline.preflight \
+  --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
+```
+
+현재 Git 작업공간에는 원문 625개와 historical 813 route payload가 없다. 코드와 metadata만
+있는 상태에서 이를 임의 재생성해 같은 파일이라고 주장하지 않는다. 원본을 복구하면 위
+checksum과 행 수를 검증한 뒤 본 파이프라인에 연결한다.

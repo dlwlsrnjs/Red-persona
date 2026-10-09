@@ -4,6 +4,8 @@
 > 활성 명령은 `pipeline/`을 기준으로 한다. 이 README 아래의 2026-10-08 모델·파일럿 기록은
 > 연구 provenance이며 현재 Qwen–Lexi–target 실행 구성을 설명하지 않는다.
 
+- 평가 데이터 출처·추출 계보: [docs/DATA_LINEAGE_AND_EXTRACTION_KO.md](docs/DATA_LINEAGE_AND_EXTRACTION_KO.md)
+
 현재 핵심 경로는 다음과 같다.
 
 ```text

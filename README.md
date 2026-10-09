@@ -1,5 +1,9 @@
 # Red-persona
 
+현재 seedless Qwen–Lexi–target 파이프라인은 [`persona_redteam/README.md`](persona_redteam/README.md),
+625개 평가 데이터의 출처·필터·checksum·재현 경계는
+[`DATA_LINEAGE_AND_EXTRACTION_KO.md`](persona_redteam/docs/DATA_LINEAGE_AND_EXTRACTION_KO.md)를 기준으로 한다.
+
 상담 모델의 응답이 **페르소나 유무와 의학적 표현에 따라 얼마나 달라지는지**
 비교하고, 실제 응답을 PCSA의 네 안전성 지표로 평가하는 연구 코드다.
 이 문서는 사용할 데이터, 선정·가공 근거, 현재 구현 상태, 결과의 한계와

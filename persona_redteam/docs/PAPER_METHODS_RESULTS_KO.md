@@ -844,6 +844,7 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 | `experiments/evaluate_jmir_persona_batch_api.py` | custom/CARES 평가를 Batch로 실행하고 사례별 12행 복원 |
 | `experiments/evaluate_cares_official.py` | 공식 CARES prompt, label parser, 선택적 Safety Score |
 | `ablation/aggregate.py` | full/no-dialogue paired metric, category macro, exact McNemar 집계 |
+| `ablation/offline_direction_suite.py` | 저장된 공식 500개 여섯 arm의 방향 단독·제거·Shapley·부분집합 무호출 집계 |
 | `pipeline/contracts.py` | 단계별 schema, 누출, 3×4, system prompt, candidate-only CARES 계약 |
 | `experiments/summarize_success_at_4.py` | 네 방향 case-level Success@4와 범주별 집계 |
 | `pipeline/preflight.py` | 모델 호출 없이 각 artifact 경계 검증 |
@@ -885,7 +886,8 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 equal-category macro 보고, 두 target arm 실행.
 
 후속 완료: 동일 full history에서 수정 전/후 final prompt만 바꾼 공식 500개 ablation,
-no-dialogue final-response CARES 재사용 비교, 500개 blind harmful-level 주석, CARES Safety Score.
+no-dialogue final-response CARES 재사용 비교, 500개 blind harmful-level 주석, CARES Safety Score,
+두 target × 세 arm의 네 방향 leave-one-out·Shapley·15개 부분집합 무호출 분석.
 
 남음:
 
@@ -947,7 +949,26 @@ ASR이 97.0% 대 97.4%(−0.4%p, p=.851), CARES Accept가 10.2% 대 7.2%(+3.0%p,
 [`../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md)에
 있다.
 
-## 25. 관련 재현 문서
+## 25. 비용 제한형 방향 ablation
+
+추가 호출 없이 저장된 공식 500개 결과를 재조합해 `latent_request_synthesis`, `evidence_chain`,
+`analyst_response_target`, `source_aware_reconstruction` 네 방향의 단독 성공률, 고유 성공률,
+leave-one-out Success@3, OR-game Shapley credit과 15개 비어 있지 않은 부분집합을 계산했다. 분석
+대상은 Qwen과 GPT-4o 각각의 legacy full, history-bridge full, no-dialogue로 총 여섯 arm이며,
+각 arm은 500개 사례와 2,000개 branch가 완전한지 먼저 검증했다. 새 모델 호출과 증분 API 비용은
+각각 0회와 `$0`이다.
+
+Raw Recovery에서는 history-bridge arm의 사후 최적 세 방향이 Qwen에서 98.2%(Success@4 98.4%),
+GPT-4o에서 96.8%(Success@4 97.2%)로 네 방향 대비 0.2–0.4%p 낮았다. 그러나 B3+ final-response는
+사후 최적 세 방향도 Qwen에서 83.4% 대 88.0%, GPT-4o에서 75.0% 대 79.2%로 4.2–4.6%p 낮았다.
+따라서 recovery만 보면 세 방향 포화 가능성이 있으나, behavior coverage까지 주 지표로 유지하면
+네 방향을 보존하는 편이 타당하다. 이는 같은 저장 branch를 OR로 재조합한 post-hoc 기술 분석이며,
+선택된 세 방향 설정의 독립적 confirmatory 평가나 방향 제거 후 재생성의 인과 효과가 아니다.
+상세 수치와 machine-readable 결과는
+[`../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md)와
+동명의 JSON에 있다.
+
+## 26. 관련 재현 문서
 
 - [`../PIPELINE_OVERVIEW_KO.md`](../PIPELINE_OVERVIEW_KO.md): 활성 파이프라인 개요
 - [`DATA_LINEAGE_AND_EXTRACTION_KO.md`](DATA_LINEAGE_AND_EXTRACTION_KO.md): 2,046→625 계보와 checksum
@@ -959,3 +980,5 @@ ASR이 97.0% 대 97.4%(−0.4%p, p=.851), CARES Accept가 10.2% 대 7.2%(+3.0%p,
 - [`FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md`](FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md): 실제 사례 기반 그림 설명
 - [`QWEN_TARGET_500_RUN_AUDIT_KO.md`](QWEN_TARGET_500_RUN_AUDIT_KO.md): Qwen target 500개 생성·평가 감사
 - [`../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md): 두 target paired 결과
+- [`../ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`](../ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md): prompt ablation과 CARES SS
+- [`../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md): 공식 500개 무호출 방향 ablation

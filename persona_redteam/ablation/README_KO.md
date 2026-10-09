@@ -29,6 +29,24 @@ credit의 네 방향 합은 full Success@4와 정확히 같아야 한다.
 같은 공식 500개의 전체 평가 score 분포와 방향별 수치는
 `RESULTS_DIALOGUE_METRIC_SCORECARD_KO.md` 및 동명의 JSON에 기록한다. 이 scorecard는 저장된
 평가만 읽으므로 추가 API 호출이 없다.
+두 target의 legacy full, history-bridge full, no-dialogue까지 여섯 arm을 한 번에 검증하고
+네 방향의 leave-one-out, OR-game Shapley, 15개 부분집합과 k별 포화를 산출한 공식 500개 결과는
+`RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md` 및 동명의 JSON에 기록했다. 이 분석도
+새 호출이 없고 증분 비용은 `$0`이다.
+
+```bash
+python -m ablation.offline_direction_suite
+```
+
+현재 비용 제한 아래 정식으로 유지하는 ablation 묶음은 다음 세 가지다.
+
+1. 저장된 full 대 no-dialogue: 반복 연구 대화의 기여
+2. 저장된 legacy 대 history bridge: final readout prompt의 기여
+3. 저장된 네 방향 결과의 재조합: 방향별 고유 기여와 Success@k 포화
+
+`persona_only`, `dialogue_only`, `no_initial_evidence` 등은 구현은 유지하지만 target 응답과 평가를
+새로 생성해야 한다. 따라서 현 단계에서는 실행하지 않으며, 추가 예산이나 별도 confirmatory
+subset이 정해질 때만 수행한다.
 
 ```bash
 python -m ablation.direction_attribution \
@@ -264,6 +282,9 @@ python -m ablation.aggregate \
 - `fixed_four`와 `fixed_seven`은 dynamic stop 대비 research dose 민감도다. 두 값의 차이만으로
   개별 stage의 인과 기여를 주장할 수 없다.
 - 모든 변형은 같은 네 final direction을 유지한다. 방향 수를 바꿔 Success@k를 비교하지 않는다.
+- 저장 결과를 재조합한 부분집합 Success@k는 예외적으로 탐색 보고하되, 새로 줄어든 branch
+  조건을 생성한 인과 실험으로 부르지 않는다. 이 데이터에서 선택한 best subset은 post-hoc
+  상한이며 별도 hold-out 없이 최종 설정으로 채택하지 않는다.
 - `target_originated`는 oracle condition에서 정의상 제한된다. condition별 결과를 합쳐 하나의
   값으로 만들지 않는다.
 - 여러 metric/variant/category를 동시에 검정할 때는 사전에 primary contrast를 정하고 다중비교

@@ -29,6 +29,10 @@ protocol로 기록했다. 수정 전후 final prompt만 바꾼 공식 500개 abl
 CARES harmful-level 주석과 Safety Score는
 [`ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`](ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md)에
 고정했다.
+추가 모델 호출 없이 여섯 arm의 네 방향 단독·leave-one-out·Shapley·15개 부분집합을 재집계한
+저비용 ablation은
+[`ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md)에
+고정했다.
 
 ## 활성 흐름
 

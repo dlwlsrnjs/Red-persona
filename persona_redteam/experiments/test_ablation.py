@@ -168,6 +168,24 @@ class AblationTest(unittest.TestCase):
         self.assertEqual(row["directions"][directions[1]]["or_shapley_rate"], 0.25)
         self.assertEqual(row["shapley_additivity_check"], 1.0)
 
+    def test_direction_attribution_accepts_official_neutral_only_matrix(self):
+        directions = list(FINAL_DIRECTIONS)
+        branch_values = {
+            direction: direction == directions[0] for direction in directions
+        }
+        records = {"one": {
+            "crisis_label": "category",
+            "branches": {"neutral": {
+                metric: dict(branch_values) for metric in METRICS
+            }},
+        }}
+
+        result = attribution(records, records)
+
+        self.assertEqual(set(result), {"neutral"})
+        self.assertEqual(result["neutral"]["raw_success_at_4"]
+                         ["full_success_at_4_rate"], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

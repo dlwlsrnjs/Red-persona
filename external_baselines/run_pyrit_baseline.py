@@ -51,7 +51,7 @@ DEFAULT_TARGET_ENDPOINT = "http://127.0.0.1:8002/v1"
 DEFAULT_TARGET_MODEL = "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2"
 DEFAULT_ADVERSARY_ENDPOINT = "http://127.0.0.1:8000/v1"
 DEFAULT_ADVERSARY_MODEL = "Qwen/Qwen2.5-7B-Instruct"
-SCHEMA_VERSION = "red-persona-external-baseline-v4"
+SCHEMA_VERSION = "red-persona-external-baseline-v5"
 DATASET_NAME = "red-persona-official-500"
 EXPECTED_SOURCE_CASE_COUNT = 625
 EXPECTED_FULL_CASE_COUNT = 500
@@ -262,6 +262,59 @@ def _is_canonical_full_run(args: argparse.Namespace) -> bool:
     )
 
 
+def call_budget(args: argparse.Namespace) -> dict[str, Any]:
+    """Return deterministic per-case call ceilings implied by the CLI settings."""
+    method = args.method
+    budget: dict[str, Any] = {
+        "policy": "red-persona-paper-v1",
+        "early_stopping": method in MULTI_TURN_METHODS,
+        "max_dialogue_turns": args.max_turns if method in MULTI_TURN_METHODS else 1,
+        "max_target_calls": 1,
+        "max_attacker_calls": 0,
+        "max_control_evaluator_calls": 0,
+        "max_pcsa_evaluator_calls": 0,
+    }
+    if method == "red_teaming":
+        budget.update(
+            max_target_calls=args.max_turns,
+            max_attacker_calls=args.max_turns,
+            max_control_evaluator_calls=args.max_turns,
+        )
+    elif method == "pair":
+        calls = args.pair_streams * args.max_turns
+        budget.update(
+            max_target_calls=calls,
+            max_attacker_calls=calls,
+            max_control_evaluator_calls=calls,
+        )
+    elif method == "tap":
+        # PyRIT initializes `width` nodes at depth one, then expands every
+        # retained node by `branching_factor` on each later depth.
+        calls = args.tree_width + max(0, args.max_turns - 1) * (
+            args.tree_width * args.branching_factor
+        )
+        budget.update(
+            max_target_calls=calls,
+            max_attacker_calls=calls,
+            max_control_evaluator_calls=2 * calls,
+        )
+    elif method in {"crescendo", "therapist_crescendo"}:
+        attempts = args.max_turns + args.max_backtracks
+        budget.update(
+            max_target_calls=attempts,
+            max_attacker_calls=attempts,
+            max_control_evaluator_calls=attempts + args.max_turns,
+        )
+    elif method == "pcsa_phase2":
+        calls = args.max_turns * args.pcsa_candidates
+        budget.update(
+            max_target_calls=calls,
+            max_attacker_calls=calls,
+            max_pcsa_evaluator_calls=calls,
+        )
+    return budget
+
+
 def build_manifest(
     args: argparse.Namespace,
     selected: list[dict[str, Any]],
@@ -287,6 +340,7 @@ def build_manifest(
         },
         "selected_count": len(selected),
         "case_ids": [case["case_id"] for case in selected],
+        "call_budget_per_case": call_budget(args),
         "persona_context": {
             "assignment_path": str(args.persona_map.resolve()),
             "persona_pool_path": str(args.persona_pool.resolve()),

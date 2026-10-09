@@ -75,6 +75,33 @@ def test_profiles_preserve_method_distinctions():
     assert MODULE.METHOD_PROFILES["pcsa_phase2"] == (
         "--max-turns", "4", "--pcsa-candidates", "4"
     )
+    assert MODULE.METHOD_PROFILES["red_teaming"] == ("--max-turns", "4")
+    assert MODULE.METHOD_PROFILES["pair"] == (
+        "--max-turns", "3", "--pair-streams", "5"
+    )
+    assert MODULE.METHOD_PROFILES["tap"] == (
+        "--max-turns", "4", "--tree-width", "2", "--branching-factor", "2"
+    )
+
+
+def test_paper_call_budget_policy_has_expected_target_ceilings():
+    policy = MODULE.PAPER_BUDGET_POLICY
+    assert policy["name"] == "red-persona-paper-v1"
+    assert policy["max_dialogue_turns"] == 4
+    assert {
+        method: settings["max_target_calls"]
+        for method, settings in policy["methods"].items()
+    } == {
+        "direct": 1,
+        "skeleton_key": 1,
+        "many_shot": 1,
+        "red_teaming": 4,
+        "pair": 15,
+        "tap": 14,
+        "crescendo": 6,
+        "therapist_crescendo": 6,
+        "pcsa_phase2": 16,
+    }
 
 
 def test_dry_run_has_18_concurrent_jobs_and_pcsa_phase2(capsys):
@@ -97,6 +124,7 @@ def test_dry_run_has_18_concurrent_jobs_and_pcsa_phase2(capsys):
         "max_turns": 4,
         "candidates_per_turn": 4,
     }
+    assert value["call_budget_policy"] == MODULE.PAPER_BUDGET_POLICY
 
 
 def test_dry_run_records_seven_qwen_replica_pool(capsys):

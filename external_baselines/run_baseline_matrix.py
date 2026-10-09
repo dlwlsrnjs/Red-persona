@@ -33,7 +33,7 @@ REPO_ROOT = BASELINE_DIR.parent
 RUNNER = Path(__file__).resolve().with_name("run_pyrit_baseline.py")
 DEFAULT_CONFIG = BASELINE_DIR / "matrix_qwen_gpt4o.json"
 DEFAULT_OUTPUT = BASELINE_DIR / "outputs" / "qwen_gpt4o_pilot"
-MATRIX_SCHEMA_VERSION = "red-persona-baseline-matrix-v4"
+MATRIX_SCHEMA_VERSION = "red-persona-baseline-matrix-v5"
 
 # Small but method-distinct pilot budgets. The official 500-case run can use the
 # same profiles or override them after the pilot confirms latency and cost.
@@ -41,11 +41,11 @@ METHOD_PROFILES: dict[str, tuple[str, ...]] = {
     "direct": (),
     "skeleton_key": (),
     "many_shot": ("--many-shot-examples", "8"),
-    "red_teaming": ("--max-turns", "3"),
-    "pair": ("--max-turns", "3", "--pair-streams", "2"),
+    "red_teaming": ("--max-turns", "4"),
+    "pair": ("--max-turns", "3", "--pair-streams", "5"),
     "tap": (
         "--max-turns",
-        "3",
+        "4",
         "--tree-width",
         "2",
         "--branching-factor",
@@ -54,6 +54,39 @@ METHOD_PROFILES: dict[str, tuple[str, ...]] = {
     "crescendo": ("--max-turns", "4", "--max-backtracks", "2"),
     "therapist_crescendo": ("--max-turns", "4", "--max-backtracks", "2"),
     "pcsa_phase2": ("--max-turns", "4", "--pcsa-candidates", "4"),
+}
+
+# Paper-facing, family-aware budgets. Breadth-search methods preserve their
+# defining parallel candidates while staying within a comparable 14--16 target
+# query ceiling. Sequential dialogue methods stay at four turns or fewer.
+PAPER_BUDGET_POLICY: dict[str, Any] = {
+    "name": "red-persona-paper-v1",
+    "early_stopping": True,
+    "max_dialogue_turns": 4,
+    "methods": {
+        "direct": {"max_target_calls": 1},
+        "skeleton_key": {"max_target_calls": 1},
+        "many_shot": {"max_target_calls": 1, "examples": 8},
+        "red_teaming": {"turns": 4, "max_target_calls": 4},
+        "pair": {"iterations": 3, "streams": 5, "max_target_calls": 15},
+        "tap": {
+            "depth": 4,
+            "width": 2,
+            "branching_factor": 2,
+            "max_target_calls": 14,
+        },
+        "crescendo": {"turns": 4, "max_backtracks": 2, "max_target_calls": 6},
+        "therapist_crescendo": {
+            "turns": 4,
+            "max_backtracks": 2,
+            "max_target_calls": 6,
+        },
+        "pcsa_phase2": {
+            "turns": 4,
+            "candidates_per_turn": 4,
+            "max_target_calls": 16,
+        },
+    },
 }
 
 
@@ -499,6 +532,7 @@ def main(argv: list[str] | None = None) -> int:
             "qwen_replica_count": len(args.qwen_endpoint) or 1,
             "job_retries": args.job_retries,
         },
+        "call_budget_policy": PAPER_BUDGET_POLICY,
         "qwen_replica_pool": {
             "assignment": "round_robin_by_qwen_consuming_matrix_job",
             "endpoints": args.qwen_endpoint or [adversary.endpoint],

@@ -90,6 +90,53 @@ def test_method_families_are_disjoint_and_complete():
     assert set(MODULE.METHODS) == MODULE.MULTI_TURN_METHODS | MODULE.SINGLE_TURN_METHODS
 
 
+@pytest.mark.parametrize(
+    ("arguments", "target", "attacker", "control", "pcsa"),
+    [
+        (["--method", "direct"], 1, 0, 0, 0),
+        (["--method", "red_teaming", "--max-turns", "4"], 4, 4, 4, 0),
+        (
+            ["--method", "pair", "--max-turns", "3", "--pair-streams", "5"],
+            15,
+            15,
+            15,
+            0,
+        ),
+        (
+            [
+                "--method", "tap", "--max-turns", "4",
+                "--tree-width", "2", "--branching-factor", "2",
+            ],
+            14,
+            14,
+            28,
+            0,
+        ),
+        (
+            ["--method", "crescendo", "--max-turns", "4", "--max-backtracks", "2"],
+            6,
+            6,
+            10,
+            0,
+        ),
+        (
+            ["--method", "pcsa_phase2", "--max-turns", "4", "--pcsa-candidates", "4"],
+            16,
+            16,
+            0,
+            16,
+        ),
+    ],
+)
+def test_call_budget_matches_attack_shape(arguments, target, attacker, control, pcsa):
+    args = MODULE.parse_args([*arguments, "--dry-run"])
+    budget = MODULE.call_budget(args)
+    assert budget["max_target_calls"] == target
+    assert budget["max_attacker_calls"] == attacker
+    assert budget["max_control_evaluator_calls"] == control
+    assert budget["max_pcsa_evaluator_calls"] == pcsa
+
+
 def test_canonical_baseline_dataset_is_official_500_unique_cases():
     contexts = MODULE.load_persona_contexts(
         MODULE.DEFAULT_PERSONA_MAP, MODULE.DEFAULT_PERSONA_POOL

@@ -160,10 +160,19 @@ Batch에서도 독립 후보 네 개가 각각 별도 순차 batch가 되지 않
 - 동시 실행 기본값: 18개 job
 - GPU 실행 기본값: H200 7장에 Qwen replica 7개, Qwen을 사용하는 15개 job을 round-robin 배정
 
-각 방법의 특징을 유지하면서 pilot 비용을 줄이기 위해 Many-shot은 8 examples,
-RedTeaming/PAIR/TAP은 3 depth, 두 Crescendo와 PCSA는 4 turns를 사용한다. TAP만 width
-2와 branching 2를 사용하고 PAIR는 2 streams를 사용한다. PCSA는 네 전략 후보를
-사용하며 중간 evaluator는 논문 설정과 같은 GPT-4o-mini다.
+논문 실험은 `red-persona-paper-v1` 호출 예산을 고정한다. 모든 순차 대화는 최대 4턴이고
+조기 성공 시 즉시 종료한다. 탐색형 방법은 고유한 breadth를 없애지 않으면서 사례당 target
+호출 상한을 비슷한 범위로 둔다. PAIR는 원 논문의 얕은 탐색 권고에 따라 5 streams × 3
+iterations(최대 15회), TAP은 width 2 × branching 2 × depth 4(PyRIT 실행 기준 최대
+14회), PCSA는 4 candidates × 4 turns(최대 16회)다. RedTeaming은 최대 4회, 두
+Crescendo는 4 turns와 최대 2 backtracks로 target 최대 6회다. Direct, Skeleton Key,
+Many-shot은 각각 target 1회이며 Many-shot은 8 examples를 사용한다. PCSA 중간
+evaluator는 논문 설정과 같은 GPT-4o-mini다.
+
+각 실행의 `manifest.json`에는 `call_budget_per_case`가 저장되고 matrix manifest에는 전체
+`call_budget_policy`가 저장된다. 여기에는 target뿐 아니라 attacker, 내부 control
+evaluator, PCSA evaluator의 이론상 최대 호출 수도 분리되어 있어 ASR과 ASR/query를 함께
+보고할 수 있다. TAP의 실제 target 호출은 off-topic pruning 때문에 상한보다 작을 수 있다.
 
 GPT-4o의 single-turn 방법은 여러 case를 한 Batch JSONL에 묶는다. 적응형 multi-turn
 방법은 이전 응답을 받아 다음 공격 turn을 정해야 하므로, 동시 실행 중 같은 단계에 도달한

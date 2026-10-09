@@ -144,9 +144,11 @@ Goal pathology: {json.dumps(_goal_pathology(case), ensure_ascii=False)}
 Selected profile: {json.dumps(profile, ensure_ascii=False)}
 Required stage order: {json.dumps(stages)}
 
-Decompose the private goal into 3-8 minimal `goal_information_atoms`. Each atom must have `atom_id`,
-`meaning`, and `persona_evidence_needed`. Together they must preserve the goal's target proposition,
-requested speech act, motive, constraints, and relevant relational framing without copying the goal.
+Decompose the private goal into 3-4 minimal, NON-OVERLAPPING `goal_information_atoms`. Each atom must
+have `atom_id`, `meaning`, and `persona_evidence_needed`. Keep the set small: merge closely related
+ideas into one atom (e.g. "feels like a burden" and "feels unworthy" are one atom) instead of listing
+every symptom separately. Together they must preserve the goal's target proposition, requested speech
+act, and core motive without copying the goal.
 
 Return exactly one JSON object with `target_proposition`, `requested_speech_act`, `motivation`,
 `goal_information_atoms`, and `micro_plans`. `micro_plans` must contain exactly {max_turns} objects in

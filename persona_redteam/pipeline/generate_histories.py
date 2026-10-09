@@ -173,10 +173,22 @@ def main():
                     profile=selected["profile"])
             diagnostics["profile_selection"] = selection_audit
             diagnostics["profile_enrichment"] = enrichment_audit
+            # The planner and Lexi must see a clean persona, not generation metadata.
+            # Keys like sample_adaptation (version/attempts/base_identity_continuity) or
+            # pool-enrichment provenance read as synthetic and can leak into the rendered
+            # dialogue, so they are stripped from the generation-facing profile while the
+            # saved record keeps the full enriched_profile for the audit/contract.
+            _GENERATION_META = {
+                "sample_adaptation", "pathology_provenance", "repaired_fields",
+                "communication_style_source", "base_identity_continuity", "enriched_for",
+                "category_reason", "category_label_version", "goal_category",
+            }
+            generation_profile = {k: v for k, v in enriched_profile.items()
+                                  if k not in _GENERATION_META}
             plan = plans.get(case_id)
             if plan is None and not args.skip_qwen_planning:
                 plan = build_plan(complete_fn=qwen_complete, model=args.qwen_model,
-                                  case=case, profile=enriched_profile,
+                                  case=case, profile=generation_profile,
                                   max_turns=args.max_turns)
             plan = plan or {}
             diagnostics["qwen_plan"] = plan
@@ -206,14 +218,14 @@ def main():
                 )
             }
             context = {"goal": case["original_request"], "goal_pathology": goal_pathology,
-                       "persona_profile": enriched_profile,
+                       "persona_profile": generation_profile,
                        "micro_plans": plan.get("micro_plans", []), "qwen_plan": prompt_plan}
             verification = None if args.skip_qwen_planning else lambda micro_plan, history, state, turn: verify_turn(
                 complete_fn=qwen_complete, model=args.qwen_model, micro_plan=micro_plan,
                 history=history, prior_state=state, turn=turn)
             replanner = None if args.skip_qwen_planning else lambda turn_index, micro_plan, history, state, errors, coverage: replan_turn(
                 complete_fn=qwen_complete, model=args.qwen_model, case=case,
-                profile=enriched_profile, turn_index=turn_index,
+                profile=generation_profile, turn_index=turn_index,
                 micro_plan=micro_plan, history=history, prior_state=state,
                 errors=errors, prior_coverage=coverage)
             history, audits, stop_reason = generate_history(
@@ -241,11 +253,23 @@ def main():
                     f"goal_recoverable={audits[-1].get('goal_recoverable')}"
                 )
             final_state = history[-1]["persona_state"]
-            persona_text = (final_state if isinstance(final_state, str) else
-                            json.dumps(final_state, ensure_ascii=False, indent=2))
+            # Store the target-visible persona as natural narrative. The persona_state
+            # schema is {"summary": "..."}, so prefer that text; a raw JSON dump would
+            # read as machine-generated to the target model.
+            if isinstance(final_state, str):
+                persona_text = final_state
+            elif isinstance(final_state, dict):
+                summary = final_state.get("summary")
+                persona_text = (summary.strip() if isinstance(summary, str) and summary.strip()
+                                else json.dumps(final_state, ensure_ascii=False, indent=2))
+            else:
+                persona_text = json.dumps(final_state, ensure_ascii=False, indent=2)
+            # The current persona_state carries no recurring metaphor; emit an empty string
+            # rather than a "No recurring metaphor was generated." placeholder that the
+            # target would otherwise see on every case.
             metaphor = (final_state.get("metaphor", "") if isinstance(final_state, dict) else "")
             record = {**case, "persona": persona_text,
-                      "metaphor": metaphor or "No recurring metaphor was generated.",
+                      "metaphor": metaphor or "",
                       "persona_profile": enriched_profile,
                       "persona_history": history,
                       "persona_history_generation": {

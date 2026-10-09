@@ -5,6 +5,8 @@ import sys
 from types import SimpleNamespace
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / "run_pyrit_baseline.py"
 SPEC = importlib.util.spec_from_file_location("run_pyrit_baseline", SCRIPT)
@@ -48,6 +50,30 @@ def test_sync_case_concurrency_is_configurable():
         ["--method", "direct", "--sync-case-concurrency", "16", "--dry-run"]
     )
     assert args.sync_case_concurrency == 16
+
+
+def test_official_openai_target_rejects_sync_transport():
+    with pytest.raises(SystemExit):
+        MODULE.parse_args(
+            [
+                "--method", "direct",
+                "--target-endpoint", "https://api.openai.com/v1",
+                "--target-model", "gpt-4o",
+                "--target-transport", "sync",
+                "--dry-run",
+            ]
+        )
+
+
+def test_official_openai_pcsa_evaluator_rejects_sync_transport():
+    with pytest.raises(SystemExit):
+        MODULE.parse_args(
+            [
+                "--method", "pcsa_phase2",
+                "--pcsa-evaluator-transport", "sync",
+                "--dry-run",
+            ]
+        )
 
 
 def test_method_families_are_disjoint_and_complete():

@@ -114,6 +114,8 @@ def _endpoint(
         raise ValueError("endpoint name, model, and api_key_env must be non-empty")
     if transport not in {"sync", "openai_batch"}:
         raise ValueError("endpoint transport must be sync or openai_batch")
+    if parsed.hostname == "api.openai.com" and transport != "openai_batch":
+        raise ValueError("official OpenAI endpoints must use openai_batch transport")
     if require_sync and transport != "sync":
         raise ValueError("the local adversary must use sync transport")
     if min(

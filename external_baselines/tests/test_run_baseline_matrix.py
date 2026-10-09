@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import sys
 
+import pytest
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / "run_baseline_matrix.py"
 SPEC = importlib.util.spec_from_file_location("run_baseline_matrix", SCRIPT)
@@ -142,3 +144,17 @@ def test_remote_target_requires_credential(monkeypatch):
         pcsa_evaluator=pcsa_evaluator,
     )
     assert any("OPENAI_API_KEY" in error for error in errors)
+
+
+def test_official_openai_endpoint_cannot_use_sync_transport():
+    with pytest.raises(ValueError, match="must use openai_batch"):
+        MODULE._endpoint(
+            {
+                "name": "gpt4o",
+                "endpoint": "https://api.openai.com/v1",
+                "model": "gpt-4o",
+                "api_key_env": "OPENAI_API_KEY",
+                "transport": "sync",
+            },
+            require_name=True,
+        )

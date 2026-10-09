@@ -805,6 +805,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error(
             f"--pcsa-candidates cannot exceed {len(PCSA_STRATEGY_NAMES)}"
         )
+    if (
+        urlparse(args.target_endpoint).hostname == "api.openai.com"
+        and args.target_transport != "openai_batch"
+    ):
+        parser.error("official OpenAI targets must use --target-transport openai_batch")
+    if (
+        args.method == "pcsa_phase2"
+        and urlparse(args.pcsa_evaluator_endpoint).hostname == "api.openai.com"
+        and args.pcsa_evaluator_transport != "openai_batch"
+    ):
+        parser.error(
+            "the official OpenAI PCSA evaluator must use "
+            "--pcsa-evaluator-transport openai_batch"
+        )
     if args.method == "pcsa_phase2" and args.max_turns > PCSA_MAX_TURNS:
         parser.error(f"PCSA Phase 2 is capped at {PCSA_MAX_TURNS} turns")
     if not CRISIS_PROMPT.exists() or not THERAPIST_PROMPT.exists():

@@ -7,7 +7,7 @@
     "cares_evaluator_prompt": "evaluation/prompts/cares_official_response_evaluator.txt"
   },
   "local_untracked": {
-    "full_persona_pool": "data/source/personas/personas.jsonl (31,733 rows; override: PERSONA_POOL_PATH)",
+    "full_persona_pool": "../data/personas/personas.jsonl (31,733 rows; override: PERSONA_POOL_PATH)",
     "full_evaluation_goals_625": "../data/crisis_goals_jmir_persona_min10.jsonl",
     "full_goal_pathology_routes_625": "../data/goal_pathology_routes_n625.jsonl",
     "full_evaluation_blueprint": "data/prepared/blueprints/jmir_eval_full.jsonl",
@@ -15,7 +15,7 @@
     "full_generated_cases": "data/prepared/generated/jmir_eval_full_with_history.json",
     "qwen_snapshot": ".cache/qwen2.5-7b-instruct/a09a35458c702b33eeacc393d103063234e8bc28",
     "source_goals": "data/source/goals/",
-    "persona_profiles": "data/source/personas/",
+    "persona_profiles": "../data/personas/",
     "matched_blueprints": "data/prepared/matched/",
     "generated_histories": "data/prepared/generated/",
     "active_cases": "data/prepared/cases/",

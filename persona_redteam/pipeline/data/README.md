@@ -5,7 +5,7 @@
 단계별 디렉터리에 둔다.
 
 - `data/source/goals/`: 원본 goal 및 pathology 추출 입력
-- `data/source/personas/`: persona 원문 및 정규화 profile
+- `../data/personas/personas.jsonl`: GitHub에 포함된 31,733개 persona 원문·정규화 profile
 - `data/prepared/matched/`: goal–persona 매칭 결과
 - `data/prepared/generated/`: 동적 persona 선택 및 가변 길이 과거 대화 이력
 - `data/prepared/cases/`: 활성 Qwen–타겟 입력 JSON

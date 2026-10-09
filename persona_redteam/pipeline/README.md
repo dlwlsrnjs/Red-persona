@@ -39,7 +39,7 @@ cp configs/persona_history/coverage_prompt.template.txt prompts/my_coverage.txt
 
 python3 -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
-  --profiles data/source/personas/personas.jsonl \
+  --profiles ../data/personas/personas.jsonl \
   --generation-prompt prompts/my_generation.txt \
   --coverage-prompt prompts/my_coverage.txt \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \

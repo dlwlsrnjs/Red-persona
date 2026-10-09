@@ -129,7 +129,7 @@ Qwen이 top-k를 최종 rerank한다. route 파일의 과거 생성 호출과 pr
 
 ## 7. 전체 persona pool 31,733개
 
-- 기본 로컬 파일: `data/source/personas/personas.jsonl`
+- 기본 로컬 파일: `../data/personas/personas.jsonl`
 - 대체 경로: 환경변수 `$PERSONA_POOL_PATH`
 - manifest: 같은 디렉터리의 `manifest.json`
 - 총 31,733개

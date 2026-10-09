@@ -110,7 +110,7 @@ Git에는 원문 goal, route, persona pool이 포함되지 않는다. 기존 서
 persona_redteam/
   ../data/crisis_goals_jmir_persona_min10.jsonl
   ../data/goal_pathology_routes_n625.jsonl
-  data/source/personas/personas.jsonl
+  ../data/personas/personas.jsonl
 ```
 
 역할과 기대 행 수:
@@ -119,7 +119,7 @@ persona_redteam/
 |---|---:|---|
 | `../data/crisis_goals_jmir_persona_min10.jsonl` | 625 | 최종 평가 goal 모집단 |
 | `../data/goal_pathology_routes_n625.jsonl` | 625 | 모든 평가 goal의 pathology route |
-| `data/source/personas/personas.jsonl` | 31,733 | Cactus 31,577 + CBT-DP 156 전체 pool |
+| `../data/personas/personas.jsonl` | 31,733 | Cactus 31,577 + CBT-DP 156 전체 pool |
 
 기본 persona pool 위치를 쓰지 않는다면 다음처럼 지정한다.
 
@@ -128,7 +128,7 @@ export PERSONA_POOL_PATH=/absolute/path/to/personas.jsonl
 ```
 
 `pipeline.persona_pool`은 이 환경변수를 우선하고, 없으면
-`data/source/personas/personas.jsonl`을 사용한다.
+`../data/personas/personas.jsonl`을 사용한다.
 
 두 핵심 historical payload는 다음 checksum과 일치해야 한다.
 
@@ -139,7 +139,7 @@ sha256sum ../data/crisis_goals_jmir_persona_min10.jsonl
 sha256sum ../data/goal_pathology_routes_n625.jsonl
 # fa31b91fa19c2e78f295e9365465d8c3eb0a946234bec8af0bc33efb659a059e
 
-PERSONA_POOL_FILE="${PERSONA_POOL_PATH:-data/source/personas/personas.jsonl}"
+PERSONA_POOL_FILE="${PERSONA_POOL_PATH:-../data/personas/personas.jsonl}"
 wc -l ../data/crisis_goals_jmir_persona_min10.jsonl \
       ../data/goal_pathology_routes_n625.jsonl \
       "$PERSONA_POOL_FILE"
@@ -399,7 +399,7 @@ profile reranking과 turn verification은 실행된다. `--skip-qwen-planning`�
 ```bash
 python -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
-  --profiles "${PERSONA_POOL_PATH:-data/source/personas/personas.jsonl}" \
+  --profiles "${PERSONA_POOL_PATH:-../data/personas/personas.jsonl}" \
   --generation-prompt prompts/persona_history_generation.txt \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --model Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2 \

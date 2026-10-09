@@ -15,7 +15,7 @@
       "persona_policy": "runtime full-pool retrieval followed by Qwen reranking"
     },
     "persona_pool": {
-      "path": "data/source/personas/personas.jsonl",
+      "path": "../data/personas/personas.jsonl",
       "override": "PERSONA_POOL_PATH",
       "rows": 31733,
       "bytes": 88256864,

@@ -40,7 +40,7 @@ cp configs/persona_history/coverage_prompt.template.txt prompts/persona_history_
 ## 3. 전체 pool 기반 Lexi history
 
 `--profiles`를 생략하면 `$PERSONA_POOL_PATH` 또는
-`data/source/personas/personas.jsonl`의 전체 pool을 사용한다.
+`../data/personas/personas.jsonl`의 전체 pool을 사용한다.
 
 ```bash
 python3 -m pipeline.generate_histories \

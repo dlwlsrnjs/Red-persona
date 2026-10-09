@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FULL_PERSONA_POOL = Path(os.environ.get(
-    "PERSONA_POOL_PATH", ROOT / "data/source/personas/personas.jsonl"
+    "PERSONA_POOL_PATH", ROOT.parent / "data/personas/personas.jsonl"
 ))
 
 FIELDS = (

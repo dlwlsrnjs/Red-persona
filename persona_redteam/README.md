@@ -59,7 +59,7 @@ python3 -m unittest discover -s experiments -p 'test_*.py'
 
 활성 평가 입력은 저장소 루트 `data/crisis_goals_jmir_persona_min10.jsonl`과
 `data/goal_pathology_routes_n625.jsonl`이다. 기본 31,733개 persona pool은 Git에 포함된
-`data/source/personas/personas.jsonl`을 사용하고, 필요하면 `$PERSONA_POOL_PATH`로 대체한다.
+`../data/personas/personas.jsonl`을 사용하고, 필요하면 `$PERSONA_POOL_PATH`로 대체한다.
 생성 산출물은 Git에서 제외한다. 행 수·checksum·추출 절차는
 [`docs/DATA_LINEAGE_AND_EXTRACTION_KO.md`](docs/DATA_LINEAGE_AND_EXTRACTION_KO.md)에 기록한다.
 

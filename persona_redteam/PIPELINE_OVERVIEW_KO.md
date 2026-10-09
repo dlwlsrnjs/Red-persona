@@ -33,7 +33,7 @@ JMIR goal 625개
 
 - 전체 625개 blueprint: `data/prepared/blueprints/jmir_eval_full.jsonl`
 - 전체 seedless 준비 사례: `data/prepared/cases/jmir_eval_full_pre_generation.json`
-- 전체 persona pool: `data/source/personas/personas.jsonl` 또는 `$PERSONA_POOL_PATH`
+- 전체 persona pool: `../data/personas/personas.jsonl` 또는 `$PERSONA_POOL_PATH`
 - 전체 pool 크기: 31,733개(Cactus 31,577 + CBT-DP 156)
 - 24개 축소 profile: 과거 복구 provenance이며 새 실행 기본값이 아님
 

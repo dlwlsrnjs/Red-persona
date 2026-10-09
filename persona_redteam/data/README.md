@@ -22,7 +22,7 @@ data/
 
 전체 persona pool은 새 clone에도 포함되는 다음 canonical 파일을 사용한다.
 
-`data/source/personas/personas.jsonl` 또는 `$PERSONA_POOL_PATH`
+`../data/personas/personas.jsonl` 또는 `$PERSONA_POOL_PATH`
 
 이 파일은 31,733개 profile을 포함한다. SHA256은
 `1942e4982b1775f39f6be49adb34af9e3b6c75fd155edb59ad3dfc8be0425928`이다.

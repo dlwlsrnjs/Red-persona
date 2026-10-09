@@ -65,7 +65,7 @@ python3 -m pipeline.prepare adapt \
 ```bash
 python3 -m pipeline.generate_histories \
   --cases data/prepared/cases/jmir_eval_full_pre_generation.json \
-  --profiles data/source/personas/personas.jsonl \
+  --profiles ../data/personas/personas.jsonl \
   --generation-prompt prompts/persona_history_generation.txt \
   --coverage-prompt prompts/persona_history_coverage.txt \
   --plans data/prepared/plans/jmir_eval_full_qwen_plans.json \

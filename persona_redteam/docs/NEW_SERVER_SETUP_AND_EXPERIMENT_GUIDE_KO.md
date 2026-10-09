@@ -7,7 +7,7 @@ snapshot을 배치한 뒤, JMIR 625개 전체 실험을 생성·실행·평가�
 ## 1. 현재 활성 파이프라인과 완료 조건
 
 ```text
-625 goal JSONL + 813 pathology route JSONL
+625 goal JSONL + 625 pathology route JSONL
   -> 625 blueprint JSONL
   -> 625 seedless prepared cases JSON
   -> 31,733 persona pool 검색
@@ -108,8 +108,8 @@ Git에는 원문 goal, route, persona pool이 포함되지 않는다. 기존 서
 
 ```text
 persona_redteam/
-  goals/crisis_goals_jmir_persona_min10.jsonl
-  outputs/goal_pathology_persona_routed_n813.jsonl
+  ../data/crisis_goals_jmir_persona_min10.jsonl
+  ../data/goal_pathology_routes_n625.jsonl
   data/source/personas/personas.jsonl
 ```
 
@@ -117,8 +117,8 @@ persona_redteam/
 
 | 파일 | 행 수 | 역할 |
 |---|---:|---|
-| `goals/crisis_goals_jmir_persona_min10.jsonl` | 625 | 최종 평가 goal 모집단 |
-| `outputs/goal_pathology_persona_routed_n813.jsonl` | 813 | `goal_id`별 pathology join 원본 |
+| `../data/crisis_goals_jmir_persona_min10.jsonl` | 625 | 최종 평가 goal 모집단 |
+| `../data/goal_pathology_routes_n625.jsonl` | 625 | 모든 평가 goal의 pathology route |
 | `data/source/personas/personas.jsonl` | 31,733 | Cactus 31,577 + CBT-DP 156 전체 pool |
 
 기본 persona pool 위치를 쓰지 않는다면 다음처럼 지정한다.
@@ -133,15 +133,15 @@ export PERSONA_POOL_PATH=/absolute/path/to/personas.jsonl
 두 핵심 historical payload는 다음 checksum과 일치해야 한다.
 
 ```bash
-sha256sum goals/crisis_goals_jmir_persona_min10.jsonl
+sha256sum ../data/crisis_goals_jmir_persona_min10.jsonl
 # b87a5dd018db36e9706a4dedfcda11635a7891d57f5015ca2f652c4f7e8246fd
 
-sha256sum outputs/goal_pathology_persona_routed_n813.jsonl
-# 281a615f1e8d91c2c26582003b2f7d7429de26d22bd08788734b0d0614143b31
+sha256sum ../data/goal_pathology_routes_n625.jsonl
+# fa31b91fa19c2e78f295e9365465d8c3eb0a946234bec8af0bc33efb659a059e
 
 PERSONA_POOL_FILE="${PERSONA_POOL_PATH:-data/source/personas/personas.jsonl}"
-wc -l goals/crisis_goals_jmir_persona_min10.jsonl \
-      outputs/goal_pathology_persona_routed_n813.jsonl \
+wc -l ../data/crisis_goals_jmir_persona_min10.jsonl \
+      ../data/goal_pathology_routes_n625.jsonl \
       "$PERSONA_POOL_FILE"
 ```
 
@@ -214,6 +214,19 @@ curl -fsS http://127.0.0.1:8000/v1/models
 
 ## 8. 단계 A: 625개 blueprint 생성
 
+Git의 625개 route를 그대로 검증하거나, 누락·신규 goal이 있으면 checkpoint 추출기로
+보완한다.
+
+```bash
+python -m pipeline.route_goals \
+  --goals ../data/crisis_goals_jmir_persona_min10.jsonl \
+  --existing-routes ../data/goal_pathology_routes_n625.jsonl \
+  --output ../data/goal_pathology_routes_n625.jsonl \
+  --checkpoint-dir data/prepared/routes/jmir625 \
+  --model gpt-4o-mini-2024-07-18 \
+  --workers 48 --retry-failed
+```
+
 ```bash
 python experiments/build_jmir_eval_set_full.py
 python -m pipeline.preflight \
@@ -239,7 +252,7 @@ python -m pipeline.preflight \
   "set_id": "jmir-full-0001",
   "source_goal_id": "source-id",
   "crisis_label": "self-harm",
-  "source": "goals/crisis_goals_jmir_persona_min10.jsonl",
+  "source": "data/crisis_goals_jmir_persona_min10.jsonl",
   "goal_private": "private evaluation request",
   "goal_pathology": {},
   "evaluation": {
@@ -252,6 +265,24 @@ python -m pipeline.preflight \
 `goal_id` join이 하나라도 없거나 route에 `pathology`가 없으면 builder가 실패한다. 625개에서
 일부만 조용히 버리는 동작은 하지 않는다. 함께 생성되는 `.report.json`에는 행 수,
 범주별 수, 입력 checksum이 기록된다.
+
+### 이후 새로운 샘플
+
+새 JSON/JSONL은 `goal_id` 또는 `source_goal_id`, `goal` 또는 `original_request`, 선택적
+`crisis_label`을 주면 된다. ID가 없으면 goal text SHA256으로 안정적인 `dynamic-*` ID를 만든다.
+`--prepared-output`을 함께 주면 별도 JMIR builder 없이 history 생성 입력까지 바로 만든다.
+
+```bash
+python -m pipeline.route_goals \
+  --goals data/source/goals/new_samples.jsonl \
+  --output data/prepared/routes/new_samples.jsonl \
+  --prepared-output data/prepared/cases/new_samples_pre_generation.json \
+  --checkpoint-dir data/prepared/routes/new_samples_checkpoints \
+  --model gpt-4o-mini-2024-07-18 --workers 32 --retry-failed
+```
+
+그 출력은 `pipeline.generate_histories`에서 전체 31,733개 pool 검색과 Qwen reranking을 거친다.
+새 샘플에 고정 persona seed를 수동으로 지정하지 않는다.
 
 ## 9. 단계 B: seedless prepared case 생성
 
@@ -676,7 +707,7 @@ QWEN_DEVICE=cuda:3 python -m pipeline.run_batch ... --start 471 --stop 625 --out
 [ ] Git commit hash 기록
 [ ] Python/package 버전 기록
 [ ] GPU/driver/CUDA 정보 기록
-[ ] goal 625, route 813, persona 31,733 행 수 확인
+[ ] goal 625, route 625, persona 31,733 행 수 확인
 [ ] goal/route SHA256 확인
 [ ] Qwen/Lexi repo id와 revision 기록
 [ ] Lexi /v1/models 응답 확인

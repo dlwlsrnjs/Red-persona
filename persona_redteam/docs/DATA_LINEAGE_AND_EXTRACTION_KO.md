@@ -1,7 +1,7 @@
 # 평가 데이터 출처와 추출 계보
 
 이 문서는 현재 본 실험 입력인 JMIR 625개, 그 상위 원본 2,046/813/652개, 전체 persona
-pool 31,733개와 pathology route 813개가 어디에서 왔고 어떤 규칙으로
+pool 31,733개와 본 평가 pathology route 625개가 어디에서 왔고 어떤 규칙으로
 생성됐는지 구분한다. 행 수와 체크섬은 `DATA_MANIFEST.json` 및 각 단계 report를 기준으로
 한다. 원문 payload와 모델 실행 결과는 민감성·용량·라이선스 때문에 Git에서 제외한다.
 
@@ -107,11 +107,14 @@ count 및 제외 사유를 별도 JSONL에 보존하도록 구현돼 있다.
 | violent_thoughts | 12 |
 | risk_taking_behaviours | 7 |
 
-## 6. Goal pathology와 813개 route
+## 6. Goal pathology와 625개 활성 route
 
-- 파일: `outputs/goal_pathology_persona_routed_n813.jsonl`
-- 행 수: 813
-- SHA256: `281a615f1e8d91c2c26582003b2f7d7429de26d22bd08788734b0d0614143b31`
+- 파일: 저장소 루트 `data/goal_pathology_routes_n625.jsonl`
+- 행 수: 625
+- SHA256: `fa31b91fa19c2e78f295e9365465d8c3eb0a946234bec8af0bc33efb659a059e`
+- 생성기: `pipeline/route_goals.py`
+- 모델: `gpt-4o-mini-2024-07-18`
+- 구성: 검증된 기존 30개 재사용 + 누락 595개 checkpoint 추출
 - 현재 matcher: `matching/match_pathology.py`
 
 Goal pathology는 core condition, risk state, symptoms, functional impairments, cognitive
@@ -121,8 +124,9 @@ embedding cosine을 결합해 후보를 정렬한다. route 파일의 과거 생
 호출과 profile payload는 현재 Git 배포에 포함되지 않으므로, 동일 checksum의 route 파일이
 정확한 historical join 기준이다.
 
-현재 seedless 파이프라인은 route에 저장된 고정 persona 후보를 타겟 persona로 사용하지
-않는다. route의 `pathology`만 가져오고, 실행 시 31,733개 전체 pool을 다시 검색한다.
+현재 seedless 파이프라인은 고정 persona 후보를 route에 저장하지 않는다. route의
+`pathology`를 가져오고, 실행 시 31,733개 전체 pool을 다시 검색한 뒤 Qwen이 rerank한다.
+새 샘플도 `pipeline.route_goals --prepared-output ...`으로 같은 경로에 바로 연결된다.
 
 ## 7. 전체 persona pool 31,733개
 
@@ -146,8 +150,8 @@ seed나 기존 route의 첫 후보는 사용하지 않는다.
 ## 8. 전체 625개 blueprint 생성
 
 - 코드: `experiments/build_jmir_eval_set_full.py`
-- 입력 1: `goals/crisis_goals_jmir_persona_min10.jsonl`
-- 입력 2: `outputs/goal_pathology_persona_routed_n813.jsonl`
+- 입력 1: 저장소 루트 `data/crisis_goals_jmir_persona_min10.jsonl`
+- 입력 2: 저장소 루트 `data/goal_pathology_routes_n625.jsonl`
 - join key: `goal_id`
 - 출력: `data/prepared/blueprints/jmir_eval_full.jsonl`
 - 표본추출: 없음
@@ -161,8 +165,8 @@ goal, crisis label, pathology provenance만 가진 pre-generation case를 만든
 필요한 두 historical payload의 checksum을 먼저 확인한 뒤 실행한다.
 
 ```bash
-sha256sum goals/crisis_goals_jmir_persona_min10.jsonl
-sha256sum outputs/goal_pathology_persona_routed_n813.jsonl
+sha256sum ../data/crisis_goals_jmir_persona_min10.jsonl
+sha256sum ../data/goal_pathology_routes_n625.jsonl
 
 python3 experiments/build_jmir_eval_set_full.py
 python3 -m pipeline.preflight \
@@ -174,6 +178,5 @@ python3 -m pipeline.preflight \
   --prepared-cases data/prepared/cases/jmir_eval_full_pre_generation.json
 ```
 
-현재 Git 작업공간에는 원문 625개와 historical 813 route payload가 없다. 코드와 metadata만
-있는 상태에서 이를 임의 재생성해 같은 파일이라고 주장하지 않는다. 원본을 복구하면 위
-checksum과 행 수를 검증한 뒤 본 파이프라인에 연결한다.
+현재 Git 작업공간에는 625개 goal과 완성된 625개 pathology route가 포함된다. persona pool과
+모델 생성 결과는 별도 비추적 데이터로 유지한다.

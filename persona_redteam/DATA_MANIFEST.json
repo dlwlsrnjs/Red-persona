@@ -141,11 +141,19 @@
     },
     {
       "path": "outputs/goal_pathology_persona_routed_n813.jsonl",
-      "role": "required_derived_input",
-      "lineage": "Three routed native candidates per crisis goal",
+      "role": "historical_superseded",
+      "lineage": "Historical three-candidate route metadata; superseded by the seedless 625-route file",
       "bytes": 1123164,
       "sha256": "281a615f1e8d91c2c26582003b2f7d7429de26d22bd08788734b0d0614143b31",
       "rows": 813
+    },
+    {
+      "path": "../data/goal_pathology_routes_n625.jsonl",
+      "role": "active_goal_pathology_routes",
+      "lineage": "All 625 evaluation goals; 30 validated pathologies reused and 595 checkpoint-extracted; persona selected dynamically at runtime",
+      "bytes": 951897,
+      "sha256": "fa31b91fa19c2e78f295e9365465d8c3eb0a946234bec8af0bc33efb659a059e",
+      "rows": 625
     },
     {
       "path": "personas/simmh_n157.parquet",

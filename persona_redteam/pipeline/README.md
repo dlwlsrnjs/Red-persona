@@ -15,6 +15,11 @@ JMIR goal + pathology
   -> final_validation: 조건별/위기범주별 Success@8와 ASR@8 집계
 ```
 
+새 goal에 pathology가 아직 없으면 먼저 `python -m pipeline.route_goals`를 실행한다. 이
+단계는 goal별 checkpoint를 남기며, 이후 고정 persona를 저장하지 않고 전체 pool 검색과
+Qwen reranking을 사용하도록 route에 명시한다. `--prepared-output`을 주면 임의의 새 샘플도
+seedless prepared case로 바로 변환한다.
+
 ## 1. 페르소나 생성
 
 `pipeline.persona_generation`은 goal pathology만 준비하며 target-visible persona seed나

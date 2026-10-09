@@ -7,6 +7,13 @@
 ## 1. 입력 검사와 adapter
 
 ```bash
+python3 -m pipeline.route_goals \
+  --goals ../data/crisis_goals_jmir_persona_min10.jsonl \
+  --existing-routes ../data/goal_pathology_routes_n625.jsonl \
+  --output ../data/goal_pathology_routes_n625.jsonl \
+  --checkpoint-dir data/prepared/routes/jmir625 \
+  --model gpt-4o-mini-2024-07-18 --workers 48 --retry-failed
+
 python3 experiments/build_jmir_eval_set_full.py
 
 python3 -m pipeline.preflight \

@@ -8,8 +8,8 @@
   },
   "local_untracked": {
     "full_persona_pool": "data/source/personas/personas.jsonl (override: PERSONA_POOL_PATH)",
-    "full_evaluation_goals_625": "goals/crisis_goals_jmir_persona_min10.jsonl",
-    "full_goal_pathology_routes_813": "outputs/goal_pathology_persona_routed_n813.jsonl",
+    "full_evaluation_goals_625": "../data/crisis_goals_jmir_persona_min10.jsonl",
+    "full_goal_pathology_routes_625": "../data/goal_pathology_routes_n625.jsonl",
     "full_evaluation_blueprint": "data/prepared/blueprints/jmir_eval_full.jsonl",
     "full_pre_generation_cases": "data/prepared/cases/jmir_eval_full_pre_generation.json",
     "full_generated_cases": "data/prepared/generated/jmir_eval_full_with_history.json",

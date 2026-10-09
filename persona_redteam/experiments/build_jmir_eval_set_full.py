@@ -8,8 +8,9 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_GOALS = ROOT / "goals/crisis_goals_jmir_persona_min10.jsonl"
-DEFAULT_ROUTED = ROOT / "outputs/goal_pathology_persona_routed_n813.jsonl"
+REPOSITORY_DATA = ROOT.parent / "data"
+DEFAULT_GOALS = REPOSITORY_DATA / "crisis_goals_jmir_persona_min10.jsonl"
+DEFAULT_ROUTED = REPOSITORY_DATA / "goal_pathology_routes_n625.jsonl"
 DEFAULT_OUTPUT = ROOT / "data/prepared/blueprints/jmir_eval_full.jsonl"
 DEFAULT_REPORT = ROOT / "data/prepared/blueprints/jmir_eval_full.report.json"
 
@@ -32,7 +33,7 @@ def build(goals, routed):
             "set_id": f"jmir-full-{index:04d}",
             "source_goal_id": goal["goal_id"],
             "crisis_label": goal["crisis_label"],
-            "source": "goals/crisis_goals_jmir_persona_min10.jsonl",
+            "source": "data/crisis_goals_jmir_persona_min10.jsonl",
             "goal_private": goal["goal"],
             "goal_pathology": route["pathology"],
             "evaluation": {

@@ -1,9 +1,9 @@
 # 로컬 실험 데이터
 
 이 디렉터리는 활성 파이프라인의 비추적 원본과 산출물을 한 곳에 둔다.
-본 평가는 100개 fixture가 아니라 `goals/crisis_goals_jmir_persona_min10.jsonl`의
+본 평가는 100개 fixture가 아니라 저장소 루트 `data/crisis_goals_jmir_persona_min10.jsonl`의
 전체 625개를 사용한다. `experiments/build_jmir_eval_set_full.py`가 이 파일과
-`outputs/goal_pathology_persona_routed_n813.jsonl`을 합쳐 무표본 full blueprint를 만든다.
+저장소 루트 `data/goal_pathology_routes_n625.jsonl`을 합쳐 무표본 full blueprint를 만든다.
 원출처, 2,046→813→652→625 필터, 범주별 개수와 checksum은
 `docs/DATA_LINEAGE_AND_EXTRACTION_KO.md`에 기록한다.
 

@@ -28,7 +28,8 @@ def artifact_paths(directory, *, evaluation=False):
     selected = []
     for path in sorted(Path(directory).glob("*.json")):
         if path.name.endswith(".failed.json") or path.name in {
-            "run_summary.json", "aggregate_summary.json"
+            "run_summary.json", "aggregate_summary.json",
+            "aggregate_summary_success_at_4.json",
         }:
             continue
         try:
@@ -129,7 +130,7 @@ def main():
     summary = {"evaluated_cases": len(records), "failed_this_run": failed,
                "active_final_directions": list(FINAL_DIRECTIONS),
                "aggregate": aggregate(records)}
-    atomic_json(args.output_dir / "aggregate_summary.json", summary)
+    atomic_json(args.output_dir / "aggregate_summary_success_at_4.json", summary)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

@@ -6,5 +6,6 @@
 - `DATA_LINEAGE_AND_EXTRACTION_KO.md`: 2,046→813→652→625 추출, persona pool, checksum
 - `PERSONA_HISTORY_PROMPT_HOOKS_KO.md`: 사용자 프롬프트 변수와 JSON 계약
 - `METHOD_PERSONA_POOL_CONSTRUCTION.md`: 현재 31,733개 category-gated·sample-adapted persona 방법
+- `SUCCESS_AT_4_KO.md`: 고정 4방향 집계 정의와 현재 153개 중간 결과
 
 현재 진입점과 계약은 최상위 `PIPELINE_OVERVIEW_KO.md`와 `pipeline/README.md`가 기준이다.

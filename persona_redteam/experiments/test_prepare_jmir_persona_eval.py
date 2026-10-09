@@ -12,6 +12,9 @@ class PrepareJmirPersonaEvalTest(unittest.TestCase):
             root = Path(directory)
             (root / "jmir-full-0001.json").write_text(json.dumps({"case": {}, "results": []}))
             (root / "run_summary.json").write_text(json.dumps({"selected": 1}))
+            (root / "aggregate_summary_success_at_4.json").write_text(
+                json.dumps({"evaluated_cases": 1})
+            )
             (root / "jmir-full-0002.failed.json").write_text(json.dumps({"error": "fixture"}))
             self.assertEqual(
                 [path.name for path in artifact_paths(root)], ["jmir-full-0001.json"]

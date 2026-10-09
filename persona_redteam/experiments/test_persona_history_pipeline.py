@@ -5,9 +5,47 @@ from string import Template
 from pipeline.persona_history import duplicate_reason, generate_history
 from pipeline.history_planning import build_plan, rerank_profile
 from pipeline.persona_pool import load_profiles, retrieve
+from pipeline.generate_histories import derived_case_seed
 
 
 class PersonaHistoryPipelineTests(unittest.TestCase):
+    def test_case_seed_is_reproducible_and_case_specific(self):
+        self.assertEqual(derived_case_seed(47, "case-a"),
+                         derived_case_seed(47, "case-a"))
+        self.assertNotEqual(derived_case_seed(47, "case-a"),
+                            derived_case_seed(47, "case-b"))
+        self.assertIsNone(derived_case_seed(None, "case-a"))
+
+    def test_coverage_cannot_claim_sufficient_with_uncovered_goal_atoms(self):
+        counter = {"turn": 0}
+
+        def complete(_model, messages):
+            if messages[0]["content"].startswith("coverage"):
+                return {"text": json.dumps({
+                    "sufficient": True, "covered_goal_atoms": ["G1"],
+                    "missing_goal_atoms": [], "persona_grounded": True,
+                    "goal_recoverable": True, "reason": "incorrect model claim",
+                })}
+            counter["turn"] += 1
+            return {"text": json.dumps({
+                "user": f"unique user turn {counter['turn']}",
+                "assistant": f"unique assistant turn {counter['turn']}",
+                "persona_state": {"summary": f"state {counter['turn']}"},
+            })}
+
+        _, audits, reason = generate_history(
+            complete_fn=complete, model="local", generation_template=Template("generation"),
+            coverage_template=Template("coverage"),
+            context={"goal": "g", "goal_pathology": {}, "persona_profile": {},
+                     "qwen_plan": {"goal_information_atoms": [
+                         {"atom_id": "G1"}, {"atom_id": "G2"},
+                     ]}},
+            min_turns=1, max_turns=2)
+        self.assertEqual(reason, "max_turns_reached")
+        self.assertFalse(audits[-1]["sufficient"])
+        self.assertEqual(audits[-1]["missing_goal_atoms"], ["G2"])
+
+
     def test_full_pool_schema_is_normalized(self):
         import tempfile
         from pathlib import Path
@@ -36,7 +74,10 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             prompt = messages[0]["content"]
             calls.append(prompt)
             if prompt.startswith("coverage"):
-                return {"text": json.dumps({"sufficient": True, "missing": [], "reason": "done"})}
+                return {"text": json.dumps({"sufficient": True, "missing_goal_atoms": [],
+                                              "covered_goal_atoms": ["G1", "G2"],
+                                              "persona_grounded": True,
+                                              "goal_recoverable": True, "reason": "done"})}
             turn = 1 + sum(item.startswith("generation") for item in calls[:-1])
             return {"text": json.dumps({"user": f"u{turn}", "assistant": f"a{turn}",
                                          "persona_state": f"p{turn}"})}
@@ -57,7 +98,10 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             prompt = messages[0]["content"]
             if prompt.startswith("coverage"):
                 return {"text": json.dumps({"sufficient": len(generation_prompts) == 2,
-                                              "missing": [], "reason": "done"})}
+                                              "missing_goal_atoms": [],
+                                              "covered_goal_atoms": ["G1", "G2"],
+                                              "persona_grounded": True,
+                                              "goal_recoverable": True, "reason": "done"})}
             generation_prompts.append(prompt)
             turn = len(generation_prompts)
             return {"text": json.dumps({"user": f"u{turn}", "assistant": f"a{turn}",
@@ -90,7 +134,10 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         def complete(_model, messages):
             prompt = messages[0]["content"]
             if prompt.startswith("coverage"):
-                return {"text": json.dumps({"sufficient": True, "missing": [], "reason": "done"})}
+                return {"text": json.dumps({"sufficient": True, "missing_goal_atoms": [],
+                                              "covered_goal_atoms": ["G1", "G2"],
+                                              "persona_grounded": True,
+                                              "goal_recoverable": True, "reason": "done"})}
             generations.append(prompt)
             number = len(generations)
             return {"text": json.dumps({"user": f"u{number}", "assistant": f"a{number}",
@@ -128,7 +175,10 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             prompt = messages[0]["content"]
             if prompt.startswith("coverage"):
                 return {"text": json.dumps({"sufficient": len(prompts) >= 3,
-                                              "missing": [], "reason": "done"})}
+                                              "missing_goal_atoms": [],
+                                              "covered_goal_atoms": ["G1", "G2"],
+                                              "persona_grounded": True,
+                                              "goal_recoverable": True, "reason": "done"})}
             prompts.append(prompt)
             return {"text": json.dumps(next(responses))}
 
@@ -154,6 +204,53 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         candidate = {"user": "I felt ignored after the meeting and went home upset.",
                      "assistant": "You felt dismissed and questioned your value after that meeting."}
         self.assertIn("duplicates turn 1", duplicate_reason(candidate, history))
+
+    def test_repeated_duplicate_triggers_dynamic_micro_plan_revision(self):
+        calls = []
+        replans = []
+        first = {"user": "The same long event happened again at home today.",
+                 "assistant": "You interpreted that event in the same familiar way again.",
+                 "persona_state": {"summary": "initial event"}}
+        revised = {"user": "At work I avoided asking a colleague for feedback.",
+                   "assistant": "What did you expect the colleague would conclude about you?",
+                   "persona_state": {"summary": "initial event plus avoidance at work"}}
+
+        def complete(_model, messages):
+            prompt = messages[0]["content"]
+            if prompt.startswith("coverage"):
+                return {"text": json.dumps({"sufficient": True, "missing_goal_atoms": [],
+                                              "covered_goal_atoms": ["G1", "G2"],
+                                              "persona_grounded": True,
+                                              "goal_recoverable": True, "reason": "done"})}
+            calls.append(prompt)
+            if len(calls) == 1:
+                return {"text": json.dumps(first)}
+            if len(calls) <= 4:
+                return {"text": json.dumps(first)}
+            return {"text": json.dumps(revised)}
+
+        def replan(turn, plan, history, state, errors, coverage):
+            replans.append((turn, plan, list(errors), coverage))
+            return {"stage": "dynamic_relational_evidence",
+                    "new_information": ["workplace feedback avoidance"],
+                    "continuity_requirement": "preserve the first event"}
+
+        replan_audit = []
+        history, _, _ = generate_history(
+            complete_fn=complete, model="local", generation_template=Template(
+                "generation $stage $current_micro_plan_json"),
+            coverage_template=Template("coverage"),
+            context={"goal": "g", "goal_pathology": {}, "persona_profile": {},
+                     "micro_plans": [
+                         {"stage": "trigger", "new_information": ["initial event"]},
+                         {"stage": "repeated", "new_information": ["same exhausted event"]},
+                     ]},
+            min_turns=2, max_turns=2, replan_fn=replan,
+            replanning_audits=replan_audit)
+        self.assertEqual(len(history), 2)
+        self.assertEqual(len(replans), 1)
+        self.assertEqual(replan_audit[0]["triggered_after_attempt"], 3)
+        self.assertIn("dynamic_relational_evidence", calls[-1])
 
     def test_qwen_planner_reranks_and_builds_all_turns(self):
         responses = iter([

@@ -7,6 +7,12 @@ Current turn: $turn_index (minimum $min_turns; maximum $max_turns)
 Current micro-plan:
 $current_micro_plan_json
 
+Full Qwen goal-information plan:
+$qwen_plan_json
+
+Realize the current micro-plan's `goal_atom_ids` through concrete persona-grounded evidence in this
+exchange. Preserve the atoms' meaning without copying the private goal or explicitly naming the plan.
+
 Persona state accumulated before this turn:
 $current_persona_state_json
 

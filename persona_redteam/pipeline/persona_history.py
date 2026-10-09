@@ -9,6 +9,12 @@ from string import Template
 REQUIRED_TURN_KEYS = {"user", "assistant", "persona_state"}
 
 
+def canonical_atom_id(value):
+    text = str(value).strip()
+    match = re.search(r"(\d+)$", text)
+    return f"G{int(match.group(1))}" if match else text.casefold()
+
+
 def _dialogue_tokens(turn):
     text = f"{turn.get('user', '')} {turn.get('assistant', '')}".casefold()
     return re.findall(r"[a-z0-9]+", text)
@@ -61,17 +67,22 @@ def load_template(path):
 
 def render(template, *, goal, goal_pathology, persona_profile, history, turn_index,
            min_turns, max_turns, current_persona_state=None,
-           current_micro_plan=None, stage="unplanned"):
+           current_micro_plan=None, qwen_plan=None, stage="unplanned"):
+    dialogue_history = [
+        {"turn": index, "user": item.get("user", ""), "assistant": item.get("assistant", "")}
+        for index, item in enumerate(history, 1)
+    ]
     values = {
         "goal": goal,
         "goal_json": json.dumps(goal, ensure_ascii=False),
         "goal_pathology_json": json.dumps(goal_pathology, ensure_ascii=False, indent=2),
         "persona_profile_json": json.dumps(persona_profile, ensure_ascii=False, indent=2),
-        "history_json": json.dumps(history, ensure_ascii=False, indent=2),
+        "history_json": json.dumps(dialogue_history, ensure_ascii=False, indent=2),
         "current_persona_state_json": json.dumps(
             current_persona_state or {}, ensure_ascii=False, indent=2),
         "current_micro_plan_json": json.dumps(
             current_micro_plan or {}, ensure_ascii=False, indent=2),
+        "qwen_plan_json": json.dumps(qwen_plan or {}, ensure_ascii=False, indent=2),
         "stage": str(stage or "unplanned"),
         "turn_index": str(turn_index), "min_turns": str(min_turns), "max_turns": str(max_turns),
     }
@@ -106,20 +117,30 @@ def validate_turn(value):
 def validate_coverage(value):
     if not isinstance(value.get("sufficient"), bool):
         raise ValueError("coverage output requires boolean sufficient")
-    missing = value.get("missing", [])
+    missing = value.get("missing_goal_atoms", value.get("missing", []))
     if not isinstance(missing, list) or not all(isinstance(item, str) for item in missing):
         raise ValueError("coverage missing must be a string list")
-    return {"sufficient": value["sufficient"], "missing": missing,
+    covered = value.get("covered_goal_atoms", [])
+    if not isinstance(covered, list) or not all(isinstance(item, str) for item in covered):
+        raise ValueError("coverage covered_goal_atoms must be a string list")
+    grounded = value.get("persona_grounded") is True
+    recoverable = value.get("goal_recoverable") is True
+    sufficient = value["sufficient"] and not missing and grounded and recoverable
+    return {"sufficient": sufficient, "missing": missing,
+            "covered_goal_atoms": covered, "missing_goal_atoms": missing,
+            "persona_grounded": grounded, "goal_recoverable": recoverable,
             "reason": str(value.get("reason", "")).strip()}
 
 
 def generate_history(*, complete_fn, model, generation_template, coverage_template,
                      context, min_turns=4, max_turns=8, verify_fn=None,
                      verification_audits=None, max_generation_attempts=6,
-                     coverage_complete_fn=None, coverage_model=None):
+                     coverage_complete_fn=None, coverage_model=None,
+                     replan_fn=None, replanning_audits=None, replan_after_attempts=3):
     if not 1 <= min_turns <= max_turns:
         raise ValueError("require 1 <= min_turns <= max_turns")
     history, audits = [], []
+    last_coverage = None
     render_context = dict(context)
     micro_plans = render_context.pop("micro_plans", []) or []
     if not isinstance(micro_plans, list):
@@ -165,6 +186,38 @@ def generate_history(*, complete_fn, model, generation_template, coverage_templa
                     attempt=attempt + 2, reason=reason, rejected_turn=rejected_turn,
                     history=history, micro_plan=current_micro_plan,
                 )
+                if (replan_fn and attempt + 1 == replan_after_attempts and
+                        attempt + 1 < max_generation_attempts):
+                    revised = replan_fn(
+                        turn_index, current_micro_plan, history, current_persona_state,
+                        list(errors), last_coverage,
+                    )
+                    if not isinstance(revised, dict) or not revised.get("new_information"):
+                        raise ValueError(f"dynamic replan for turn {turn_index} is invalid")
+                    if replanning_audits is not None:
+                        replanning_audits.append({
+                            "turn": turn_index,
+                            "triggered_after_attempt": attempt + 1,
+                            "previous_micro_plan": current_micro_plan,
+                            "revised_micro_plan": revised,
+                            "trigger_errors": list(errors),
+                            "prior_coverage": last_coverage,
+                        })
+                    current_micro_plan = revised
+                    stage = current_micro_plan.get("stage", stage)
+                    prompt = render(
+                        generation_template, history=history, turn_index=turn_index,
+                        min_turns=min_turns, max_turns=max_turns,
+                        current_persona_state=current_persona_state,
+                        current_micro_plan=current_micro_plan, stage=stage,
+                        **render_context,
+                    )
+                    retry = retry_instruction(
+                        attempt=attempt + 2,
+                        reason="The earlier micro-plan was exhausted and has been dynamically revised.",
+                        rejected_turn=rejected_turn, history=history,
+                        micro_plan=current_micro_plan,
+                    )
         else:
             raise ValueError(f"history turn {turn_index} failed after "
                              f"{max_generation_attempts} attempts: {errors}")
@@ -182,7 +235,45 @@ def generate_history(*, complete_fn, model, generation_template, coverage_templa
         coverage_result = coverage_call(
             coverage_model or model, [{"role": "user", "content": coverage_prompt}])
         coverage = validate_coverage(parse_json_object(coverage_result["text"]))
+        expected_atoms = {
+            str(atom.get("atom_id"))
+            for atom in (render_context.get("qwen_plan", {}).get("goal_information_atoms", []))
+            if isinstance(atom, dict) and atom.get("atom_id")
+        }
+        if expected_atoms:
+            covered_atoms = {
+                canonical_atom_id(atom) for atom in coverage["covered_goal_atoms"]
+            } & expected_atoms
+            missing_atoms = expected_atoms - covered_atoms
+            coverage["covered_goal_atoms"] = sorted(covered_atoms)
+            coverage["missing_goal_atoms"] = sorted(missing_atoms)
+            coverage["missing"] = sorted(missing_atoms)
+            coverage["sufficient"] = (
+                coverage["sufficient"] and not missing_atoms and
+                coverage["persona_grounded"] and coverage["goal_recoverable"]
+            )
+        last_coverage = coverage
         audits.append({"turn": turn_index, **coverage})
         if coverage["sufficient"]:
             return history, audits, "coverage_sufficient"
+        next_plan_index = turn_index
+        if replan_fn and next_plan_index < len(micro_plans):
+            previous_next_plan = micro_plans[next_plan_index]
+            revised = replan_fn(
+                turn_index + 1, previous_next_plan, history,
+                history[-1]["persona_state"],
+                ["Coverage is incomplete; target the uncovered goal information next."],
+                coverage,
+            )
+            if not isinstance(revised, dict) or not revised.get("new_information"):
+                raise ValueError(f"coverage-driven replan for turn {turn_index + 1} is invalid")
+            micro_plans[next_plan_index] = revised
+            if replanning_audits is not None:
+                replanning_audits.append({
+                    "turn": turn_index + 1,
+                    "triggered_by": "coverage_incomplete",
+                    "previous_micro_plan": previous_next_plan,
+                    "revised_micro_plan": revised,
+                    "prior_coverage": coverage,
+                })
     return history, audits, "max_turns_reached"

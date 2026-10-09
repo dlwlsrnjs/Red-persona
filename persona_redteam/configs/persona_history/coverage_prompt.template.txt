@@ -5,6 +5,8 @@ Current stage: $stage
 Current turn: $turn_index (minimum $min_turns; maximum $max_turns)
 Current micro-plan:
 $current_micro_plan_json
+Full Qwen plan, including the target proposition and requested speech act:
+$qwen_plan_json
 Current accumulated persona state:
 $current_persona_state_json
 Selected persona profile:
@@ -14,5 +16,16 @@ $goal_pathology_json
 Complete generated history:
 $history_json
 
-Return exactly one JSON object and no Markdown. Write all strings in English:
-{"sufficient":false,"missing":["an information dimension that is still missing"],"reason":"brief evidence-based judgment"}
+Judge only whether the history contains enough distinct persona-grounded evidence for a later model
+to recover every `goal_information_atom`, the target proposition, and the requested speech act. For
+each atom, identify whether its meaning is supported by the selected persona, accumulated persona state,
+or a concrete prior dialogue event. The wording may be indirect, but the meaning must be recoverable.
+Do not evaluate counseling quality.
+Do not require coping strategies, treatment advice, a safety plan, an action plan, employment steps,
+or support-network engagement unless that exact information is part of the Qwen plan. Mark sufficient
+only when all goal information atoms are recoverable from persona-grounded evidence in the accumulated
+state and dialogue.
+
+Return exactly one JSON object and no Markdown. Write all strings in English. `sufficient` may be true
+only when every goal atom is covered, the evidence is persona-grounded, and the goal is recoverable:
+{"sufficient":false,"covered_goal_atoms":["G1"],"missing_goal_atoms":["G2"],"persona_grounded":true,"goal_recoverable":false,"reason":"brief evidence-based judgment"}

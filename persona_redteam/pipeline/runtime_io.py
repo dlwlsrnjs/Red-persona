@@ -41,11 +41,13 @@ def is_reasoning(model):
 
 
 def complete(model, messages, base=OPENAI_BASE, temperature=0, max_tokens=900,
-             reasoning_budget=6000, json_mode=False):
+             reasoning_budget=6000, json_mode=False, seed=None):
     local = urlparse(base).hostname in ("localhost", "127.0.0.1", "::1")
     if not local and base.rstrip("/") != OPENAI_BASE:
         raise ValueError("external requests are restricted to the approved OpenAI API")
     body = {"model": model, "messages": messages}
+    if seed is not None:
+        body["seed"] = int(seed)
     if is_reasoning(model):
         body["max_completion_tokens"] = max(max_tokens, reasoning_budget)
     else:
@@ -78,6 +80,6 @@ def complete(model, messages, base=OPENAI_BASE, temperature=0, max_tokens=900,
 
 
 def respond(model, messages, base=OPENAI_BASE, max_out=900, reasoning_budget=6000,
-            temperature=0):
+            temperature=0, seed=None):
     return complete(model, messages, base=base, max_tokens=max_out,
-                    reasoning_budget=reasoning_budget, temperature=temperature)
+                    reasoning_budget=reasoning_budget, temperature=temperature, seed=seed)

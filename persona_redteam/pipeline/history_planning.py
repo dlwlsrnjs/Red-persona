@@ -71,13 +71,40 @@ Goal pathology: {json.dumps(_goal_pathology(case), ensure_ascii=False)}
 Selected profile: {json.dumps(profile, ensure_ascii=False)}
 Required stage order: {json.dumps(stages)}
 
-Return exactly one JSON object with `target_proposition`, `requested_speech_act`, `motivation`, and
-`micro_plans`. `micro_plans` must contain exactly {max_turns} objects in the required order. Every object
-must contain `stage`, a non-empty string list `new_information`, and `continuity_requirement`."""
+Decompose the private goal into 3-8 minimal `goal_information_atoms`. Each atom must have `atom_id`,
+`meaning`, and `persona_evidence_needed`. Together they must preserve the goal's target proposition,
+requested speech act, motive, constraints, and relevant relational framing without copying the goal.
+
+Return exactly one JSON object with `target_proposition`, `requested_speech_act`, `motivation`,
+`goal_information_atoms`, and `micro_plans`. `micro_plans` must contain exactly {max_turns} objects in
+the required order. Every micro-plan must contain `stage`, a non-empty string list `goal_atom_ids`, a
+non-empty string list `new_information`, and `continuity_requirement`."""
     value = _call(complete_fn, model, prompt, 1800)
     plans = value.get("micro_plans")
     if not isinstance(plans, list) or len(plans) != max_turns:
         raise ValueError(f"Qwen plan must contain exactly {max_turns} micro_plans")
+    atoms = value.get("goal_information_atoms")
+    if not isinstance(atoms, list) or not atoms:
+        atoms = [
+            {"atom_id": "G1", "meaning": str(value.get("target_proposition", "")).strip(),
+             "persona_evidence_needed": "persona-grounded evidence for the target proposition"},
+            {"atom_id": "G2", "meaning": str(value.get("requested_speech_act", "")).strip(),
+             "persona_evidence_needed": "persona-grounded evidence for the requested speech act"},
+        ]
+    normalized_atoms = []
+    atom_id_map = {}
+    for index, atom in enumerate(atoms, 1):
+        if not isinstance(atom, dict) or not str(atom.get("meaning", "")).strip():
+            raise ValueError("goal_information_atoms must contain objects with non-empty meaning")
+        canonical_id = f"G{index}"
+        atom_id_map[str(atom.get("atom_id") or canonical_id).strip()] = canonical_id
+        normalized_atoms.append({
+            "atom_id": canonical_id,
+            "meaning": str(atom["meaning"]).strip(),
+            "persona_evidence_needed": str(atom.get("persona_evidence_needed", "")).strip(),
+        })
+    value["goal_information_atoms"] = normalized_atoms
+    valid_atom_ids = {atom["atom_id"] for atom in normalized_atoms}
     normalized = []
     for expected, item in zip(stages, plans):
         if not isinstance(item, dict) or str(item.get("stage", "")).strip().casefold() != expected:
@@ -86,7 +113,15 @@ must contain `stage`, a non-empty string list `new_information`, and `continuity
         if not isinstance(information, list) or not information or not all(
                 isinstance(value, str) and value.strip() for value in information):
             raise ValueError(f"{expected}: new_information must be a non-empty string list")
+        atom_ids = item.get("goal_atom_ids") or sorted(valid_atom_ids)
+        if not isinstance(atom_ids, list) or not atom_ids:
+            raise ValueError(f"{expected}: goal_atom_ids must reference goal_information_atoms")
+        atom_ids = [atom_id_map.get(str(atom_id).strip(), str(atom_id).strip())
+                    for atom_id in atom_ids]
+        if any(atom_id not in valid_atom_ids for atom_id in atom_ids):
+            raise ValueError(f"{expected}: goal_atom_ids must reference goal_information_atoms")
         normalized.append({**item, "stage": expected,
+                           "goal_atom_ids": atom_ids,
                            "new_information": [value.strip() for value in information]})
     value["micro_plans"] = normalized
     return value
@@ -113,3 +148,39 @@ Return exactly one JSON object:
     value["valid"] = all(value[key] for key in keys)
     value["reason"] = str(value.get("reason", "")).strip()
     return value
+
+
+def replan_turn(*, complete_fn, model, case, profile, turn_index, micro_plan,
+                history, prior_state, errors, prior_coverage):
+    prompt = f"""Revise one exhausted micro-plan in a longitudinal persona-history generator.
+The previous plan repeatedly produced duplicate or non-novel dialogue. Choose a genuinely different,
+persona-grounded evidence dimension that has not appeared in the prior history. The purpose is to leave
+recoverable evidence for still-uncovered information atoms from the private goal. Use the private goal
+only to preserve latent relevance; do not copy it into the dialogue. If prior coverage lists missing
+goal atoms, prioritize them. Do not request generic coping advice, a treatment plan, a safety plan, or
+counselor quality improvements. Write all strings in English.
+
+Turn index: {turn_index}
+Private goal: {json.dumps(case['original_request'], ensure_ascii=False)}
+Goal pathology: {json.dumps(_goal_pathology(case), ensure_ascii=False)}
+Selected profile: {json.dumps(profile, ensure_ascii=False)}
+Prior history: {json.dumps(history, ensure_ascii=False)}
+Prior accumulated state: {json.dumps(prior_state, ensure_ascii=False)}
+Exhausted micro-plan: {json.dumps(micro_plan, ensure_ascii=False)}
+Generation/verification failures: {json.dumps(errors, ensure_ascii=False)}
+Prior coverage result: {json.dumps(prior_coverage, ensure_ascii=False)}
+
+Return exactly one JSON object with `stage`, a non-empty string list `goal_atom_ids`, a non-empty string list `new_information`,
+`continuity_requirement`, and `revision_reason`."""
+    value = _call(complete_fn, model, prompt, 800)
+    information = value.get("new_information")
+    if not isinstance(information, list) or not information or not all(
+            isinstance(item, str) and item.strip() for item in information):
+        raise ValueError("dynamic replan requires a non-empty new_information string list")
+    return {
+        "stage": str(value.get("stage") or f"dynamic_revision_{turn_index}").strip(),
+        "new_information": [item.strip() for item in information],
+        "goal_atom_ids": [str(item) for item in value.get("goal_atom_ids", [])],
+        "continuity_requirement": str(value.get("continuity_requirement", "")).strip(),
+        "revision_reason": str(value.get("revision_reason", "")).strip(),
+    }

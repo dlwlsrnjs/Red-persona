@@ -51,7 +51,7 @@ python3 -m pipeline.generate_histories \
   --base-url http://127.0.0.1:8002/v1 \
   --qwen-model Qwen/Qwen2.5-7B-Instruct \
   --qwen-base-url http://127.0.0.1:8000/v1 \
-  --min-turns 4 --max-turns 8 \
+  --min-turns 4 --max-turns 12 \
   --generation-attempts 6 --lexi-temperature 0.7 \
   --checkpoint-dir data/prepared/generated/jmir_eval_full_checkpoints \
   --output data/prepared/generated/jmir_eval_full_with_history.json
@@ -65,6 +65,11 @@ python3 -m pipeline.generate_histories \
 금지할 이전 대화, 현재 micro-plan의 `new_information`이 포함되며 attempt 번호가 달라져
 결정적 반복을 피한다. `--lexi-temperature`는 Lexi 생성에만 적용되고 Qwen 검증에는 적용하지
 않는다.
+
+Qwen은 goal을 canonical `G1..Gn` atom으로 분해한다. coverage가 하나라도 빠진 atom 또는
+`goal_recoverable=false`를 반환하면 다음 turn plan을 해당 부족분에 맞게 다시 만든다. 최대
+12턴에도 충분하지 않으면 사례는 실패로 남으며, partial history·coverage·검증·재계획 기록은
+`.failed.json`의 `diagnostics`에 저장된다.
 
 Qwen micro-plan → Lexi 턴별 렌더링과 검증은 `pipeline.generate_histories` 안에서 수행되며,
 사례별 checkpoint에 계획·생성·검증 결과가 함께 저장된다.

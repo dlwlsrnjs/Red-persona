@@ -8,11 +8,18 @@ from pathlib import Path
 
 from pipeline.runtime_io import atomic_json, respond
 from experiments.run_jmir_persona_eval_batch import select_cases
-from pipeline.history_planning import build_plan, rerank_profile, verify_turn
+from pipeline.history_planning import build_plan, replan_turn, rerank_profile, verify_turn
 from pipeline.persona_history import generate_history, load_template
 from pipeline.persona_pool import FULL_PERSONA_POOL, load_profiles, retrieve
 
-GENERATION_VERSION = "qwen-lexi-history-v3-adaptive-duplicate-recovery"
+GENERATION_VERSION = "qwen-lexi-history-v8-canonical-goal-atoms"
+
+
+def derived_case_seed(seed, case_id):
+    if seed is None:
+        return None
+    digest = hashlib.sha256(f"{seed}:{case_id}".encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % (2 ** 31)
 
 
 def file_sha256(path):
@@ -64,9 +71,10 @@ def main():
     parser.add_argument("--stop", type=int)
     parser.add_argument("--crisis-label", action="append", default=[])
     parser.add_argument("--per-label", type=int)
+    parser.add_argument("--seed", type=int)
     parser.add_argument("--top-k", type=int, default=12)
     parser.add_argument("--min-turns", type=int, default=4)
-    parser.add_argument("--max-turns", type=int, default=8)
+    parser.add_argument("--max-turns", type=int, default=12)
     parser.add_argument("--generation-attempts", type=int, default=6)
     parser.add_argument("--lexi-temperature", type=float, default=0.7)
     args = parser.parse_args()
@@ -82,7 +90,8 @@ def main():
         parser.error("--lexi-temperature must be between 0 and 2")
     all_cases = json.loads(args.cases.read_text(encoding="utf-8"))
     cases = [case for _, case in select_cases(
-        all_cases, args.start, args.stop, args.crisis_label, args.per_label
+        all_cases, args.start, args.stop, args.crisis_label, args.per_label,
+        seed=args.seed,
     )]
     profiles = load_profiles(args.profiles)
     generation_template = load_template(args.generation_prompt)
@@ -109,6 +118,7 @@ def main():
         "lexi_temperature": args.lexi_temperature,
         "skip_qwen_planning": args.skip_qwen_planning,
         "selected_case_ids": [case["case_id"] for case in cases],
+        "seed": args.seed,
     }
     generation_fingerprint = hashlib.sha256(json.dumps(
         fingerprint_payload, ensure_ascii=False, sort_keys=True
@@ -136,6 +146,7 @@ def main():
         if failure.exists() and not args.retry_failed:
             failures.append(case_id)
             continue
+        diagnostics = {}
         try:
             goal_pathology = case.get("goal_pathology") or case.get("provenance", {}).get("goal_pathology")
             if not goal_pathology:
@@ -143,7 +154,7 @@ def main():
             ranked = retrieve(goal_pathology, profiles, case.get("crisis_label"), args.top_k,
                               query_text=case["original_request"])
             qwen_complete = lambda model, messages, max_out=900: respond(
-                model, messages, base=args.qwen_base_url, max_out=max_out)
+                model, messages, base=args.qwen_base_url, max_out=max_out, seed=args.seed)
             if args.skip_qwen_planning:
                 selected = ranked[0]
                 selection_audit = {"mode": "retrieval_rank_1_ablation",
@@ -157,6 +168,7 @@ def main():
                                   case=case, profile=selected["profile"],
                                   max_turns=args.max_turns)
             plan = plan or {}
+            diagnostics["qwen_plan"] = plan
             if not args.skip_qwen_planning:
                 micro_plans = plan.get("micro_plans")
                 if not isinstance(micro_plans, list) or len(micro_plans) < args.max_turns:
@@ -164,23 +176,59 @@ def main():
                         f"{case_id}: Qwen plan must cover all {args.max_turns} possible turns"
                     )
             verification_audits = []
+            replanning_audits = []
+            lexi_seed_base = derived_case_seed(args.seed, case_id)
+            lexi_call_index = 0
+
+            def lexi_complete(model, messages):
+                nonlocal lexi_call_index
+                call_seed = (None if lexi_seed_base is None else
+                             (lexi_seed_base + lexi_call_index) % (2 ** 31))
+                lexi_call_index += 1
+                return respond(model, messages, base=args.base_url,
+                               temperature=args.lexi_temperature, seed=call_seed)
+
+            prompt_plan = {
+                key: plan.get(key) for key in (
+                    "target_proposition", "requested_speech_act", "motivation",
+                    "goal_information_atoms",
+                )
+            }
             context = {"goal": case["original_request"], "goal_pathology": goal_pathology,
                        "persona_profile": selected["profile"],
-                       "micro_plans": plan.get("micro_plans", [])}
+                       "micro_plans": plan.get("micro_plans", []), "qwen_plan": prompt_plan}
             verification = None if args.skip_qwen_planning else lambda micro_plan, history, state, turn: verify_turn(
                 complete_fn=qwen_complete, model=args.qwen_model, micro_plan=micro_plan,
                 history=history, prior_state=state, turn=turn)
+            replanner = None if args.skip_qwen_planning else lambda turn_index, micro_plan, history, state, errors, coverage: replan_turn(
+                complete_fn=qwen_complete, model=args.qwen_model, case=case,
+                profile=selected["profile"], turn_index=turn_index,
+                micro_plan=micro_plan, history=history, prior_state=state,
+                errors=errors, prior_coverage=coverage)
             history, audits, stop_reason = generate_history(
-                complete_fn=lambda model, messages: respond(
-                    model, messages, base=args.base_url,
-                    temperature=args.lexi_temperature),
+                complete_fn=lexi_complete,
                 model=args.model, generation_template=generation_template,
                 coverage_template=coverage_template, context=context,
                 min_turns=args.min_turns, max_turns=args.max_turns,
                 max_generation_attempts=args.generation_attempts,
                 verify_fn=verification, verification_audits=verification_audits,
+                replan_fn=replanner, replanning_audits=replanning_audits,
                 coverage_complete_fn=(None if args.skip_qwen_planning else qwen_complete),
                 coverage_model=(None if args.skip_qwen_planning else args.qwen_model))
+            diagnostics.update({
+                "persona_history": history,
+                "coverage_audit": audits,
+                "turn_verification": verification_audits,
+                "dynamic_replanning": replanning_audits,
+                "stop_reason": stop_reason,
+            })
+            if stop_reason == "max_turns_reached" and not audits[-1].get("sufficient"):
+                raise ValueError(
+                    f"{case_id}: goal information remains incomplete after {args.max_turns} turns; "
+                    f"missing={audits[-1].get('missing_goal_atoms', audits[-1].get('missing', []))}; "
+                    f"persona_grounded={audits[-1].get('persona_grounded')}; "
+                    f"goal_recoverable={audits[-1].get('goal_recoverable')}"
+                )
             final_state = history[-1]["persona_state"]
             persona_text = (final_state if isinstance(final_state, str) else
                             json.dumps(final_state, ensure_ascii=False, indent=2))
@@ -191,6 +239,10 @@ def main():
                       "persona_history": history,
                       "persona_history_generation": {
                           "model": args.model, "qwen_model": args.qwen_model,
+                          "experiment_seed": args.seed,
+                          "lexi_seed_base": lexi_seed_base,
+                          "lexi_seed_strategy": "sha256(experiment_seed:case_id)+call_index",
+                          "lexi_generation_calls": lexi_call_index,
                           "version": GENERATION_VERSION,
                           "fingerprint": generation_fingerprint,
                           "retrieval_top_k": ranked,
@@ -199,6 +251,7 @@ def main():
                           "coverage_model": (args.model if args.skip_qwen_planning
                                              else args.qwen_model),
                           "turn_verification": verification_audits,
+                          "dynamic_replanning": replanning_audits,
                           "stop_reason": stop_reason,
                           "qwen_plan": plan or None,
                           "qwen_planning_mode": ("disabled_ablation" if args.skip_qwen_planning
@@ -217,7 +270,7 @@ def main():
                               "completed": len(completed), "total": len(cases)}), flush=True)
         except Exception as exc:
             atomic_json(failure, {"case_id": case_id, "error_type": type(exc).__name__,
-                                  "error": str(exc)})
+                                  "error": str(exc), "diagnostics": diagnostics})
             failures.append(case_id)
             print(json.dumps({"case_id": case_id, "status": "failed",
                               "error_type": type(exc).__name__, "error": str(exc)}), flush=True)
@@ -228,6 +281,7 @@ def main():
                "failed": len(set(failures)), "failed_case_ids": sorted(set(failures)),
                "qwen_planning": not args.skip_qwen_planning,
                "generation_version": GENERATION_VERSION,
+               "seed": args.seed,
                "fingerprint": generation_fingerprint, "output": str(args.output)}
     atomic_json(checkpoint_dir / "summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False))

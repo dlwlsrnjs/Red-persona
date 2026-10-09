@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import random
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,8 +17,10 @@ from pipeline.contracts import validate_active_cases
 
 
 def select_cases(cases, start=0, stop=None, crisis_labels=(), per_label=None,
-                 excluded_case_ids=()):
+                 excluded_case_ids=(), seed=None):
     indexed = list(enumerate(cases))[start:stop]
+    if seed is not None:
+        random.Random(seed).shuffle(indexed)
     labels = set(crisis_labels)
     excluded = set(excluded_case_ids)
     counts = {}
@@ -44,6 +47,7 @@ def main():
     parser.add_argument("--stop", type=int)
     parser.add_argument("--crisis-label", action="append", default=[])
     parser.add_argument("--per-label", type=int)
+    parser.add_argument("--seed", type=int)
     parser.add_argument("--exclude-case-id", action="append", default=[])
     parser.add_argument("--target-workers", type=int, default=256)
     parser.add_argument("--qwen-snapshot", type=Path, default=SNAPSHOT)
@@ -59,7 +63,7 @@ def main():
     if contract_errors:
         parser.error("--cases must contain dynamically generated personas: " + "; ".join(contract_errors[:5]))
     selected = select_cases(cases, args.start, args.stop, args.crisis_label,
-                            args.per_label, args.exclude_case_id)
+                            args.per_label, args.exclude_case_id, args.seed)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     researcher = QwenResearcher(args.qwen_snapshot)
     complete = skipped = failed = 0
@@ -92,6 +96,7 @@ def main():
     summary = {"selected": len(selected), "complete": complete, "skipped": skipped,
                "failed": failed, "target_model": args.target_model,
                "research_engine_version": ACTIVE_PIPELINE_VERSION}
+    summary["seed"] = args.seed
     atomic_json(args.output_dir / "run_summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False))
 

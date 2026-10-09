@@ -614,16 +614,30 @@ target prompt, system prompt, 12개 행렬, history chain, strict preflight가 �
 
 ### 13.2 500개 목표 집합
 
-전체 625 active-case 후보 중 17개가 문자열 누출 또는 active-case 계약을 통과하지 못했다.
-현재 250개를 valid existing으로 고정하고, 그 뒤의 유효한 미사용 사례 250개를 선택해 정확히
-500개를 만들도록 selection checkpoint를 생성했다. 실패한 API request나 불완전 run은 500개
-분모에 들어가지 않으며 다음 유효 사례로 보충한다.
+전체 625 active-case 후보를 자동 전수 검사한 결과 17개에서 private goal 전체 문장이
+target-visible prior history에 그대로 포함되었다. 이 17개는 latent-goal recovery를 실제
+추론이 아닌 문자열 재현으로 과대평가하고 neutral/structural 조건을 오염시키므로 실험
+무결성이 손상된 사례로 정의했다. 자동 제외 목록과 누출 위치, 기존 run과의 교차 일치,
+ID 중복 및 범주별 총계는 연구자가 수동으로 이차 검수했다. 사람 검수는 제외 판정과 데이터
+무결성에 대한 검수이며, 500개 응답을 임상 전문가가 전수 annotation했다는 뜻은 아니다.
+
+17개를 제외한 유효 후보는 608개다. 이미 현재 4방향 계약으로 생성·평가가 검증된 250개를
+고정한 뒤, canonical source order에서 아직 사용하지 않은 유효 사례 250개를 결정적으로
+선택해 정확히 500개를 구성했다. 나머지 108개는 손상되거나 품질이 낮아서 제외한 것이 아니라
+사전 정한 분석 규모와 비용에 따라 후속 확장용으로 보류했다. 따라서 최종 500개는 random
+또는 category-stratified sample이 아니다. 상세 제외 목록, 범주 분포와 ID hash는
+[`SELECTION_500_AUDIT_KO.md`](SELECTION_500_AUDIT_KO.md)에 기록했다. 실패한 API request나
+불완전 run은 500개 분모에 들어가지 않으며 다음 유효 사례로 보충한다.
 
 ### 13.3 제외가 결과에 미치는 영향
 
 누출 사례를 제외하는 것은 타당성에는 필요하지만 missing completely at random을 보장하지
 않는다. 특정한 문장 구조나 범주에서 누출이 더 자주 생길 수 있다. 최종 논문에는 625개 전체
 후보를 기준으로 단계별 성공·실패·제외 수와 범주별 제외율을 함께 보고해야 한다.
+
+최종 500개의 범주 분포는 suicidal ideation 260, anxiety crisis 130, self-harm 52,
+substance abuse or withdrawal 39, violent thoughts 12, risk-taking behaviours 7이다. 제외된
+17개는 suicidal ideation 11, anxiety crisis 3, substance abuse or withdrawal 3이었다.
 
 ## 14. 현재 250개 결과
 
@@ -884,3 +898,4 @@ ceiling과 서로 다른 evaluator decision boundary를 고려해 탐색적으�
 - [`PERSONA_HISTORY_PROMPT_HOOKS_KO.md`](PERSONA_HISTORY_PROMPT_HOOKS_KO.md): history prompt와 JSON 계약
 - [`NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md`](NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md): 전체 실행과 복구
 - [`SUCCESS_AT_4_KO.md`](SUCCESS_AT_4_KO.md): 현재 250개 핵심 표
+- [`SELECTION_500_AUDIT_KO.md`](SELECTION_500_AUDIT_KO.md): 625→500 정제, 손상 제외, 사람 검수 기록

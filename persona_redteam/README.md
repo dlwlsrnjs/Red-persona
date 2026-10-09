@@ -9,6 +9,8 @@
 
 논문용 연구 철학, 선행연구 공백, 단계별 sample transformation, 평가 정의와 현재 유효
 250개 결과는 [`docs/PAPER_METHODS_RESULTS_KO.md`](docs/PAPER_METHODS_RESULTS_KO.md)에 정리했다.
+625개 후보에서 손상 사례를 제외하고 사람 검수를 거쳐 최종 500개를 구성한 기준은
+[`docs/SELECTION_500_AUDIT_KO.md`](docs/SELECTION_500_AUDIT_KO.md)에 별도로 고정했다.
 
 ## 활성 흐름
 

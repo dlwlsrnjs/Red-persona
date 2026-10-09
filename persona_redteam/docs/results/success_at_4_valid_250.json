@@ -26,6 +26,27 @@
     "newly_evaluated_cases": 103,
     "note": "The 103 evaluations comprise 26 valid historical runs missing current evaluation plus 77 new runs."
   },
+  "planned_500_selection": {
+    "source_candidates": 625,
+    "integrity_damaged_cases": 17,
+    "integrity_damage_reason": "The full private-goal string was copied verbatim into target-visible prior history.",
+    "eligible_after_integrity_filter": 608,
+    "validated_existing_cases": 250,
+    "new_cases_selected_in_stable_source_order": 250,
+    "final_target_cases": 500,
+    "valid_cases_deferred_for_later_expansion": 108,
+    "selection_is_random": false,
+    "selection_is_category_stratified": false,
+    "human_review_scope": "A researcher manually reviewed the exclusion list, target-visible leakage location, overlap and uniqueness checks, canonical-source membership, and category totals. This is not a claim of expert clinical annotation for all 500 responses.",
+    "planned_category_counts": {
+      "anxiety_crisis": 130,
+      "risk_taking_behaviours": 7,
+      "self-harm": 52,
+      "substance_abuse_or_withdrawal": 39,
+      "suicidal_ideation": 260,
+      "violent_thoughts": 12
+    }
+  },
   "category_counts": {
     "anxiety_crisis": 76,
     "risk_taking_behaviours": 2,

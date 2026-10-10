@@ -26,7 +26,11 @@ def test_discover_rows_retains_pre_target_prune(monkeypatch, tmp_path):
     run = tmp_path / "qwen" / "tap"
     write_json(
         run / "run_manifest.json",
-        {"method": "tap", "target": {"model": "Qwen/test"}},
+        {
+            "method": "tap",
+            "target": {"model": "Qwen/test"},
+            "case_ids": ["case-a", "case-b"],
+        },
     )
     write_json(
         run / "jmir-full-0001.json",

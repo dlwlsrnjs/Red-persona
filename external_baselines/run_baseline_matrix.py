@@ -100,6 +100,7 @@ class EndpointConfig:
     sync_case_concurrency: int
     batch_case_concurrency: int
     adaptive_batch_case_concurrency: int
+    reasoning_effort: str | None
 
 
 @dataclass(frozen=True)
@@ -140,6 +141,10 @@ def _endpoint(
     adaptive_batch_case_concurrency = int(
         value.get("adaptive_batch_case_concurrency", batch_case_concurrency)
     )
+    reasoning_effort_value = value.get("reasoning_effort")
+    reasoning_effort = (
+        str(reasoning_effort_value).strip() if reasoning_effort_value is not None else None
+    )
     parsed = urlparse(endpoint)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ValueError(f"invalid endpoint URL: {endpoint}")
@@ -157,6 +162,8 @@ def _endpoint(
         adaptive_batch_case_concurrency,
     ) < 1:
         raise ValueError("endpoint concurrency values must be at least 1")
+    if reasoning_effort not in {None, "none", "low", "medium", "high", "xhigh", "max"}:
+        raise ValueError(f"invalid reasoning_effort for {name}: {reasoning_effort}")
     return EndpointConfig(
         name=name,
         endpoint=endpoint,
@@ -166,6 +173,7 @@ def _endpoint(
         sync_case_concurrency=sync_case_concurrency,
         batch_case_concurrency=batch_case_concurrency,
         adaptive_batch_case_concurrency=adaptive_batch_case_concurrency,
+        reasoning_effort=reasoning_effort,
     )
 
 
@@ -254,6 +262,8 @@ def build_jobs(
                 str(target.sync_case_concurrency),
                 *METHOD_PROFILES[method],
             ]
+            if target.reasoning_effort is not None:
+                command.extend(("--target-reasoning-effort", target.reasoning_effort))
             batch_limits: list[int] = []
             if target.transport == "openai_batch":
                 batch_limits.append(

@@ -52,6 +52,21 @@ def test_sync_case_concurrency_is_configurable():
     assert args.sync_case_concurrency == 16
 
 
+def test_luna_reasoning_effort_is_recorded_in_manifest():
+    args = MODULE.parse_args(
+        [
+            "--method", "direct",
+            "--target-model", "gpt-6-luna",
+            "--target-endpoint", "https://api.openai.com/v1",
+            "--target-transport", "openai_batch",
+            "--target-reasoning-effort", "none",
+            "--limit", "1",
+            "--dry-run",
+        ]
+    )
+    assert args.target_reasoning_effort == "none"
+
+
 def test_recovery_defaults_are_enabled_and_can_be_disabled():
     enabled = MODULE.parse_args(["--method", "direct", "--dry-run"])
     disabled = MODULE.parse_args(

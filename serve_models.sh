@@ -10,7 +10,8 @@
 # Usage:
 #   bash serve_models.sh qwen     # QWEN_SERVE_GPU=0, QWEN_SERVE_PORT=8000
 #   bash serve_models.sh lexi     # start Lexi on GPU 1, port 8002
-#   bash serve_models.sh both     # start both (background, logs under ./serve_logs)
+#   bash serve_models.sh llama    # standard Llama-3.1-8B-Instruct
+#   bash serve_models.sh both     # start Qwen and Lexi (background)
 #   bash serve_models.sh status   # probe both /v1/models endpoints
 #   bash serve_models.sh stop     # stop servers started by this script
 set -euo pipefail
@@ -54,6 +55,8 @@ QWEN_ID="Qwen/Qwen2.5-7B-Instruct"
 QWEN_REV="a09a35458c702b33eeacc393d103063234e8bc28"
 LEXI_ID="Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2"
 LEXI_REV="f4617caeabd21f1820ac89bd125c80eda70901a7"
+LLAMA_ID="meta-llama/Llama-3.1-8B-Instruct"
+LLAMA_REV="0e9e39f249a16976918f6564b8830bc894c89659"
 LOGDIR="$SCRIPT_DIR/serve_logs"
 mkdir -p "$LOGDIR"
 
@@ -76,9 +79,19 @@ serve_lexi() {
     --host 127.0.0.1 --port 8002 --enforce-eager \
     --gpu-memory-utilization 0.90 --max-model-len 16384 --dtype bfloat16
 }
+serve_llama() {
+  CUDA_VISIBLE_DEVICES="${LLAMA_SERVE_GPU:-0}" "$PY" -m vllm.entrypoints.openai.api_server \
+    --model "$LLAMA_ID" --revision "$LLAMA_REV" --served-model-name "$LLAMA_ID" \
+    --host 127.0.0.1 --port "${LLAMA_SERVE_PORT:-8100}" --enforce-eager \
+    --gpu-memory-utilization "${LLAMA_GPU_MEMORY_UTILIZATION:-0.90}" \
+    --max-model-len "${LLAMA_MAX_MODEL_LEN:-32768}" \
+    --max-num-seqs "${LLAMA_MAX_NUM_SEQS:-128}" \
+    --max-num-batched-tokens "${LLAMA_MAX_BATCHED_TOKENS:-32768}" \
+    --dtype bfloat16
+}
 
 status() {
-  for p in 8000 8002; do
+  for p in 8000 8002 8100; do
     echo -n "port $p: "
     curl -s -m 5 "http://127.0.0.1:$p/v1/models" \
       | "$PY" -c 'import sys,json;d=json.load(sys.stdin);print([m["id"] for m in d.get("data",[])])' 2>/dev/null \
@@ -89,6 +102,7 @@ status() {
 case "${1:-}" in
   qwen) serve_qwen ;;
   lexi) serve_lexi ;;
+  llama) serve_llama ;;
   both)
     nohup bash "$0" qwen >"$LOGDIR/qwen.log" 2>&1 &
     echo "qwen serving -> $LOGDIR/qwen.log (pid $!)"
@@ -99,6 +113,7 @@ case "${1:-}" in
   stop)
     pkill -f "vllm.entrypoints.openai.api_server.*$QWEN_ID" 2>/dev/null || true
     pkill -f "vllm.entrypoints.openai.api_server.*$LEXI_ID" 2>/dev/null || true
+    pkill -f "vllm.entrypoints.openai.api_server.*$LLAMA_ID" 2>/dev/null || true
     echo "stop signal sent" ;;
-  *) echo "usage: bash serve_models.sh {qwen|lexi|both|status|stop}"; exit 2 ;;
+  *) echo "usage: bash serve_models.sh {qwen|lexi|llama|both|status|stop}"; exit 2 ;;
 esac

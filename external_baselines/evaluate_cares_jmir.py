@@ -91,16 +91,34 @@ def evaluation_requests_with_label_reuse(
     return requests, reused
 
 
-def discover_rows(input_root: Path, cohort: Path) -> list[dict[str, Any]]:
+def discover_rows(
+    input_root: Path, cohort: Path, expected_cases: int | None = None
+) -> list[dict[str, Any]]:
+    if expected_cases is None:
+        expected_cases = EXPECTED_CASES
     official_ids = official_case_ids(cohort)
     official_labels = official_case_labels(cohort)
     rows: list[dict[str, Any]] = []
+    common_case_ids: set[str] | None = None
     for manifest_path in sorted(input_root.rglob("run_manifest.json")):
         run_dir = manifest_path.parent
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         method = str(manifest.get("method") or run_dir.name)
         target_model = str((manifest.get("target") or {}).get("model") or "unknown")
         identity = _manifest_baseline_id(run_dir, manifest)
+        manifest_case_ids = {str(item) for item in manifest.get("case_ids", [])}
+        if len(manifest_case_ids) != expected_cases:
+            raise ValueError(
+                f"{identity}: expected {expected_cases} manifest case IDs; "
+                f"found {len(manifest_case_ids)}"
+            )
+        unknown = sorted(manifest_case_ids - set(official_ids))
+        if unknown:
+            raise ValueError(f"{identity}: case IDs outside official cohort: {unknown[:5]}")
+        if common_case_ids is None:
+            common_case_ids = manifest_case_ids
+        elif manifest_case_ids != common_case_ids:
+            raise ValueError(f"{identity}: pilot case IDs differ across baselines")
         found: set[str] = set()
         for path in sorted(run_dir.glob("jmir-full-*.json")):
             record = json.loads(path.read_text(encoding="utf-8"))
@@ -136,17 +154,17 @@ def discover_rows(input_root: Path, cohort: Path) -> list[dict[str, Any]]:
             else:
                 row["unscored_reason"] = "attack_exhausted_before_target_response"
             rows.append(row)
-        missing = sorted(set(official_ids) - found)
-        extra = sorted(found - set(official_ids))
+        missing = sorted(manifest_case_ids - found)
+        extra = sorted(found - manifest_case_ids)
         if missing or extra:
             raise ValueError(
-                f"{identity}: Official-500 mismatch; "
+                f"{identity}: cohort mismatch; "
                 f"missing={missing[:5]}, extra={extra[:5]}"
             )
     if not rows:
         raise ValueError(f"no run manifests found below {input_root}")
     counts = Counter(row["baseline_id"] for row in rows)
-    bad = {key: value for key, value in counts.items() if value != EXPECTED_CASES}
+    bad = {key: value for key, value in counts.items() if value != expected_cases}
     if bad:
         raise ValueError(f"baseline cardinality mismatch: {bad}")
     if len({row["row_id"] for row in rows}) != len(rows):
@@ -255,6 +273,7 @@ def prepare(
     api_mode: str,
     evaluator_model: str,
     harm_labels: Path,
+    expected_cases: int = EXPECTED_CASES,
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
@@ -262,7 +281,7 @@ def prepare(
     dict[str, Any],
     dict[str, dict[str, Any]],
 ]:
-    all_rows = discover_rows(input_root, cohort)
+    all_rows = discover_rows(input_root, cohort, expected_cases)
     scorable = [row for row in all_rows if row["target_call_available"]]
     requests, reused_harm_labels = evaluation_requests_with_label_reuse(
         scorable, evaluator_model, harm_labels
@@ -408,7 +427,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-budget-usd", type=float)
     parser.add_argument("--poll-seconds", type=int, default=20)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--expected-cases", type=int, default=EXPECTED_CASES)
     args = parser.parse_args(argv)
+    if args.expected_cases < 1:
+        parser.error("--expected-cases must be positive")
     all_rows, scorable, requests, preflight, reused_harm_labels = prepare(
         input_root=args.input_root,
         cohort=args.cohort,
@@ -416,6 +438,7 @@ def main(argv: list[str] | None = None) -> int:
         api_mode=args.api_mode,
         evaluator_model=args.evaluator_model,
         harm_labels=args.harm_labels,
+        expected_cases=args.expected_cases,
     )
     if not args.execute:
         print(json.dumps(preflight, ensure_ascii=False, indent=2))

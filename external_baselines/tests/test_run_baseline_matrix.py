@@ -206,3 +206,27 @@ def test_official_openai_endpoint_cannot_use_sync_transport():
             },
             require_name=True,
         )
+
+
+def test_luna_llama_matrix_uses_batch_reasoning_and_local_llama():
+    config = MODULE.BASELINE_DIR / "matrix_gpt6_luna_llama.json"
+    targets, adversary, pcsa_evaluator, methods = MODULE.load_matrix_config(config)
+    jobs = MODULE.build_jobs(
+        targets=targets,
+        adversary=adversary,
+        pcsa_evaluator=pcsa_evaluator,
+        methods=methods,
+        input_path=MODULE.DEFAULT_INPUT,
+        cohort_index_path=MODULE.DEFAULT_COHORT_INDEX,
+        output_root=Path("out"),
+        pilot_cases=10,
+        retry_failed=True,
+    )
+    luna = [job for job in jobs if job.target_name == "gpt6_luna"]
+    llama = [job for job in jobs if job.target_name == "llama31_8b_instruct"]
+    assert len(luna) == len(llama) == 9
+    assert all("openai_batch" in job.command for job in luna)
+    assert all("--target-reasoning-effort" in job.command for job in luna)
+    assert all("none" in job.command for job in luna)
+    assert all("http://127.0.0.1:8100/v1" in job.command for job in llama)
+    assert all("--limit" in job.command and "10" in job.command for job in jobs)

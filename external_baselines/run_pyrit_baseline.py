@@ -353,6 +353,7 @@ def build_manifest(
             "model": args.target_model,
             "transport": args.target_transport,
             "max_completion_tokens": args.target_max_completion_tokens,
+            "reasoning_effort": args.target_reasoning_effort,
             "sync_case_concurrency": args.sync_case_concurrency,
             "batch_case_concurrency": (
                 args.batch_case_concurrency if args.target_transport == "openai_batch" else None
@@ -555,6 +556,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
         max_completion_tokens: int,
         transport: str,
         batch_work_dir: Path,
+        reasoning_effort: str | None = None,
     ) -> Any:
         options = {
             "endpoint": endpoint,
@@ -563,6 +565,10 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
             "temperature": temperature,
             "max_completion_tokens": max_completion_tokens,
         }
+        if reasoning_effort is not None:
+            options["extra_body_parameters"] = {
+                "reasoning_effort": reasoning_effort,
+            }
         if transport == "openai_batch":
             if urlparse(endpoint).hostname != "api.openai.com":
                 raise RuntimeError(
@@ -582,6 +588,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
         max_completion_tokens=args.target_max_completion_tokens,
         transport=args.target_transport,
         batch_work_dir=args.output_dir / "_openai_batches" / "target",
+        reasoning_effort=args.target_reasoning_effort,
     )
     adversary = None
     adversarial_config = None
@@ -860,6 +867,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--target-transport", choices=("sync", "openai_batch"), default="sync"
     )
     parser.add_argument("--target-temperature", type=float, default=0.0)
+    parser.add_argument(
+        "--target-reasoning-effort",
+        choices=("none", "low", "medium", "high", "xhigh", "max"),
+        help="optional Chat Completions reasoning_effort for the target model",
+    )
     parser.add_argument("--target-max-completion-tokens", type=int, default=4096)
     parser.add_argument("--sync-case-concurrency", type=int, default=1)
     parser.add_argument("--batch-case-concurrency", type=int, default=64)

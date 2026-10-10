@@ -54,6 +54,8 @@ Phase I 대신 이미 고정된 `case_id → persona`를 사용하며, 원 저�
 
 - 실행 설정: `core_code/matrix_gpt6_luna_llama.json`
 - Slurm 실행기: `core_code/run_luna_llama_pilot.sbatch`
+- 두 번째 H200 노드·Batch project 가속 실행기:
+  `core_code/run_luna_llama_accelerator.sbatch`
 - matrix orchestration: `core_code/run_baseline_matrix.py`
 - 9개 방법 adapter: `core_code/run_pyrit_baseline.py`
 - Batch resume/retry: `core_code/openai_batch_transport.py`
@@ -63,3 +65,8 @@ Phase I 대신 이미 고정된 `case_id → persona`를 사용하며, 원 저�
 
 `core_code/`는 실행 시점 감사용 snapshot이다. 실제 수정·재실행은
 `external_baselines/` 바로 아래 canonical 파일에서 수행한다.
+
+가속 실행기는 기존 작업의 완료된 Llama 8개 방법을 재사용하고, 별도 출력 경로에서 Luna
+9개 방법과 Llama-PCSA만 실행한다. 두 작업이 같은 checkpoint를 동시에 쓰지 않도록 출력
+루트를 분리하며, 새 API key는 Slurm 제출 환경으로만 전달하고 파일·manifest에는 기록하지
+않는다. 가속 루트가 완전해진 뒤에만 공통 CARES/JMIR 평가를 시작한다.

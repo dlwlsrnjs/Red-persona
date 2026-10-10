@@ -1,0 +1,22 @@
+{
+  "version": "additional-targets-official500-status-v1",
+  "status": "generation_running",
+  "cohort": "Official-500",
+  "cases": 500,
+  "targets": {
+    "gpt-6-luna": {
+      "generation_mode": "openai_batch_only",
+      "dialogue_cases_complete": 0,
+      "no_dialogue_cases_complete": 0,
+      "evaluation_complete": false
+    },
+    "meta-llama/Llama-3.1-8B-Instruct": {
+      "generation_mode": "local_vllm_h100",
+      "dialogue_cases_complete": 10,
+      "no_dialogue_cases_complete": 10,
+      "evaluation_complete": false
+    }
+  },
+  "expected_responses_total": 8000,
+  "recovery_evaluation": false
+}

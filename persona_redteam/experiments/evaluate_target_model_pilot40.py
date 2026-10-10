@@ -1,9 +1,10 @@
-"""Batch-only CARES SS and JMIR evaluation for the target-model pilot.
+"""Batch-only CARES SS and JMIR evaluation for a target-model pilot.
 
-The pilot compares dialogue/history-bridge and no-dialogue arms for GPT-6 Luna
-and Llama 3.1 8B Instruct on the same outcome-blind 40-case subset.  This file
-intentionally reuses the exact evaluation prompts and parsing rules registered
-for the Official-500 experiment.
+The evaluator compares dialogue/history-bridge and no-dialogue arms for GPT-6
+Luna and Llama 3.1 8B Instruct on the same fixed Official-500 subset.  The
+subset size is explicit so a 10-case interoperability pilot and the registered
+40-case pilot cannot be mixed accidentally.  This file intentionally reuses
+the exact evaluation prompts and parsing rules registered for Official-500.
 """
 from __future__ import annotations
 
@@ -138,10 +139,13 @@ def extract_rows(
 def build_rows(
     selection: Path, artifact_root: Path,
     targets: tuple[str, ...] = ("gpt6_luna", "llama31_8b"),
+    expected_cases: int = 40,
 ) -> list[dict[str, Any]]:
     ids = selected_case_ids(selection)
-    if len(ids) != 40 or len(set(ids)) != 40:
-        raise ValueError("target-model pilot must contain 40 unique case IDs")
+    if len(ids) != expected_cases or len(set(ids)) != expected_cases:
+        raise ValueError(
+            f"target-model pilot must contain {expected_cases} unique case IDs"
+        )
     rows = []
     specs = arm_specs(artifact_root, targets)
     if not specs:
@@ -149,7 +153,7 @@ def build_rows(
     for arm, spec in specs.items():
         rows.extend(extract_rows(arm=arm, spec=spec, case_ids=ids))
     keys = [(row["arm"], row["case_id"], row["direction"]) for row in rows]
-    expected = len(specs) * 160
+    expected = len(specs) * expected_cases * 4
     if len(rows) != expected or len(keys) != len(set(keys)):
         raise ValueError(f"expected {expected} unique arm/case/direction rows")
     if any(not row["candidate_response_nonempty"] for row in rows):
@@ -177,7 +181,7 @@ def preflight(
         "jmir_response": requests["jmir_response"],
     }, "batch")
     return {
-        "version": "target-model-pilot40-cares-jmir-preflight-v1",
+        "version": f"target-model-pilot{len({row['case_id'] for row in rows})}-cares-jmir-preflight-v1",
         "created_at": utc_now(),
         "status": "prepared_not_evaluated",
         "selection": str(selection),
@@ -185,7 +189,7 @@ def preflight(
         "cases": len({row["case_id"] for row in rows}),
         "arms": sorted({row["arm"] for row in rows}),
         "responses": len(rows),
-        "responses_per_arm": 160,
+        "responses_per_arm": len(rows) // len({row["arm"] for row in rows}),
         "empty_responses": sum(not row["candidate_response_nonempty"] for row in rows),
         "evaluator_model": evaluator_model,
         "api_mode": "openai_batch_only",
@@ -208,7 +212,8 @@ def execute(
         "batch", output_dir / "checkpoints", workers=1,
         max_budget_usd=max_budget_usd, poll_seconds=poll_seconds,
     )
-    primary = client.run("target_model_pilot40_primary", requests["primary"])
+    case_count = len({row["case_id"] for row in rows})
+    primary = client.run(f"target_model_pilot{case_count}_primary", requests["primary"])
     cares_repairs_spec = cares_repair_requests(rows, primary, evaluator_model)
     cares_repairs = (
         client.run("cares_repair_max8", cares_repairs_spec)
@@ -252,7 +257,7 @@ def execute(
                 by_arm_rows[dialogue], by_arm_rows[no_dialogue]
             )
     result = {
-        "version": "target-model-pilot40-cares-jmir-results-v1",
+        "version": f"target-model-pilot{case_count}-cares-jmir-results-v1",
         "created_at": utc_now(),
         "status": "complete",
         "evaluator_model": evaluator_model,
@@ -280,9 +285,10 @@ def pct(value: float) -> str:
 
 
 def markdown_report(result: dict[str, Any]) -> str:
+    case_count = next(iter(result["arms"].values()))["cases"]
     lines = [
         "# GPT-6 Luna · Llama 3.1 8B target-model pilot", "",
-        "고정된 outcome-blind Official-500 부분표본 40개에서 동일한 4방향을 생성했다. "
+        f"고정된 Official-500 부분표본 {case_count}개에서 동일한 4방향을 생성했다. "
         "모든 외부 평가는 OpenAI Batch만 사용했다.", "",
         "| Target / arm | cases | CARES SS ↑ | JMIR mean ↑ | JMIR harmful rate ↓ | harmful@4 ↓ |",
         "|---|---:|---:|---:|---:|---:|",
@@ -320,7 +326,7 @@ def markdown_report(result: dict[str, Any]) -> str:
             f"{value['jmir_harmful_success_at_4']['mcnemar_exact_two_sided_p']:.4g} |"
         )
     lines.extend(["", "## 해석 제한", "", (
-        "이것은 40개 파일럿이며 확증 실험이 아니다. target model 비교와 dialogue ablation은 "
+        f"이것은 {case_count}개 파일럿이며 확증 실험이 아니다. target model 비교와 dialogue ablation은 "
         "같은 사례로 paired되지만, 모델 간 직접 우열과 범주별 결과는 탐색적으로만 해석한다."
     ), "", f"Batch evaluator cost: `${result['evaluator_cost_usd']:.6f}`", ""])
     return "\n".join(lines)
@@ -348,10 +354,17 @@ def combine_public_parts(parts: list[Path], output_dir: Path) -> dict[str, Any]:
             ).splitlines()
             if line.strip()
         )
-    if len(arms) != 4 or len(labeled) != 640:
-        raise ValueError("combined pilot must contain four arms and 640 labeled rows")
+    case_counts = {value["cases"] for value in arms.values()}
+    if len(arms) != 4 or len(case_counts) != 1:
+        raise ValueError("combined pilot must contain four equal-sized arms")
+    case_count = next(iter(case_counts))
+    expected_rows = 4 * case_count * 4
+    if len(labeled) != expected_rows:
+        raise ValueError(
+            f"combined pilot must contain {expected_rows} labeled rows"
+        )
     combined = {
-        "version": "target-model-pilot40-cares-jmir-results-v1",
+        "version": f"target-model-pilot{case_count}-cares-jmir-results-v1",
         "created_at": utc_now(),
         "status": "complete",
         "evaluator_model": records[0]["evaluator_model"],
@@ -382,6 +395,10 @@ def main() -> None:
     parser.add_argument("--max-budget-usd", type=float, default=2.0)
     parser.add_argument("--poll-seconds", type=int, default=10)
     parser.add_argument(
+        "--expected-cases", type=int, default=40,
+        help="Fail closed unless the selection has exactly this many unique cases.",
+    )
+    parser.add_argument(
         "--targets", nargs="+", choices=("gpt6_luna", "llama31_8b"),
         default=("gpt6_luna", "llama31_8b"),
         help="Evaluate one target immediately or both after all generation completes.",
@@ -398,7 +415,9 @@ def main() -> None:
         print(json.dumps(combined, ensure_ascii=False, indent=2))
         return
 
-    rows = build_rows(args.selection, args.artifact_root, tuple(args.targets))
+    rows = build_rows(
+        args.selection, args.artifact_root, tuple(args.targets), args.expected_cases
+    )
     requests = request_bundle(rows, args.evaluator_model)
     prepared = preflight(
         rows=rows, requests=requests, selection=args.selection,

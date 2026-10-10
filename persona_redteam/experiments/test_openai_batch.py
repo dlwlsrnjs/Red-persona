@@ -229,6 +229,34 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
             {"type": "json_object"},
         )
 
+    def test_length_repair_can_preserve_audited_intermediate_truncation(self):
+        class AlwaysLengthClient(self.RecordingClient):
+            def run(self, label, requests):
+                self.calls.append((label, requests))
+                return {
+                    request["custom_id"]: {
+                        "text": "audited intermediate output",
+                        "finish_reason": "length",
+                        "model": request["body"]["model"],
+                        "usage": {},
+                    }
+                    for request in requests
+                }
+
+        specs = [{
+            "custom_id": "f-case-n-0",
+            "messages": [{"role": "user", "content": "analyze"}],
+        }]
+        client = AlwaysLengthClient()
+        output = repair_length_outputs(
+            "intermediate", specs,
+            {"f-case-n-0": {"text": "old", "finish_reason": "length"}},
+            client, "fixture-model", token_limits=(64,),
+            allow_remaining=True,
+        )
+        self.assertEqual(output["f-case-n-0"]["finish_reason"], "length")
+        self.assertEqual(len(client.calls), 1)
+
     def test_evaluator_resume_uses_next_unresolved_pass_number(self):
         job = {
             "custom_id": "ec-case-n-0", "kind": "cares", "case_id": "case",

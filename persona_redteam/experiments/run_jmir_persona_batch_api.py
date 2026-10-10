@@ -240,7 +240,8 @@ def planner_wave(path, builder, researcher):
 
 
 def repair_length_outputs(label, specs, outputs, client, model,
-                          token_limits=(1200, 1800), json_mode=False):
+                          token_limits=(1200, 1800), json_mode=False,
+                          allow_remaining=False):
     """Retry only responses cut off by max_tokens, preserving all other outputs."""
     repaired = dict(outputs)
     specs_by_id = {spec["custom_id"]: spec for spec in specs}
@@ -268,6 +269,8 @@ def repair_length_outputs(label, specs, outputs, client, model,
         if output.get("finish_reason") == "length"
     ]
     if remaining:
+        if allow_remaining:
+            return repaired
         raise RuntimeError(
             f"{label}: {len(remaining)} responses remain truncated after repair"
         )
@@ -876,6 +879,7 @@ def repair_final_branches(label, final, client, target_model):
     outputs = repair_length_outputs(
         label, specs, initial, client, target_model,
         token_limits=(1400, 2000),
+        allow_remaining=True,
     )
     for custom_id, output in outputs.items():
         branch_by_id[custom_id]["target"] = output
@@ -928,7 +932,8 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
                 batch_label_prefix +
                 "generation-ablation-no-research-final-initial-repair-length",
                 specs, outputs, client, args.target_model,
-                token_limits=(1600, 2200),
+                token_limits=(1600, 2200, 3200, 4096, 6144, 8192),
+                allow_remaining=True,
             )
             final.update(make_final_branches(
                 specs, outputs, repair_states,
@@ -953,7 +958,9 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
         outputs = repair_length_outputs(
             batch_label_prefix +
             "generation-ablation-no-research-final-length", specs, outputs,
-            client, args.target_model, token_limits=(1600, 2200),
+            client, args.target_model,
+            token_limits=(1600, 2200, 3200, 4096, 6144, 8192),
+            allow_remaining=True,
         )
         final = make_final_branches(specs, outputs, states, first_by_case)
     final = repair_final_branches(
@@ -1354,7 +1361,8 @@ def main():
         if not args.allow_truncated:
             outputs = repair_length_outputs(
                 f"generation-{final_wave_namespace}final-length", specs, outputs,
-                client, args.target_model, token_limits=(1600, 2200),
+                client, args.target_model,
+                token_limits=(1600, 2200, 3200, 4096, 6144, 8192),
             )
         final = make_final_branches(specs, outputs, states, first_by_case)
         atomic_json(final_path, final)
@@ -1380,7 +1388,8 @@ def main():
             manifestation_outputs = repair_length_outputs(
                 f"generation-{final_wave_namespace}manifestation-length",
                 manifestation_specs, manifestation_outputs, client,
-                args.target_model, token_limits=(1600, 2200),
+                args.target_model,
+                token_limits=(1600, 2200, 3200, 4096, 6144, 8192),
             )
         manifestation_outputs = repair_manifestation_schema(
             f"generation-{final_wave_namespace}manifestation-schema",

@@ -11,7 +11,12 @@ import argparse
 from collections import defaultdict
 import json
 from pathlib import Path
+import sys
 from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from ablation.cares_jmir_rq.evaluate import (
     arm_summary,
@@ -42,7 +47,6 @@ from experiments.evaluate_goal_exposure_history_bridge_valid250 import (
 from pipeline.runtime_io import atomic_json
 
 
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SELECTION = ROOT / "data/campaigns/batch_after250_to500_v2/selection.json"
 DEFAULT_NEUTRAL_RUN_DIR = (
     ROOT / "data/runs/gpt-4o-2024-11-20_history_bridge_official500_treatment"

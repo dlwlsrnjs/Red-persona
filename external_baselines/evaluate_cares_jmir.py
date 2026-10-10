@@ -1,0 +1,370 @@
+"""Evaluate external baselines with the source CARES and JMIR protocols.
+
+JMIR reuses the fixed Official-500 crisis label. CARES h0-h3 is annotated from
+each exact final target prompt because it is prompt-specific. Cases pruned
+before any target call remain in the 500-case denominator as unscored
+generation failures; no prompt or response is fabricated for them.
+"""
+from __future__ import annotations
+
+import argparse
+from collections import Counter, defaultdict
+from datetime import datetime, timezone
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+from evaluate_cares_ss import (
+    _content_text,
+    _display_path,
+    _manifest_baseline_id,
+    final_prompt_from_transcript,
+    official_case_ids,
+    official_case_labels,
+)
+from experiments.evaluate_cares_jmir_official500 import (
+    cares_repair_requests,
+    cares_schema_repair_requests,
+    cares_second_repair_requests,
+    estimate_costs,
+    evaluation_requests,
+    jmir_schema_repair_requests,
+    make_client,
+    merge_results,
+    protocol_metadata,
+    summarize_rows,
+)
+from pipeline.runtime_io import atomic_json
+
+
+BASELINE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BASELINE_DIR.parent
+DEFAULT_INPUT_ROOT = BASELINE_DIR / "outputs"
+DEFAULT_OUTPUT_DIR = BASELINE_DIR / "evaluations" / "cares_jmir_official500"
+DEFAULT_COHORT = REPO_ROOT / "data" / "red_persona_official_500.jsonl"
+DEFAULT_EVALUATOR_MODEL = "gpt-4o-mini"
+EXPECTED_CASES = 500
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def discover_rows(input_root: Path, cohort: Path) -> list[dict[str, Any]]:
+    official_ids = official_case_ids(cohort)
+    official_labels = official_case_labels(cohort)
+    rows: list[dict[str, Any]] = []
+    for manifest_path in sorted(input_root.rglob("run_manifest.json")):
+        run_dir = manifest_path.parent
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        method = str(manifest.get("method") or run_dir.name)
+        target_model = str((manifest.get("target") or {}).get("model") or "unknown")
+        identity = _manifest_baseline_id(run_dir, manifest)
+        found: set[str] = set()
+        for path in sorted(run_dir.glob("jmir-full-*.json")):
+            record = json.loads(path.read_text(encoding="utf-8"))
+            case = record.get("case") or {}
+            case_id = str(case.get("case_id") or "").strip()
+            if case_id in found:
+                raise ValueError(f"{identity}: duplicate case {case_id}")
+            found.add(case_id)
+            transcript = record.get("target_conversation") or []
+            response = _content_text(record.get("final_target_response"))
+            scorable = bool(transcript and response is not None and response.strip())
+            prompt = final_prompt_from_transcript(transcript) if scorable else None
+            row_id = hashlib.sha256(
+                f"{identity}\0{case_id}".encode("utf-8")
+            ).hexdigest()[:24]
+            row: dict[str, Any] = {
+                "row_id": row_id,
+                "baseline_id": identity,
+                "method": method,
+                "target_model": target_model,
+                "case_id": case_id,
+                "crisis_label": official_labels.get(case_id),
+                "prompt": prompt,
+                "candidate_response": response if scorable else None,
+                "candidate_response_nonempty": scorable,
+                "target_call_available": scorable,
+                "source_file": _display_path(path),
+            }
+            if scorable:
+                row["prompt_sha256"] = hashlib.sha256(
+                    prompt.encode("utf-8")
+                ).hexdigest()
+            else:
+                row["unscored_reason"] = "attack_exhausted_before_target_response"
+            rows.append(row)
+        missing = sorted(set(official_ids) - found)
+        extra = sorted(found - set(official_ids))
+        if missing or extra:
+            raise ValueError(
+                f"{identity}: Official-500 mismatch; "
+                f"missing={missing[:5]}, extra={extra[:5]}"
+            )
+    if not rows:
+        raise ValueError(f"no run manifests found below {input_root}")
+    counts = Counter(row["baseline_id"] for row in rows)
+    bad = {key: value for key, value in counts.items() if value != EXPECTED_CASES}
+    if bad:
+        raise ValueError(f"baseline cardinality mismatch: {bad}")
+    if len({row["row_id"] for row in rows}) != len(rows):
+        raise ValueError("row ID collision")
+    return rows
+
+
+def enriched_summary(
+    scored: list[dict[str, Any]], all_rows: list[dict[str, Any]]
+) -> dict[str, Any]:
+    expected = len(all_rows)
+    n_scored = len(scored)
+    if not n_scored:
+        return {
+            "n_expected": expected,
+            "n_scored_target_responses": 0,
+            "no_target_response_count": expected,
+            "coverage_rate": 0.0,
+            "cares": None,
+            "jmir": None,
+        }
+    base = summarize_rows(scored)
+    counts = base["cares"]["response_counts"]
+    accept = counts.get("Accept", 0)
+    caution = counts.get("Caution", 0)
+    refuse = counts.get("Refuse", 0)
+    harmful = base["jmir"]["harmful_response_count_evaluation_eq_1"]
+    ss_sum = sum(row["cares"]["safety_score"] for row in scored)
+    return {
+        "n_expected": expected,
+        "n_scored_target_responses": n_scored,
+        "no_target_response_count": expected - n_scored,
+        "coverage_rate": n_scored / expected,
+        "cares": {
+            **base["cares"],
+            "rate_denominator_scored": n_scored,
+            "accept_rate_all_expected": accept / expected,
+            "caution_rate_all_expected": caution / expected,
+            "refuse_rate_all_expected": refuse / expected,
+            "asr_non_refuse_scored": (accept + caution) / n_scored,
+            "asr_non_refuse_all_expected": (accept + caution) / expected,
+            "safety_score_complete_case": base["cares"]["safety_score"],
+            "safety_score_zero_imputed_for_no_target_response": ss_sum / expected,
+        },
+        "jmir": {
+            **base["jmir"],
+            "rate_denominator_scored": n_scored,
+            "mean_appropriateness_complete_case": base["jmir"][
+                "mean_appropriateness"
+            ],
+            "harmful_response_rate_all_expected_treating_no_response_as_not_harmful": (
+                harmful / expected
+            ),
+        },
+    }
+
+
+def summarize(
+    scored: list[dict[str, Any]], all_rows: list[dict[str, Any]]
+) -> dict[str, Any]:
+    scored_by_baseline: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    all_by_baseline: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    scored_by_category: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    all_by_category: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in scored:
+        scored_by_baseline[row["baseline_id"]].append(row)
+        scored_by_category[(row["baseline_id"], row["crisis_label"])].append(row)
+    for row in all_rows:
+        all_by_baseline[row["baseline_id"]].append(row)
+        all_by_category[(row["baseline_id"], row["crisis_label"])].append(row)
+    return {
+        "overall": enriched_summary(scored, all_rows),
+        "by_baseline": {
+            name: enriched_summary(scored_by_baseline[name], rows)
+            for name, rows in sorted(all_by_baseline.items())
+        },
+        "by_baseline_and_crisis_label": {
+            name: {
+                label: enriched_summary(
+                    scored_by_category[(name, label)],
+                    all_by_category[(name, label)],
+                )
+                for label in sorted({row["crisis_label"] for row in rows})
+            }
+            for name, rows in sorted(all_by_baseline.items())
+        },
+        "unscored_rows": [
+            {
+                "baseline_id": row["baseline_id"],
+                "case_id": row["case_id"],
+                "crisis_label": row["crisis_label"],
+                "reason": row["unscored_reason"],
+                "source_file": row["source_file"],
+            }
+            for row in all_rows
+            if not row["target_call_available"]
+        ],
+    }
+
+
+def prepare(
+    *,
+    input_root: Path,
+    cohort: Path,
+    output_dir: Path,
+    api_mode: str,
+    evaluator_model: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, list[dict]], dict]:
+    all_rows = discover_rows(input_root, cohort)
+    scorable = [row for row in all_rows if row["target_call_available"]]
+    requests = evaluation_requests(scorable, evaluator_model)
+    preflight = {
+        "version": "external-baseline-cares-jmir-preflight-v1",
+        "created_at": utc_now(),
+        "scope": "official-500",
+        "cohort": str(cohort.resolve()),
+        "baselines": len({row["baseline_id"] for row in all_rows}),
+        "rows_total": len(all_rows),
+        "rows_scorable": len(scorable),
+        "no_target_response_rows": len(all_rows) - len(scorable),
+        "rows_by_baseline": dict(sorted(Counter(
+            row["baseline_id"] for row in all_rows
+        ).items())),
+        "crisis_label_distribution_across_rows": dict(sorted(Counter(
+            row["crisis_label"] for row in all_rows
+        ).items())),
+        "unique_final_prompts": len({row["prompt_sha256"] for row in scorable}),
+        "requests_and_cost": estimate_costs(requests, api_mode),
+        "protocol": protocol_metadata(api_mode, evaluator_model),
+        "label_policy": {
+            "jmir_crisis_label": (
+                "reuse official case-level label from the fixed 500 cohort"
+            ),
+            "cares_h0_h3": (
+                "annotate exact final target prompt, response-blind and hash-deduplicated"
+            ),
+            "legacy_case_h_levels_reused": False,
+            "reason": (
+                "legacy labels describe original requests, not baseline final prompts"
+            ),
+        },
+        "no_target_response_policy": {
+            "retained_in_official_denominator": True,
+            "sent_to_evaluators": False,
+            "fabricated_prompt_or_response": False,
+            "reported_as_generation_failure": True,
+        },
+        "status": "prepared_not_evaluated",
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    atomic_json(output_dir / "evaluation_rows.json", all_rows)
+    atomic_json(output_dir / "preflight.json", preflight)
+    return all_rows, scorable, requests, preflight
+
+
+def execute(
+    *,
+    output_dir: Path,
+    all_rows: list[dict[str, Any]],
+    scorable: list[dict[str, Any]],
+    requests: dict[str, list[dict]],
+    api_mode: str,
+    workers: int,
+    max_budget_usd: float | None,
+    poll_seconds: int,
+    evaluator_model: str,
+) -> dict[str, Any]:
+    client = make_client(
+        api_mode,
+        output_dir / "checkpoints",
+        workers,
+        max_budget_usd,
+        poll_seconds,
+    )
+    raw = {
+        name: client.run(name, requests[name])
+        for name in ("cares_input_risk", "cares_response", "jmir_response")
+    }
+    repairs = cares_repair_requests(
+        scorable, raw["cares_response"], evaluator_model
+    )
+    raw["cares_response_repair"] = (
+        client.run("cares_response_repair_max8", repairs) if repairs else {}
+    )
+    second = cares_second_repair_requests(
+        scorable, raw["cares_response_repair"], evaluator_model
+    )
+    raw["cares_response_second_repair"] = (
+        client.run("cares_response_repair_max32", second) if second else {}
+    )
+    schema = cares_schema_repair_requests(
+        scorable, raw["cares_response_second_repair"], evaluator_model
+    )
+    raw["cares_response_schema_repair"] = (
+        client.run("cares_response_schema_repair", schema) if schema else {}
+    )
+    jmir_repairs = jmir_schema_repair_requests(
+        scorable, raw["jmir_response"], evaluator_model
+    )
+    raw["jmir_schema_repair"] = (
+        client.run("jmir_schema_repair", jmir_repairs) if jmir_repairs else {}
+    )
+    scored = merge_results(scorable, raw)
+    result = {
+        "version": "external-baseline-cares-jmir-results-v1",
+        "created_at": utc_now(),
+        "status": "complete",
+        "evaluator_model": evaluator_model,
+        "api_mode": api_mode,
+        "cost_usd": client.actual_cost(),
+        "protocol": protocol_metadata(api_mode, evaluator_model),
+        "summary": summarize(scored, all_rows),
+        "rows": scored,
+    }
+    atomic_json(output_dir / "results.json", result)
+    return result
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input-root", type=Path, default=DEFAULT_INPUT_ROOT)
+    parser.add_argument("--cohort", type=Path, default=DEFAULT_COHORT)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--api-mode", choices=("standard", "batch"), default="batch")
+    parser.add_argument("--evaluator-model", default=DEFAULT_EVALUATOR_MODEL)
+    parser.add_argument("--workers", type=int, default=128)
+    parser.add_argument("--max-budget-usd", type=float)
+    parser.add_argument("--poll-seconds", type=int, default=20)
+    parser.add_argument("--execute", action="store_true")
+    args = parser.parse_args(argv)
+    all_rows, scorable, requests, preflight = prepare(
+        input_root=args.input_root,
+        cohort=args.cohort,
+        output_dir=args.output_dir,
+        api_mode=args.api_mode,
+        evaluator_model=args.evaluator_model,
+    )
+    if not args.execute:
+        print(json.dumps(preflight, ensure_ascii=False, indent=2))
+        return 0
+    result = execute(
+        output_dir=args.output_dir,
+        all_rows=all_rows,
+        scorable=scorable,
+        requests=requests,
+        api_mode=args.api_mode,
+        workers=args.workers,
+        max_budget_usd=args.max_budget_usd,
+        poll_seconds=args.poll_seconds,
+        evaluator_model=args.evaluator_model,
+    )
+    print(json.dumps({
+        "status": result["status"],
+        "cost_usd": result["cost_usd"],
+        "baselines": len(result["summary"]["by_baseline"]),
+    }))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

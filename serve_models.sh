@@ -55,6 +55,7 @@ QWEN_ID="Qwen/Qwen2.5-7B-Instruct"
 QWEN_REV="a09a35458c702b33eeacc393d103063234e8bc28"
 LEXI_ID="Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2"
 LEXI_REV="f4617caeabd21f1820ac89bd125c80eda70901a7"
+LEXI_LOCAL_SNAPSHOT="${LEXI_MODEL_PATH:-$SCRIPT_DIR/persona_redteam/.cache/lexi-llama31-8b/$LEXI_REV}"
 LLAMA_ID="meta-llama/Llama-3.1-8B-Instruct"
 LLAMA_REV="0e9e39f249a16976918f6564b8830bc894c89659"
 LOGDIR="$SCRIPT_DIR/serve_logs"
@@ -74,8 +75,12 @@ serve_qwen() {
     --dtype bfloat16
 }
 serve_lexi() {
+  local model_args=(--model "$LEXI_ID" --revision "$LEXI_REV")
+  if [[ -d "$LEXI_LOCAL_SNAPSHOT" ]]; then
+    model_args=(--model "$LEXI_LOCAL_SNAPSHOT")
+  fi
   CUDA_VISIBLE_DEVICES="${LEXI_SERVE_GPU:-1}" "$PY" -m vllm.entrypoints.openai.api_server \
-    --model "$LEXI_ID" --revision "$LEXI_REV" --served-model-name "$LEXI_ID" \
+    "${model_args[@]}" --served-model-name "$LEXI_ID" \
     --host 127.0.0.1 --port 8002 --enforce-eager \
     --gpu-memory-utilization 0.90 --max-model-len 16384 --dtype bfloat16
 }

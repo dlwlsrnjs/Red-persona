@@ -19,3 +19,4 @@ persona_redteam/prompts/
 external_baselines/.venv/
 external_baselines/.uv-cache/
 external_baselines/outputs/
+external_baselines/evaluations/

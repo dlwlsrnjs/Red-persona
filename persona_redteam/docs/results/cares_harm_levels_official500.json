@@ -1,5 +1,7 @@
 {
   "version": "cares-harm-level-annotation-public-summary-v1",
+  "valid_for_cares_safety_score": false,
+  "invalid_reason": "Labels describe JMIR original_request, but scored CARES response labels describe different final target-facing requests.",
   "created_at": "2026-10-09T22:38:36.747626+00:00",
   "selection": "data/campaigns/batch_after250_to500_v2/selection.json",
   "provenance": {

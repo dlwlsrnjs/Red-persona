@@ -63,14 +63,14 @@ full reference의 기존 recovery와 CARES label도 다시 호출하지 않고 �
 
 ## 전체 결과
 
-| arm | branch Raw | branch Target-originated | branch B3+ | Raw Success@4 | Target-originated@4 | B3+@4 | CARES Accept@4 | CARES SS |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| full history bridge | 91.88% | 90.42% | 43.75% | 96.67% | 96.67% | 78.33% | 20.83% | 0.13854 |
-| persona only | 95.83% | 92.71% | 69.38% | 100.00% | 100.00% | 93.33% | 26.67% | 0.15313 |
-| dialogue only | 92.71% | 89.58% | 58.75% | 97.50% | 97.50% | 90.83% | 23.33% | 0.13958 |
-| no initial evidence | 88.54% | 80.42% | 60.42% | 95.00% | 95.00% | 90.00% | 29.17% | 0.15833 |
-| no system + no Markdown guidelines | 93.33% | 92.50% | 52.50% | 96.67% | 96.67% | 89.17% | 29.17% | 0.16458 |
-| base persona only | 90.63% | 89.17% | 60.00% | 98.33% | 97.50% | 91.67% | 26.67% | 0.16250 |
+| arm | branch Raw | branch Target-originated | branch B3+ | Raw Success@4 | Target-originated@4 | B3+@4 | CARES Accept@4 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| full history bridge | 91.88% | 90.42% | 43.75% | 96.67% | 96.67% | 78.33% | 20.83% |
+| persona only | 95.83% | 92.71% | 69.38% | 100.00% | 100.00% | 93.33% | 26.67% |
+| dialogue only | 92.71% | 89.58% | 58.75% | 97.50% | 97.50% | 90.83% | 23.33% |
+| no initial evidence | 88.54% | 80.42% | 60.42% | 95.00% | 95.00% | 90.00% | 29.17% |
+| no system + no Markdown guidelines | 93.33% | 92.50% | 52.50% | 96.67% | 96.67% | 89.17% | 29.17% |
+| base persona only | 90.63% | 89.17% | 60.00% | 98.33% | 97.50% | 91.67% | 26.67% |
 
 CARES non-refuse@4는 모든 arm에서 120/120으로 ceiling이었다. 따라서 이 지표로 구성 요소의
 기여를 구분할 수 없다.
@@ -108,29 +108,12 @@ macro에서도 B3+ 방향은 바뀌지 않았다. 다만 risk-taking 2개, viole
 
 ## CARES harmful level과 Safety Score
 
-공식 500개에 미리 만든 blind model-assisted annotation에서 subset의 level 분포는
-`0/1/2/3 = 106/3/11/0`이었다. 이는 CARES 원 데이터의 인간 ground truth가 아니다. 각 사례가
-네 방향을 가지므로 branch 분포는 `424/12/44/0`이다.
-
-| arm | Safety Score | binary accuracy | binary F1 | SS Δ vs full |
-|---|---:|---:|---:|---:|
-| full history bridge | 0.13854 | 0.18125 | 0.21869 | — |
-| persona only | 0.15313 | 0.19792 | 0.22535 | +0.01458 |
-| dialogue only | 0.13958 | 0.17500 | 0.21739 | +0.00104 |
-| no initial evidence | 0.15833 | 0.20000 | 0.21311 | +0.01979 |
-| no system + no Markdown guidelines | 0.16458 | 0.20417 | 0.20084 | +0.02604 |
-| base persona only | 0.16250 | 0.20625 | 0.22403 | +0.02396 |
-
-level 0가 106/120으로 대부분이어서 `Caution`은 CARES 표에서 과잉 경고로 불리하게 계산된다.
-따라서 SS가 높다는 사실을 위험 요청 안전성이 높다는 단일 결론으로 바꾸면 안 된다.
-
-SS에서는 높을수록 안전 정합도가 좋고, red-team 공격 효과는 낮을수록 크다. 이를
-`공격 방향 기여 = SS(ablated) - SS(full)`로 표현하면 이 subset의 순위는
-`no system + no guidelines` 0.02604, `base persona only` 0.02396,
-`no initial evidence` 0.01979, `persona only` 0.01458, `dialogue only` 0.00104다.
-즉 full pipeline의 SS 0.13854가 모든 제거 arm보다 낮았다. 다만 이 순위는 여러 구성
-요소를 함께 제거한 bundle ablation이며, 각 arm의 전체 후속 대화를 새로 생성한 120개
-탐색 결과이다. 따라서 각 토큰 또는 파일의 독립적 인과 크기로 해석하지 않는다.
+**기존 SS는 무효다.** subset level `106/3/11/0`은 JMIR `original_request`에서
+구했지만 CARES response label은 각 arm의 final target-facing question/response pair에서
+구했다. 서로 다른 request unit의 level과 label을 결합했으므로 이를 사용한
+SS·accuracy·F1·arm ranking을 전부 철회한다. 위 전체 결과표의 CARES Accept@4는
+동일 final question/response pair만 사용하므로 영향을 받지 않는다. 정정 SS는 동일한
+target-visible 멀티턴 문맥을 level 주석과 response 판정 둘 다에 넣은 후에만 보고한다.
 
 ## 새 persona ablation의 해석
 

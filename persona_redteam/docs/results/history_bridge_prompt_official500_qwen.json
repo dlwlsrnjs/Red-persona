@@ -61,7 +61,9 @@
     "b3_plus_final_response_at_4": {"no_dialogue": 0.914, "history_bridge": 0.88, "delta_pp": -3.4, "gained": 35, "lost": 52, "exact_mcnemar_p": 0.08568897435916663},
     "cares_accept_at_4": {"no_dialogue": 0.63, "history_bridge": 0.654, "delta_pp": 2.4, "gained": 81, "lost": 69, "exact_mcnemar_p": 0.36916146966178864}
   },
-  "cares_safety_score": {
+  "withdrawn_cares_safety_score_audit_only": {
+    "valid": false,
+    "invalid_reason": "Harm levels came from JMIR original_request while response labels came from different final target-facing requests.",
     "harm_level_annotation": "blinded_dual_model_with_disagreement_adjudication_v1",
     "model_assisted_not_original_cares_ground_truth": true,
     "case_distribution": {"0": 442, "1": 13, "2": 45, "3": 0},
@@ -71,5 +73,5 @@
     "history_bridge_minus_legacy_full": -0.042,
     "history_bridge_minus_no_dialogue": 0.02775
   },
-  "interpretation": "Confirmatory paired prompt-only comparison on the fixed official 500-case cohort. The bridge raises branch-level recovery by more than 10 percentage points versus no dialogue, while Success@4 is ceiling-limited. Model-assisted CARES SS is slightly higher than no dialogue but lower than the legacy full prompt."
+  "interpretation": "Confirmatory paired prompt-only recovery comparison on the fixed official 500-case cohort. The bridge raises branch-level recovery by more than 10 percentage points versus no dialogue, while Success@4 is ceiling-limited. The prior CARES Safety Score is withdrawn because request-level harm labels and response labels were computed from different requests."
 }

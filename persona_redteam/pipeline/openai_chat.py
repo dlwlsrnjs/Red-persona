@@ -17,6 +17,23 @@ from pipeline.openai_batch import (
 from pipeline.runtime_io import atomic_json
 
 
+def non_retryable_quota_error(exc):
+    """Return True for account-credit failures that retries cannot resolve."""
+    body = getattr(exc, "body", None)
+    if not isinstance(body, dict):
+        body = {}
+    nested = body.get("error") if isinstance(body.get("error"), dict) else {}
+    code = str(body.get("code") or nested.get("code") or "").lower()
+    kind = str(body.get("type") or nested.get("type") or "").lower()
+    message = str(exc).lower()
+    markers = (
+        "credit_balance_exhausted", "insufficient_quota",
+        "no credits remaining",
+    )
+    return any(marker in code or marker in kind or marker in message
+               for marker in markers)
+
+
 class OpenAIChatClient:
     """Run Batch-style request dictionaries through the synchronous endpoint.
 
@@ -33,7 +50,9 @@ class OpenAIChatClient:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.workers = max(1, int(workers))
         self.retries = max(0, int(retries))
-        self.max_budget_usd = float(max_budget_usd)
+        self.max_budget_usd = (
+            None if max_budget_usd is None else float(max_budget_usd)
+        )
         self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], max_retries=3)
         self.ledger_path = self.state_dir / "usage_ledger.json"
 
@@ -72,6 +91,10 @@ class OpenAIChatClient:
                 return response_record(completion.model_dump())
             except Exception as exc:  # SDK exception classes vary by release.
                 last_error = exc
+                if non_retryable_quota_error(exc):
+                    raise RuntimeError(
+                        "OpenAI account has no usable credit; request was not retried"
+                    ) from exc
                 if attempt < self.retries:
                     time.sleep(min(0.5 * (2 ** attempt), 8.0))
         raise RuntimeError(
@@ -96,7 +119,8 @@ class OpenAIChatClient:
             return json.loads(result_path.read_text(encoding="utf-8"))
 
         estimated = self.estimate_upper_cost(requests)
-        if self.actual_cost() + estimated > self.max_budget_usd:
+        if (self.max_budget_usd is not None and
+                self.actual_cost() + estimated > self.max_budget_usd):
             raise RuntimeError(
                 f"budget guard: spent ${self.actual_cost():.4f} + request upper "
                 f"estimate ${estimated:.4f} exceeds ${self.max_budget_usd:.2f}"
@@ -137,6 +161,11 @@ class OpenAIChatClient:
                     errors[custom_id] = {
                         "error_type": type(exc).__name__, "error": str(exc),
                     }
+                    if "no usable credit" in str(exc):
+                        for pending_future in futures:
+                            if pending_future is not future:
+                                pending_future.cancel()
+                        break
         atomic_json(partial_path, results)
         atomic_json(label_dir / "request_errors.json", errors)
         if errors:

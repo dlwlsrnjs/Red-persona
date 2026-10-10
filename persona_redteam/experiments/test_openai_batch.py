@@ -29,7 +29,7 @@ from pipeline.openai_batch import (
     model_family,
     response_record,
 )
-from pipeline.openai_chat import OpenAIChatClient
+from pipeline.openai_chat import OpenAIChatClient, non_retryable_quota_error
 from pipeline.official_selection import select_new_cases
 
 
@@ -53,6 +53,18 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
 
         def actual_cost(self):
             return 0.0
+
+    def test_credit_exhaustion_is_non_retryable(self):
+        error = RuntimeError("credit_balance_exhausted: no credits remaining")
+        self.assertTrue(non_retryable_quota_error(error))
+        self.assertFalse(non_retryable_quota_error(RuntimeError("temporary timeout")))
+
+    @patch("pipeline.openai_chat.OpenAI")
+    def test_standard_client_accepts_explicitly_disabled_budget_guard(self, _openai):
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "test"}), \
+                tempfile.TemporaryDirectory() as directory:
+            client = OpenAIChatClient(directory, max_budget_usd=None)
+        self.assertIsNone(client.max_budget_usd)
 
     @patch("pipeline.openai_chat.OpenAI")
     def test_standard_chat_client_checkpoints_without_mixing_batch_state(

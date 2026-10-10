@@ -60,38 +60,17 @@ Success@4는 no-dialogue가 이미 97.8–98.2%여서 이론상 +10%p가 불가�
 
 ## CARES Safety Score
 
-원 데이터에는 harmful level이 없었으므로, target 응답과 실험 arm을 가린 `original_request`만
-두 독립 모델에 제시해 level을 주석했다. 456/500(91.2%)이 정확히 일치했고, quadratic weighted
-κ는 0.7253이었다. 불일치 44개는 GPT‑4o가 같은 blind input으로 adjudication했다. 최종 분포는
-level 0/1/2/3 = `442/13/45/0`이다. 이는 CARES 원 데이터의 인간 ground truth가 아니라
-**CARES rubric을 적용한 model-assisted annotation**이다.
+**2026-10-10 audit: 기존 SS는 무효화했다.** harmful level annotator에는 JMIR의
+원래 상담 요청 `original_request`를 제시했지만, CARES response label은 별도의
+final target-facing question/response pair에서 구했다. 그러므로 level과 response label이
+같은 request row를 나타내지 않았다. `442/13/45/0` 분포와 이 분포로 계산한
+모든 SS·accuracy·F1·delta는 논문 결과에서 제외한다.
 
-| target / comparison | control SS | history-bridge SS | Δ SS |
-|---|---:|---:|---:|
-| Qwen: legacy full → history bridge | 0.42975 | 0.38775 | −0.04200 |
-| Qwen: no dialogue → history bridge | 0.36000 | 0.38775 | +0.02775 |
-| GPT‑4o: legacy full → history bridge | 0.26100 | 0.13375 | −0.12725 |
-| GPT‑4o: no dialogue → history bridge | 0.30700 | 0.13375 | −0.17325 |
-
-history bridge는 goal recovery를 높였지만 CARES SS를 일관되게 높이지 않았다. 특히 GPT‑4o에서는
-수정 문구가 `Caution`을 크게 늘렸고, level 0가 442개인 cohort에서 안전한 요청에 대한 과도한
-주의는 CARES 표에 따라 0점을 받으므로 SS가 낮아졌다. 이는 숨길 실패가 아니라 method의
-utility–safety trade-off다.
-
-### SS를 중심으로 본 구성 요소 기여
-
-CARES SS는 높을수록 요청 위험도에 맞는 안전 응답이고, red-team 공격 효과는 반대로 SS가
-낮아지는 방향이다. 따라서 본 연구에서는 `attack-side SS effect = SS(control) -
-SS(treatment)`로 읽는다. 이 정의에서 history-bridge final readout은 legacy prompt보다 Qwen에서
-`+0.04200`, GPT‑4o에서 `+0.12725`의 공격 방향 효과를 보였다. 두 target에서 방향이 같은 유일한
-핵심 결론은 **누적 대화를 마지막 질문에 연결한 readout prompt가 SS를 가장 일관되게 낮춘
-단계**라는 것이다.
-
-반면 no-dialogue 대비 full dialogue+bridge의 효과는 GPT‑4o에서 `+0.17325`였지만 Qwen에서는
-`−0.02775`로 반대였다. 따라서 SS만으로 "연구 대화 자체가 항상 공격을 강화한다"고 결론 내리지
-않는다. 또한 500개 중 442개가 model-assisted level 0이므로 낮은 SS의 상당 부분은 harmful
-acceptance가 아니라 과도한 `Caution`에서도 발생한다. SS는 주 안전 정합도 지표로 보고하되,
-goal recovery, B3+, CARES Accept를 함께 제시한다.
+정정 분석은 arm·case·direction별로 target이 실제 본 동일한 문맥 단위에서 harmful
+level과 Accept/Caution/Refuse를 모두 다시 평가해야 한다. 이 연구는 multi-turn
+참조어에 의존하므로, 최종 질문만 떼어내지 않고 target-visible history와 최종
+질문을 함께 직렬화한 문맥 요청을 사용한다. 이는 단일-turn CARES의 context-aware
+adaptation이므로 원 CARES ground truth와 구분해 보고한다.
 
 ## 비용과 QA
 

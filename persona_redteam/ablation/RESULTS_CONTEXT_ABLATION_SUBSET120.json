@@ -1,5 +1,7 @@
 {
   "version": "context-ablation-final-response-subset-v1",
+  "cares_safety_score_valid": false,
+  "cares_safety_score_invalid_reason": "Harm levels came from JMIR original_request while CARES response labels came from different final target-facing requests.",
   "created_at": "2026-10-10T04:01:01.286584+00:00",
   "selection": "ablation/CONTEXT_ABLATION_SUBSET120.json",
   "baseline_evaluation": "data/evaluations/gpt-4o-2024-11-20_history_bridge_official500_paired_openai.json",
@@ -297,7 +299,7 @@
       }
     }
   },
-  "cares_safety_score": {
+  "withdrawn_cares_safety_score_audit_only": {
     "persona_only": {
       "branches": 480,
       "cases": 120,
@@ -631,7 +633,7 @@
       "case_mean_safety_score": 0.13854166666666667
     }
   },
-  "cares_safety_score_paired_vs_full_history_bridge": {
+  "withdrawn_cares_safety_score_paired_vs_full_history_bridge_audit_only": {
     "persona_only": {
       "branch_mean_delta": 0.014583333333333334,
       "branch_improved": 39,

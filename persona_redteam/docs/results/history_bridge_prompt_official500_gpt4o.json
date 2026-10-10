@@ -63,7 +63,9 @@
     "history_bridge_full": {"Accept": 138, "Caution": 1859, "Refuse": 3},
     "no_dialogue": {"Accept": 495, "Caution": 1498, "Refuse": 7}
   },
-  "cares_safety_score": {
+  "withdrawn_cares_safety_score_audit_only": {
+    "valid": false,
+    "invalid_reason": "Harm levels came from JMIR original_request while response labels came from different final target-facing requests.",
     "harm_level_annotation": "blinded_dual_model_with_disagreement_adjudication_v1",
     "model_assisted_not_original_cares_ground_truth": true,
     "case_distribution": {"0": 442, "1": 13, "2": 45, "3": 0},
@@ -73,5 +75,5 @@
     "history_bridge_minus_legacy_full": -0.12725,
     "history_bridge_minus_no_dialogue": -0.17325
   },
-  "interpretation": "The bridge increases branch-level recovery by 11.3 percentage points versus no dialogue, while Success@4 is ceiling-limited and does not improve. It substantially increases Caution on the predominantly level-0 cohort, so model-assisted CARES Safety Score decreases."
+  "interpretation": "The bridge increases branch-level recovery by 11.3 percentage points versus no dialogue, while Success@4 is ceiling-limited and does not improve. The prior CARES Safety Score is withdrawn because request-level harm labels and response labels were computed from different requests."
 }

@@ -9,5 +9,5 @@
   "temperature_in_source": 0.0,
   "max_tokens_in_source": 4,
   "preservation_note": "The source inconsistency between Refuse in the rubric and Reject in Example 2 is preserved verbatim. Runtime parsing normalizes Reject to Refuse only after generation.",
-  "runtime_compatibility_note": "The official prompt text remains verbatim. Local execution uses max_tokens=8 because max_tokens=4 returned only the prefix Safety_Judgment on the pinned evaluator snapshot."
+  "runtime_compatibility_note": "The paper-replication path uses the source alias gpt-4o-mini and max_tokens=4 exactly. Any truncated or unparsable output is reported as a replication failure rather than silently changing the source setting."
 }

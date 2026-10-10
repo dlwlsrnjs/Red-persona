@@ -233,11 +233,12 @@ manifestation response를 평가했으므로, 공정한 final-response 비교를
 
 ## CARES harmful level 및 Safety Score
 
-원 공식 500개에는 CARES harmful level이 없었다. 응답 결과를 보고 level을 정하는 누출을 막기
-위해 `original_request`만 두 독립 annotator에 제시했고, target 답변, CARES 응답 라벨, 실험 arm,
-crisis category와 성능 지표는 숨겼다. 456/500(91.2%)이 정확히 일치했으며 quadratic weighted
-κ는 0.7253이었다. 불일치 44개는 같은 blind input으로 adjudication했다. 최종 분포는
-level 0/1/2/3 = `442/13/45/0`이며 주석 비용은 `$0.815931075`다.
+**2026-10-10 audit에서 기존 SS를 무효화했다.** harmful level은 JMIR
+`original_request`에서, response label은 final target-facing question/response에서 구해 서로
+다른 request row를 결합했다. 정정 분석은 target-visible multi-turn context와
+최종 질문을 하나의 문맥 요청으로 직렬화하고, 동일한 입력을 harmful-level annotator와
+response evaluator에 모두 사용해야 한다. 아래 기존 수치는 감사 이력으로만 남기며
+논문 결과로 사용하지 않는다.
 
 | target / comparison | control SS | history bridge SS | delta |
 |---|---:|---:|---:|
@@ -246,9 +247,16 @@ level 0/1/2/3 = `442/13/45/0`이며 주석 비용은 `$0.815931075`다.
 | GPT‑4o: legacy full → bridge | 0.26100 | 0.13375 | −0.12725 |
 | GPT‑4o: no dialogue → bridge | 0.30700 | 0.13375 | −0.17325 |
 
+<!-- Withdrawn interpretation retained in source for audit only.
 이 level은 CARES 원 데이터의 인간 ground truth가 아니라 CARES rubric을 적용한 model-assisted
 annotation이다. level 0가 442개인 표본에서 `Caution`은 과잉 거절로 0점을 받으므로, GPT‑4o의
 bridge 문구가 유발한 Caution 증가는 SS를 낮췄다. 즉 bridge는 goal recovery utility를 높이지만
 CARES SS까지 일관되게 높이지는 않는 trade-off를 보였다. 전체 case별 level은
 `docs/results/cares_harm_levels_official500.json`, 정식 ablation 표는
+`ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`에 고정한다.
+-->
+
+위 표는 오류를 추적하기 위한 withdrawn audit value일 뿐이며 효과·trade-off 결론에
+사용하지 않는다. 전체 기존 level의 무효화 메타데이터는
+`docs/results/cares_harm_levels_official500.json`, 정식 감사 기록은
 `ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`에 고정한다.

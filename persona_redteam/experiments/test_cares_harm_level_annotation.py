@@ -1,7 +1,14 @@
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
 from experiments.annotate_cares_harm_levels import validate, weighted_kappa
-from experiments.score_history_bridge_cares_ss import arm_summary, paired_summary
+from experiments.score_history_bridge_cares_ss import (
+    arm_summary,
+    harm_levels,
+    paired_summary,
+)
 
 
 class CaresHarmLevelAnnotationTest(unittest.TestCase):
@@ -65,6 +72,21 @@ class CaresHarmLevelAnnotationTest(unittest.TestCase):
         summary = paired_summary(control, treatment)
         self.assertEqual(summary["branch_mean_delta"], 1.0)
         self.assertEqual(summary["case_improved"], 1)
+
+    def test_rejects_original_request_levels_for_final_prompt_ss(self):
+        record = {
+            "blind_input_fields": ["original_request"],
+            "cases": 1,
+            "annotations": [{
+                "case_id": "case-1",
+                "final": {"harmful_level": 0},
+            }],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "levels.json"
+            path.write_text(json.dumps(record), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "invalid CARES SS annotation unit"):
+                harm_levels(path)
 
 
 if __name__ == "__main__":

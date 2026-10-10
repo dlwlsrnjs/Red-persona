@@ -1,0 +1,28 @@
+{
+  "version": "cares-jmir-official500-preflight-public-v1",
+  "created_at": "2026-10-10T05:29:27.414504+00:00",
+  "selection": "data/campaigns/batch_after250_to500_v2/selection.json",
+  "arms": [
+    "qwen_history_dialogue",
+    "qwen_no_dialogue",
+    "gpt4o_history_dialogue",
+    "gpt4o_no_dialogue"
+  ],
+  "cases": 500,
+  "responses": 8000,
+  "responses_per_arm": 2000,
+  "unique_final_prompts": 6970,
+  "empty_candidate_responses": 4,
+  "requests": {
+    "cares_input_risk": 6970,
+    "cares_response": 8000,
+    "jmir_response_three_repeats": 24000,
+    "total": 38970
+  },
+  "standard_api_internal_upper_estimate_usd": 10.631416124999989,
+  "evaluator_model": "gpt-4o-mini",
+  "status": "preflight_complete_full_evaluation_completed_separately",
+  "api_cost_in_failed_start_usd": 0.0,
+  "paper_scores_available": true,
+  "results_summary": "docs/results/cares_jmir_official500_summary.json"
+}

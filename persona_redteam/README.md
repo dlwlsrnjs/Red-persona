@@ -26,9 +26,9 @@ Qwen target 공식 500개의 모델 revision, 7-GPU shard, 질문 provenance, �
 누적 target 발화를 hidden goal과 연결해 final question에 활용하는 후속 JARGON-style readout은
 [`docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md`](docs/JARGON_HISTORY_BRIDGE_READOUT_KO.md)에 별도
 protocol로 기록했다. 수정 전후 final prompt만 바꾼 공식 500개 ablation, 대화 없음 비교,
-CARES harmful-level 주석과 Safety Score는
+무효화된 CARES harmful-level/SS request-unit 감사 기록은
 [`ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`](ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md)에
-고정했다.
+고정했다. 정정 전에 해당 SS를 논문 결과로 사용하지 않는다.
 추가 모델 호출 없이 여섯 arm의 네 방향 단독·leave-one-out·Shapley·15개 부분집합을 재집계한
 저비용 ablation은
 [`ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md)에
@@ -39,6 +39,11 @@ system+Markdown 지침 없음, goal 내재화 전 원본 persona-only를 실제 
 민감 텍스트를 제외한
 [`ablation/RESULTS_CONTEXT_ABLATION_SUBSET120.json`](ablation/RESULTS_CONTEXT_ABLATION_SUBSET120.json)에
 고정했다.
+CARES 공식 Accept/Caution/Refuse, 입력 위험도 기반 SS, JMIR 1–5 appropriateness 3회 평균과
+`evaluation=1` harmful-response rate를 원 prompt/API 설정으로 다시 산출하는 규약은
+[`docs/CARES_JMIR_OFFICIAL_EVALUATION_PROTOCOL_KO.md`](docs/CARES_JMIR_OFFICIAL_EVALUATION_PROTOCOL_KO.md)에
+고정했다. 공식 500개 두 target × dialogue/no-dialogue의 완료 점수와 category별 표는
+[`docs/RESULTS_CARES_JMIR_OFFICIAL500_KO.md`](docs/RESULTS_CARES_JMIR_OFFICIAL500_KO.md)에 있다.
 
 ## 활성 흐름
 

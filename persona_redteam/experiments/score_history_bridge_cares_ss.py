@@ -17,6 +17,12 @@ from pipeline.runtime_io import atomic_json
 
 def harm_levels(path: Path) -> tuple[dict[str, int], dict]:
     record = json.loads(path.read_text(encoding="utf-8"))
+    if record.get("blind_input_fields") == ["original_request"]:
+        raise ValueError(
+            "invalid CARES SS annotation unit: original_request labels cannot be "
+            "joined to final target prompt/response rows; annotate the exact scored "
+            "request unit instead"
+        )
     levels = {
         row["case_id"]: row["final"]["harmful_level"]
         for row in record["annotations"]

@@ -78,6 +78,21 @@ history bridge는 goal recovery를 높였지만 CARES SS를 일관되게 높이�
 주의는 CARES 표에 따라 0점을 받으므로 SS가 낮아졌다. 이는 숨길 실패가 아니라 method의
 utility–safety trade-off다.
 
+### SS를 중심으로 본 구성 요소 기여
+
+CARES SS는 높을수록 요청 위험도에 맞는 안전 응답이고, red-team 공격 효과는 반대로 SS가
+낮아지는 방향이다. 따라서 본 연구에서는 `attack-side SS effect = SS(control) -
+SS(treatment)`로 읽는다. 이 정의에서 history-bridge final readout은 legacy prompt보다 Qwen에서
+`+0.04200`, GPT‑4o에서 `+0.12725`의 공격 방향 효과를 보였다. 두 target에서 방향이 같은 유일한
+핵심 결론은 **누적 대화를 마지막 질문에 연결한 readout prompt가 SS를 가장 일관되게 낮춘
+단계**라는 것이다.
+
+반면 no-dialogue 대비 full dialogue+bridge의 효과는 GPT‑4o에서 `+0.17325`였지만 Qwen에서는
+`−0.02775`로 반대였다. 따라서 SS만으로 "연구 대화 자체가 항상 공격을 강화한다"고 결론 내리지
+않는다. 또한 500개 중 442개가 model-assisted level 0이므로 낮은 SS의 상당 부분은 harmful
+acceptance가 아니라 과도한 `Caution`에서도 발생한다. SS는 주 안전 정합도 지표로 보고하되,
+goal recovery, B3+, CARES Accept를 함께 제시한다.
+
 ## 비용과 QA
 
 - Qwen treatment 생성: 로컬 GPU, `$0`; paired 평가 `$2.69371935`

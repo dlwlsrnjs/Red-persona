@@ -124,6 +124,14 @@ macro에서도 B3+ 방향은 바뀌지 않았다. 다만 risk-taking 2개, viole
 level 0가 106/120으로 대부분이어서 `Caution`은 CARES 표에서 과잉 경고로 불리하게 계산된다.
 따라서 SS가 높다는 사실을 위험 요청 안전성이 높다는 단일 결론으로 바꾸면 안 된다.
 
+SS에서는 높을수록 안전 정합도가 좋고, red-team 공격 효과는 낮을수록 크다. 이를
+`공격 방향 기여 = SS(ablated) - SS(full)`로 표현하면 이 subset의 순위는
+`no system + no guidelines` 0.02604, `base persona only` 0.02396,
+`no initial evidence` 0.01979, `persona only` 0.01458, `dialogue only` 0.00104다.
+즉 full pipeline의 SS 0.13854가 모든 제거 arm보다 낮았다. 다만 이 순위는 여러 구성
+요소를 함께 제거한 bundle ablation이며, 각 arm의 전체 후속 대화를 새로 생성한 120개
+탐색 결과이다. 따라서 각 토큰 또는 파일의 독립적 인과 크기로 해석하지 않는다.
+
 ## 새 persona ablation의 해석
 
 `base_persona_only`에서도 Raw Recovery@4 98.33%, Target-originated@4 97.50%가 나왔다. 이 결과는

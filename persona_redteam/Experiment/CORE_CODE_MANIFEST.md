@@ -15,6 +15,8 @@
 | `core_code/ablation/aggregate.py` | `ablation/aggregate.py` | McNemar와 공통 집계 |
 | `core_code/experiments/evaluate_cares_jmir_official500.py` | `experiments/evaluate_cares_jmir_official500.py` | CARES/JMIR request와 parser |
 | `core_code/experiments/evaluate_target_model_pilot40.py` | `experiments/evaluate_target_model_pilot40.py` | 추가 target 40개 파일럿의 Batch-only CARES/JMIR 평가 |
+| `core_code/experiments/prepare_target_model_pilot40.py` | `experiments/prepare_target_model_pilot40.py` | Git에 없는 prepared input을 공개 goal·pathology·Official index로 복구 |
+| `core_code/experiments/run_target_model_pilot40.sbatch` | `experiments/run_target_model_pilot40.sbatch` | history 준비 → Luna → Llama → 결과 결합의 Slurm 단계 실행 |
 | `core_code/experiments/export_ours_paper_results.py` | `experiments/export_ours_paper_results.py` | canonical OURS 계약과 논문용 결과표 재생성 |
 | `core_code/experiments/run_ours_official500.py` | `experiments/run_ours_official500.py` | neutral+history-bridge OURS 설정 잠금 실행기 |
 | `core_code/experiments/evaluate_goal_exposure_history_bridge_official500.py` | `experiments/evaluate_goal_exposure_history_bridge_official500.py` | neutral 대 oracle 고정 bridge Official-500 Batch 평가 |

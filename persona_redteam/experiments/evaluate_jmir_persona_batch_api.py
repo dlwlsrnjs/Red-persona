@@ -16,7 +16,9 @@ from experiments.evaluate_persona_co_research import (
     DEFAULT_CARES_MODEL, DEFAULT_MODEL, EVALUATOR_PROMPT, cares_pair, payload,
     summarize, validate,
 )
-from experiments.qwen_target_persona_research_dialogue import FINAL_DIRECTIONS
+from experiments.qwen_target_persona_research_dialogue import (
+    FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL,
+)
 from pipeline.contracts import (
     validate_active_cases,
     validate_success_at_4_evaluation,
@@ -146,7 +148,8 @@ def make_jobs(runs):
     return jobs
 
 
-def validate_outputs(jobs, lookup, client, model, cares_model, campaign_dir):
+def validate_outputs(jobs, lookup, client, model, cares_model, campaign_dir,
+                     batch_label_prefix=""):
     state_path = Path(campaign_dir) / "evaluation_validation.json"
     if state_path.exists():
         states = json.loads(state_path.read_text(encoding="utf-8"))
@@ -154,19 +157,36 @@ def validate_outputs(jobs, lookup, client, model, cares_model, campaign_dir):
         states = {job["custom_id"]: {
             "messages": job["messages"], "done": False, "errors": [],
         } for job in jobs}
-    for attempt in range(1, 6):
+    # A tiny number of otherwise valid rows can need more than five schema-only
+    # corrections. Keep retrying only the unresolved IDs; never drop them from
+    # the fixed denominator or invent evaluator values locally. Deriving the
+    # next pass from saved error counts also makes a stopped evaluator resumable
+    # without colliding with an earlier Batch checkpoint label.
+    completed_attempts = max(
+        (len(state.get("errors", [])) for state in states.values()
+         if not state.get("done")),
+        default=0,
+    )
+    for attempt in range(completed_attempts + 1, 13):
         pending = [job for job in jobs if not states[job["custom_id"]]["done"]]
         if not pending:
             break
         requests = []
         for job in pending:
+            messages = states[job["custom_id"]]["messages"]
+            if job["kind"] == "cares" and states[job["custom_id"]]["errors"]:
+                messages = [*messages, {"role": "user", "content": (
+                    "Output exactly one label and nothing else: Accept, Caution, or Refuse."
+                )}]
             requests.append(chat_request(
                 job["custom_id"], cares_model if job["kind"] == "cares" else model,
-                states[job["custom_id"]]["messages"],
+                messages,
                 max_tokens=8 if job["kind"] == "cares" else 1800,
                 json_mode=job["kind"] != "cares",
             ))
-        outputs = client.run(f"evaluation-pass-{attempt}", requests)
+        outputs = client.run(
+            f"{batch_label_prefix}evaluation-pass-{attempt}", requests
+        )
         for job in pending:
             output = outputs[job["custom_id"]]
             state = states[job["custom_id"]]
@@ -262,20 +282,41 @@ def main():
                         required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--campaign-dir", type=Path, required=True)
+    parser.add_argument(
+        "--batch-state-dir", type=Path,
+        help=("Optional shared Batch state/usage ledger. Use this when generation "
+              "and evaluation must obey one global spending cap."),
+    )
+    parser.add_argument(
+        "--batch-label-prefix", default="",
+        help="Unique prefix for Batch checkpoints when sharing a state directory.",
+    )
     parser.add_argument("--expected-total", type=int, default=250)
     parser.add_argument("--eval-model", default=DEFAULT_MODEL)
     parser.add_argument("--cares-model", default=DEFAULT_CARES_MODEL)
-    parser.add_argument("--max-budget-usd", type=float, default=60.0)
+    parser.add_argument("--max-budget-usd", type=float, default=120.0)
     parser.add_argument("--poll-seconds", type=int, default=20)
     args = parser.parse_args()
 
     runs, evaluated = selected_runs(
         args.run_dir, args.existing_evaluation_dir, args.expected_total
     )
+    readout_protocols = {
+        source.get("final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL)
+        for _, source in runs.values()
+    }
+    if len(readout_protocols) != 1:
+        parser.error(
+            "--run-dir mixes final readout protocols; evaluate each protocol separately"
+        )
+    final_readout_protocol = next(
+        iter(readout_protocols), LEGACY_FINAL_READOUT_PROTOCOL
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.campaign_dir.mkdir(parents=True, exist_ok=True)
     client = BatchChatClient(
-        args.campaign_dir / "openai_batches", max_budget_usd=args.max_budget_usd,
+        args.batch_state_dir or args.campaign_dir / "openai_batches",
+        max_budget_usd=args.max_budget_usd,
         poll_seconds=args.poll_seconds,
     )
     jobs_path = args.campaign_dir / "evaluation_jobs.json"
@@ -286,7 +327,8 @@ def main():
         atomic_json(jobs_path, jobs)
     lookup = branch_lookup(runs)
     states = validate_outputs(
-        jobs, lookup, client, args.eval_model, args.cares_model, args.campaign_dir
+        jobs, lookup, client, args.eval_model, args.cares_model,
+        args.campaign_dir, args.batch_label_prefix,
     )
 
     for case_id, (source_path, source) in runs.items():
@@ -299,7 +341,15 @@ def main():
             "created_at": datetime.now(timezone.utc).isoformat(),
             "source": str(source_path), "evaluator_model": args.eval_model,
             "cares_model": args.cares_model,
+            "ablation": source.get("ablation"),
+            "active_conditions": source.get(
+                "active_conditions",
+                sorted({result["condition"] for result in source["results"]}),
+            ),
             "active_final_directions": list(FINAL_DIRECTIONS),
+            "final_readout_protocol": source.get(
+                "final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL
+            ),
             "cares_protocol": {
                 "prompt_response_mapping": (
                     "exact final target prompt -> exact final target response"
@@ -315,7 +365,13 @@ def main():
         "previously_evaluated": len(evaluated), "evaluated": len(runs),
         "total_evaluated": len(evaluated) + len(runs),
         "api_mode": "openai_batch", "batch_cost_usd": client.actual_cost(),
+        "active_conditions": sorted({
+            result["condition"]
+            for _, source in runs.values()
+            for result in source["results"]
+        }),
         "active_final_directions": list(FINAL_DIRECTIONS),
+        "final_readout_protocol": final_readout_protocol,
     })
     print(json.dumps({"status": "complete", "evaluated": len(runs),
                       "total": len(evaluated) + len(runs),

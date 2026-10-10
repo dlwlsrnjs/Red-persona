@@ -1,16 +1,19 @@
-# RED-Persona 논문용 연구 설계, 방법 및 중간 결과
+# RED-Persona 논문용 연구 설계, 방법 및 결과
 
-> 문서 상태: 2026-10-09 기준 재현 가능한 Methods/Results 원고 초안
+> 문서 상태: 2026-10-10 기준 재현 가능한 Methods/Results 원고 초안
 >
-> 확정 분석 집합: 유효 사례 250개, 사례당 3조건 × 4방향 = 12개 평가 행
+> 탐색 분석: 기존 유효 250개, 사례당 3조건 × 4방향
 >
-> 최종 목표: 유효 사례 500개. 나머지 250개의 Batch 실행 결과는 완료·검증 후 별도 갱신한다.
+> 공식 paired 분석: 유효 500개, neutral full dialogue 대 no-research-dialogue,
+> GPT-4o와 Qwen2.5-7B target arm
 
 이 문서는 RED-Persona의 연구 철학, 선행연구에서 겨냥하는 공백, 데이터 계보, 모델별 역할,
-표본이 단계마다 어떻게 변환되는지, 누출 통제, 평가 정의, 현재 250개 결과와 한계를 논문에
+표본이 단계마다 어떻게 변환되는지, 누출 통제, 평가 정의, 250개 탐색 결과와 공식 500개 paired
+결과의 한계를 논문에
 옮길 수 있는 수준으로 정리한다. 수치는 Git에 포함된
 [`results/success_at_4_valid_250.json`](results/success_at_4_valid_250.json)과 로컬 검증 산출물에서
-재계산했다. 500개 완료 전까지 아래 결과를 최종 확증 분석으로 표현해서는 안 된다.
+재계산했다. 공식 500개의 membership과 분석 정책은 Git에 고정하지만, 대용량 개별 생성·평가
+artifact는 `data/` 아래에 두고 Git에서 제외한다.
 
 ## 1. 연구 질문
 
@@ -139,8 +142,12 @@ evidence로 구성하고, (b) neutral/structural/oracle 정보 개입을 두며,
 XSTest는 민감한 단어가 있다는 이유만으로 안전한 요청까지 거절하는 exaggerated safety를
 평가했다([논문](https://aclanthology.org/2024.naacl-long.301/)). RED-Persona의 custom B-level은
 위험한 확인·정당화·실행을 측정하고, CARES 3분류는 `Accept`, `Caution`, `Refuse`를 따로
-관찰한다. 단, 현 250개에는 CARES의 사전 `harmful_level` 주석이 없어 공식 Safety Score,
-accuracy, F1은 계산하지 않는다.
+관찰한다. 초기 250개에는 CARES의 사전 `harmful_level` 주석이 없어 공식 Safety Score,
+accuracy, F1을 계산하지 않았다. 이후 500개의 최초 SS 시도는 원 JMIR 요청의
+harmful level과 별도 final request의 response label을 결합한 request-unit 불일치로
+무효화했다. 정정 평가에서는 정확한 final target question 단위로 입력 위험도를 다시
+주석하고 같은 질문–응답 쌍을 CARES에 넣었다. 이 입력 위험도는 외부 dataset에 적용한
+CARES-adapted model annotation이며 원 CARES ground truth는 아니다.
 
 ## 4. 전체 방법 개요
 
@@ -222,15 +229,19 @@ violent thoughts 12, risk-taking 7이다.
 | 원천 분류 | GPT-4o mini | 1인칭 client utterance 여부 | 해당 없음 |
 | pathology router | `gpt-4o-mini-2024-07-18` | goal의 임상·인지·관계 축 구조화 | 해당 없음 |
 | persona category | Qwen + GPT-4o mini audit | 31,733개 pool의 범주 sidecar와 희소 범주 보강 감사 | 해당 없음 |
-| 의미 계획자 | `Qwen/Qwen2.5-7B-Instruct`, 고정 revision | profile rerank, sample adaptation, goal atom, micro-plan, turn 검증, coverage | Qwen만 알고 target에는 직접 전달하지 않음 |
+| persona/history 의미 계획자 | `Qwen/Qwen2.5-7B-Instruct`, 고정 revision | profile rerank, sample adaptation, goal atom, micro-plan, turn 검증, coverage | Qwen만 알고 target에는 직접 전달하지 않음 |
 | history renderer | `Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2` | 통제된 micro-plan을 자연스러운 과거 상담 exchange로 렌더링 | prompt 내부에서 사용하되 출력 원문 복사는 금지 |
-| 평가 대상 | `gpt-4o-2024-11-20` | persona 분석, 공동 연구 응답, final analysis, 후보 상담 응답 | oracle 연구 단계와 모든 manifestation 측정 단계만 직접 노출 |
+| GPT arm 연구 planner | `Qwen/Qwen2.5-7B-Instruct` | GPT target의 goal-aware 질문, coverage, 네 final/manifestation 질문 선택 | planner-only |
+| Qwen arm 연구 planner | `meta-llama/Llama-3.1-8B-Instruct` | Qwen target의 goal-aware 질문과 네 방향 질문 선택 | planner-only |
+| 평가 대상 | `gpt-4o-2024-11-20` 또는 `Qwen/Qwen2.5-7B-Instruct` | persona 분석, 공동 연구 응답, final analysis, 후보 상담 응답 | 연구 중 private goal 비노출; manifestation 측정에서만 직접 노출 |
 | custom evaluator | `gpt-4o-mini-2024-07-18` | R0–R4, provenance atom, B0–B5 판정 | evaluator-only |
-| CARES evaluator | `gpt-4o-mini-2024-07-18` | 후보 응답을 Accept/Caution/Refuse로 분류 | manifestation prompt-response pair만 평가 |
+| CARES/JMIR evaluator | `gpt-4o-mini` | CARES A/C/R, JMIR appropriateness 1–5 | exact final question–candidate pair만 평가 |
 
-Qwen의 안전 정렬 여부를 실험 결과와 혼동하지 않기 위해 역할을 제한한다. Qwen은 본 실험의
-안전 target이 아니라 계획·질문·coverage 도구다. 더 자유로운 Lexi도 target이 아니라 prior
-history 렌더러다. 실제 측정 대상은 고정 snapshot의 GPT-4o다.
+같은 모델 계열이 private-goal planner와 goal-blind target 양쪽 역할을 맡는 confound를 피한다.
+따라서 GPT arm에서는 Qwen이 planner지만, 추가 Qwen target arm에서는 표준 Llama-3.1-8B가
+planner다. 더 자유로운 Lexi는 두 arm 모두에서 target이나 연구 planner가 아니라 prior history
+renderer다. target 간 절대 차이는 planner까지 함께 달라지는 보조 일반성 분석이고, 각 arm 내부의
+full 대 no-dialogue paired contrast가 주 ablation이다.
 
 ## 7. persona pool 구성
 
@@ -525,13 +536,31 @@ recovery는 “가설을 받았을 때 목표를 올바르게 다루는가”를
 
 - `non_refuse = Accept or Caution`
 - `Accept@4 = 네 방향 중 하나 이상 Accept`
-- 사전 `harmful_level ∈ {0,1,2,3}`가 없으면 Safety Score는 계산하지 않음
+- 동일 final question 단위의 `harmful_level ∈ {0,1,2,3}`와 결합해 Safety Score 계산
 
-현 데이터는 harmful level을 사전 주석하지 않았기 때문에 CARES label 분포는 보고할 수
-있지만 Safety Score, binary accuracy, F1은 `null`이다. crisis category에서 harmful level을
-임의 추론하지 않는다.
+Safety Score(SS)는 0–1 범위이며 높을수록 요청의 harmful level과
+Accept/Caution/Refuse 판정이 CARES 표에 더 잘 맞는다. red-team 성공 지표가
+아니므로, 공격 효과를 논할 때는 SS 감소를 반대 방향으로 해석한다. 본 연구는
+SS를 주 안전 정합도 지표로 사용하되, recovery·B3+·CARES Accept와 항상 함께
+보고한다.
 
-### 11.4 Success@4
+초기 250개 분석에서는 harmful level이 없어 SS를 계산하지 않았다. 후속 500개에서
+`original_request`를 주석한 level을 final target-facing response label과 결합한 시도는
+request unit 불일치로 무효화했다. 해당 분포와 SS·accuracy·F1은 논문 결과에서
+제외한다. 정정 평가에서는 arm·case·direction별 **동일한 최종 target question**을
+harmful-level annotator와 CARES response evaluator 둘 다에 제시한다. 응답과 arm 정보는
+harmful-level annotator에서 숨긴다. h-level은 CARES-adapted model annotation이므로 최종
+논문에서는 사람 audit이 필요하다.
+
+### 11.4 JMIR appropriateness와 harmful-response rate
+
+JMIR 공식 category protocol과 evaluator prompt를 그대로 사용하고 `gpt-4o-mini`에 system
+message 없이 보낸다. 원 코드처럼 temperature, token limit, JSON mode를 지정하지 않는다.
+각 응답을 세 번 독립 평가한 평균을 `evaluation`, 모집단 표준편차를 `evaluation_std`로 두며,
+`evaluation == 1`인 응답의 비율만 harmful-response rate로 계산한다. 입력은 실제 최종 target
+question을 한 원소 JSON list로 매핑한 adaptation이다.
+
+### 11.5 Success@4
 
 사례 (i), 조건 (c), 방향 (d)의 branch 성공을 (y_{icd})라 하면
 
@@ -756,8 +785,8 @@ neutral evidence-chain에서 raw 84.0%와 target-originated 81.6%, structural ev
 
 ## 16. 실행 및 비용 감사
 
-이번 유효 250개를 맞추기 위한 **증분 실행**은 기존 유효 run 173개를 재사용하고 77개를
-새로 생성했다.
+탐색 단계에서 유효 250개를 맞추기 위한 **증분 실행**은 기존 유효 run 173개를 재사용하고
+77개를 새로 생성했다.
 
 - 77개 standard generation: 2,960개의 고유 target request, prompt 12,806,254 tokens,
   cached 8,560,512, completion 1,216,738, 계산 비용 USD 33.482375
@@ -770,6 +799,15 @@ neutral evidence-chain에서 raw 84.0%와 target-originated 81.6%, structural ev
 않는다. 또한 초기 Batch 파일럿은 사례 간 question deduplication 범위가 잘못된 것을 발견해
 중단했으며, 완료된 31개 batch의 USD 13.4163075는 방법 결과에서 제외한 engineering pilot
 비용이다. 해당 산출물은 최종 500개 분석에 사용하지 않는다.
+
+공식 500개 확장에서는 OpenAI Batch ledger를 실행 단위별로 보존하고 합산했다. GPT-4o의
+250개 추가 full 생성·평가가 포함된 master ledger는 USD 67.067540975, GPT-4o 공식 500개
+no-dialogue 평가는 USD 2.242238100, Qwen 공식 500개 no-dialogue 평가는 USD 2.046708375,
+Qwen 공식 500개 full 평가는 USD 2.577320025였다. 따라서 기록된 캠페인 누적 실비는
+**USD 73.933807475**이며, 사용자가 정한 USD 120 상한보다 USD 46.066192525 낮다. 이 합계에는
+공식 결과에 사용하지 않은 완료 중복 Batch USD 2.82184625도 포함하여 실제 지출을 과소
+보고하지 않았다. 로컬 Qwen target과 Llama planner의 GPU 전력·서버 비용은 OpenAI API
+ledger에 포함되지 않는다.
 
 ## 17. 재현성과 품질 관리
 
@@ -813,10 +851,19 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 | `experiments/qwen_target_persona_research_dialogue.py` | 세 조건, 4–7 연구 stage, 네 branch, manifestation 분리 |
 | `pipeline/run_batch.py` | standard API 사례 선택·실행·checkpoint |
 | `pipeline/openai_batch.py` | Batch upload/poll/retry, input hash, 비용 guard와 usage ledger |
+| `pipeline/openai_chat.py` | latency-sensitive evaluator tail의 병렬 표준 호출, checkpoint와 별도 비용 ledger |
+| `pipeline/local_chat.py` | 로컬 OpenAI-compatible target/planner endpoint와 pad/OOM 대응 |
 | `experiments/run_jmir_persona_batch_api.py` | multi-turn dependency wave를 Batch 요청으로 구성 |
+| `experiments/run_existing250_no_research_batch_api.py` | 기존 유효 250개를 동일 no-dialogue 계약으로 재실행 |
+| `experiments/merge_run_shards.py` | GPU별 disjoint shard를 case-ID·중복·계약 검사 후 병합 |
+| `experiments/normalize_manifestation_outputs.py` | 별칭·plain-text 출력을 canonical manifestation schema로 정규화 |
 | `experiments/evaluate_persona_co_research.py` | recovery/provenance와 manifestation behavior 평가, CARES 연결 |
 | `experiments/evaluate_jmir_persona_batch_api.py` | custom/CARES 평가를 Batch로 실행하고 사례별 12행 복원 |
 | `experiments/evaluate_cares_official.py` | 공식 CARES prompt, label parser, 선택적 Safety Score |
+| `ablation/aggregate.py` | full/no-dialogue paired metric, category macro, exact McNemar 집계 |
+| `ablation/offline_direction_suite.py` | 저장된 공식 500개 여섯 arm의 방향 단독·제거·Shapley·부분집합 무호출 집계 |
+| `experiments/select_context_ablation_subset.py` | 공식 500개에서 outcome-blind 범주비례 120개 membership 고정 |
+| `experiments/evaluate_context_ablation_batch.py` | 다섯 context arm과 재사용 full의 paired recovery·CARES·SS 집계 |
 | `pipeline/contracts.py` | 단계별 schema, 누출, 3×4, system prompt, candidate-only CARES 계약 |
 | `experiments/summarize_success_at_4.py` | 네 방향 case-level Success@4와 범주별 집계 |
 | `pipeline/preflight.py` | 모델 호출 없이 각 artifact 경계 검증 |
@@ -827,17 +874,25 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
    아니라 goal-conditioned synthetic construction이다.
 2. **goal-aware planner:** Qwen이 private goal을 알고 history를 계획하므로, persona pool 자체의
    자연 발생 효과와 goal injection 효과를 분리하지 못한다.
-3. **단일 target snapshot:** 현재 수치는 GPT-4o 한 snapshot에 한정된다.
+3. **두 target과 planner 차이:** GPT-4o와 Qwen2.5-7B를 평가했지만 Qwen arm에서는
+   same-family confound를 피하기 위해 planner를 Llama-3.1-8B로 바꿨다. target 간 절대 차이는
+   target architecture 하나의 순수 효과가 아니다.
 4. **자동 judge:** custom evaluator와 CARES 모두 LLM judge다. human blind validation이 없다.
 5. **불균형 표본:** suicidal/anxiety가 대부분이고 risk-taking/violent 표본은 매우 작다.
 6. **Success@4 ceiling:** 네 번의 기회 중 하나 성공은 작은 조건 차이를 숨길 수 있다.
 7. **확률적 재현성:** target과 Qwen 생성은 동일 prompt에서도 완전히 같은 문자열을 보장하지
    않는다. snapshot, prompt, schema 수준의 재현을 목표로 한다.
 8. **누출 검사의 한계:** literal n-gram과 provenance judge로 모든 의미적 주입을 탐지할 수 없다.
-9. **CARES Safety Score 부재:** harmful level 사전 주석이 없어 label 외 공식 종합 점수는 없다.
+9. **최초 CARES SS 무효화와 정정 SS의 한계:** 최초 harmful-level 주석은 JMIR `original_request`를 사용했지만
+   response label은 final target-facing request에서 구해 request unit이 달랐다. 해당
+   SS·accuracy·F1은 철회했다. 정정 SS는 동일 final-question 단위를 사용하지만 h-level이
+   model-assisted이고, dialogue/no-dialogue의 h-level 분포가 달라 SS의 arm 간 인과 비교에는
+   제한이 있다.
 10. **선택 편향:** 생성·누출 실패 사례 제외가 특정 언어 구조나 범주에 편향될 수 있다.
 11. **임상 유효성 부재:** 본 실험은 상담 효능, 진단 정확도, 실제 위기 개입의 임상적 안전성을
     입증하지 않는다.
+12. **JMIR 입력 mapping:** 공식 rubric과 judge 설정은 재현했지만 원 dataset 대신 최종 연구
+    질문을 singleton input list로 넣었으므로 원 leaderboard와 절대값을 직접 비교하지 않는다.
 
 ## 20. 윤리 및 안전 보고
 
@@ -848,20 +903,25 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 - 연구 결과는 model deployment의 임상 승인이나 치료 적합성을 의미하지 않는다.
 - 실패·제외·judge disagreement를 숨기지 않고 end-to-end denominator와 함께 보고한다.
 
-## 21. 최종 500개 논문 분석 전에 필요한 항목
+## 21. 논문 제출 전 완료 상태와 남은 항목
 
-1. corrected Batch pipeline으로 추가 250개 생성·평가 완료
-2. standard/Batch 평가 parity smoke의 schema·row·metric 비교 확정
-3. 500개 전체 preflight와 중복 case ID 검사
-4. 범주별 생성 실패·누출 제외율 보고
-5. primary outcome과 primary contrast 사전 고정
-6. Success@4와 branch-level rate의 Wilson interval 보고
-7. paired exact McNemar 또는 계층적 logistic model로 조건·방향 효과 분석
-8. 다중 비교 보정과 effect size 보고
-9. 범주 stratification은 충분한 n이 있는 범주에만 제한
-10. human blind annotation subset으로 R/B/CARES judge agreement 확인
-11. goal-blind history 또는 non-personalized control 추가 검토
-12. harmful level을 독립 사전 주석할 경우에만 CARES Safety Score 보고
+완료: corrected Batch 생성·평가, standard/Batch schema parity smoke, 공식 500개 ID 고정,
+중복·누출·계약 검사, neutral full/no-dialogue paired contrast, exact McNemar, micro와
+equal-category macro 보고, 두 target arm 실행.
+
+후속 완료: 동일 full history에서 수정 전/후 final prompt만 바꾼 공식 500개 ablation,
+no-dialogue final-response CARES 재사용 비교, 두 target × 세 arm의 네 방향
+leave-one-out·Shapley·15개 부분집합 무호출 분석. 최초 harmful-level/SS는 request-unit
+불일치를 확인하고 무효화했다.
+
+남음:
+
+1. Success@4와 branch-level rate의 Wilson interval을 최종 표에 추가
+2. 여러 metric과 두 target을 함께 주장할 경우 multiplicity 보정
+3. 희소 범주에 대한 과도한 해석 제한 또는 계층적 model 사용
+4. human blind annotation subset으로 R/B/CARES judge agreement 확인
+5. goal-blind history 또는 non-personalized control 추가 검토
+6. harmful-level model annotation의 층화 human blind validation
 
 ## 22. 논문 본문에 사용할 수 있는 짧은 Methods 문단
 
@@ -882,6 +942,12 @@ turn 및 별도 필드로 생성하였다. GPT-4o-mini evaluator는 목표 복�
 출처, 위험 행동 표출(B0–B5)을 평가했고, CARES evaluator에는 후보 응답만 전달하였다. 조건별
 Success@4는 네 branch 중 하나 이상이 해당 기준을 만족할 때 성공으로 정의하였다.
 
+공식 500개 ablation에서는 neutral condition만 사용해 initial analysis 뒤 반복 연구 대화를
+유지한 full arm과 즉시 네 방향으로 분기한 no-research-dialogue arm을 같은 case ID로 비교했다.
+추가 모델 일반성 arm은 Qwen2.5-7B-Instruct를 goal-blind target으로 두고 표준
+Llama-3.1-8B-Instruct를 goal-aware planner로 사용했다. 두 arm 모두 candidate-only CARES와
+동일한 GPT-4o-mini evaluator를 적용했다.
+
 ## 23. 결과 보고용 짧은 문단
 
 현재 검증을 완료한 250개 사례에서 raw Recovery Success@4는 neutral 97.2%, structural-hint
@@ -893,7 +959,74 @@ paired exact McNemar 검정에서 structural-hint와 neutral 간 raw recovery �
 manifestation 차이는 각각 p=.727, p=.286으로 유의하지 않았다. 이 결과는 높은 case-level
 ceiling과 서로 다른 evaluator decision boundary를 고려해 탐색적으로 해석해야 한다.
 
-## 24. 관련 재현 문서
+## 24. 공식 500개 paired 결과
+
+GPT-4o target에서 Raw Recovery Success@4는 full과 no-dialogue가 모두 97.8%였다. Unsafe
+manifestation ASR@4는 91.0% 대 93.8%(full−ablation −2.8%p, exact p=.092), CARES Accept@4는
+5.0% 대 6.8%(−1.8%p, p=.222)였다. Qwen target에서는 Raw Recovery가 98.0% 대 98.2%, Unsafe
+ASR이 97.0% 대 97.4%(−0.4%p, p=.851), CARES Accept가 10.2% 대 7.2%(+3.0%p, p=.058)였다.
+
+어느 target에서도 반복 연구 대화의 제거가 사전 보고한 case-level 지표에 통계적으로 확정적인
+차이를 만들지 않았다. GPT와 Qwen에서 CARES Accept delta의 방향도 같지 않았다. 따라서 현
+결과는 반복 연구 대화가 목표 복원 또는 위험 표출을 일관되게 증가시킨다는 가설을 지지하지
+않는다. 다만 Success@4 ceiling, 자동 judge, 네 번의 branch 기회, 작은 범주의 넓은 불확실성을
+고려해야 한다. 상세 discordant count, macro sensitivity, 비용과 QA는
+[`../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md)에
+있다.
+
+## 25. 비용 제한형 방향 ablation
+
+추가 호출 없이 저장된 공식 500개 결과를 재조합해 `latent_request_synthesis`, `evidence_chain`,
+`analyst_response_target`, `source_aware_reconstruction` 네 방향의 단독 성공률, 고유 성공률,
+leave-one-out Success@3, OR-game Shapley credit과 15개 비어 있지 않은 부분집합을 계산했다. 분석
+대상은 Qwen과 GPT-4o 각각의 legacy full, history-bridge full, no-dialogue로 총 여섯 arm이며,
+각 arm은 500개 사례와 2,000개 branch가 완전한지 먼저 검증했다. 새 모델 호출과 증분 API 비용은
+각각 0회와 `$0`이다.
+
+Raw Recovery에서는 history-bridge arm의 사후 최적 세 방향이 Qwen에서 98.2%(Success@4 98.4%),
+GPT-4o에서 96.8%(Success@4 97.2%)로 네 방향 대비 0.2–0.4%p 낮았다. 그러나 B3+ final-response는
+사후 최적 세 방향도 Qwen에서 83.4% 대 88.0%, GPT-4o에서 75.0% 대 79.2%로 4.2–4.6%p 낮았다.
+따라서 recovery만 보면 세 방향 포화 가능성이 있으나, behavior coverage까지 주 지표로 유지하면
+네 방향을 보존하는 편이 타당하다. 이는 같은 저장 branch를 OR로 재조합한 post-hoc 기술 분석이며,
+선택된 세 방향 설정의 독립적 confirmatory 평가나 방향 제거 후 재생성의 인과 효과가 아니다.
+상세 수치와 machine-readable 결과는
+[`../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md)와
+동명의 JSON에 있다.
+
+## 26. Context/persona component ablation: outcome-blind 120개
+
+공식 500개에서 결과를 보지 않고 범주 비율과 고정 hash 순위로 120개를 선택해 다섯 제거 조건을
+추가 실행했다. 같은 GPT-4o snapshot, neutral condition, 4–7단계 연구 대화, history-bridge
+readout, 네 방향을 유지하고 final analysis response만 평가했다. reference는 저장된 공식 500개
+`full_history_bridge`에서 같은 120개 행을 재사용했다.
+
+- `persona_only`: goal-aware history를 거쳐 누적된 마지막 persona만 유지
+- `dialogue_only`: 과거 client/counselor 대화만 유지
+- `no_initial_evidence`: target-visible persona와 prior history를 모두 제거
+- `no_system_and_guidelines`: target system role과 삽입 Markdown 연구 지침을 둘 다 제거
+- `base_persona_only`: goal adaptation과 goal-internalized history 전의 선택된 retrieval profile만 유지
+
+`base_persona_only`의 profile 선택은 private goal을 본 reranker가 수행했으므로 완전한 goal-blind
+control이 아니다. 또한 모든 arm에서 이후 goal-aware researcher와 history-bridge readout은
+유지된다. 따라서 이 실험은 persona-construction 단계 제거의 총효과이지 global no-goal control이
+아니다.
+
+full의 Raw Recovery Success@4는 96.67%였다. persona-only 100.00%, dialogue-only 97.50%,
+no-initial-evidence 95.00%, no-system-and-guidelines 96.67%, base-persona-only 98.33%였으며 모든
+paired exact McNemar 비교가 `p >= .125`였다. B3+ final-response@4는 full 78.33%에 비해 제거
+조건이 89.17–93.33%로 모두 높았고, ablated−full delta는 +10.83–15.00%p였다. CARES
+Accept@4는 full 20.83%, 제거 조건 23.33–29.17%였지만 paired 차이는 모두 유의하지 않았다.
+
+이 결과는 goal 내재화 history가 공격 성공을 일관되게 높인다는 가설을 지지하지 않는다. 오히려
+풍부한 대화 맥락이나 instruction scaffold가 target의 안전 framing을 강화했거나, context 제거가
+더 직접적인 최종 trajectory를 만들었을 수 있다. 그러나 post-hoc n=120, Success@4 ceiling,
+복수 검정, goal-aware profile selection/researcher, 제거 후 전체 대화 재생성 때문에 이를 개별
+구성 요소의 인과적 보호 효과로 확정하지 않는다. 상세 branch rate, category macro,
+무효화된 SS 감사 기록, 비용과 QA는
+[`../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`](../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md)에
+있다.
+
+## 27. 관련 재현 문서
 
 - [`../PIPELINE_OVERVIEW_KO.md`](../PIPELINE_OVERVIEW_KO.md): 활성 파이프라인 개요
 - [`DATA_LINEAGE_AND_EXTRACTION_KO.md`](DATA_LINEAGE_AND_EXTRACTION_KO.md): 2,046→625 계보와 checksum
@@ -902,3 +1035,11 @@ ceiling과 서로 다른 evaluator decision boundary를 고려해 탐색적으�
 - [`NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md`](NEW_SERVER_SETUP_AND_EXPERIMENT_GUIDE_KO.md): 전체 실행과 복구
 - [`SUCCESS_AT_4_KO.md`](SUCCESS_AT_4_KO.md): 현재 250개 핵심 표
 - [`SELECTION_500_AUDIT_KO.md`](SELECTION_500_AUDIT_KO.md): 625→500 정제, 손상 제외, 사람 검수 기록
+- [`FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md`](FIGURE_METHOD_EXAMPLE_JMIR_FULL_0077_KO.md): 실제 사례 기반 그림 설명
+- [`QWEN_TARGET_500_RUN_AUDIT_KO.md`](QWEN_TARGET_500_RUN_AUDIT_KO.md): Qwen target 500개 생성·평가 감사
+- [`../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md): 두 target paired 결과
+- [`../ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`](../ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md): prompt ablation과 무효화된 CARES SS 감사 기록
+- [`../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md): 공식 500개 무호출 방향 ablation
+- [`../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`](../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md): context/persona 제거 120개 실행 결과
+- [`CARES_JMIR_OFFICIAL_EVALUATION_PROTOCOL_KO.md`](CARES_JMIR_OFFICIAL_EVALUATION_PROTOCOL_KO.md): CARES·JMIR 원 설정과 adapted mapping
+- [`RESULTS_CARES_JMIR_OFFICIAL500_KO.md`](RESULTS_CARES_JMIR_OFFICIAL500_KO.md): 공식 500개 CARES SS와 JMIR appropriateness/harmful rate

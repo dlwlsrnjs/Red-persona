@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 
 from experiments.qwen_target_persona_research_dialogue import (
-    ACTIVE_PIPELINE_VERSION, FINAL_DIRECTIONS, TARGET_SYSTEM_PROMPT,
+    ACTIVE_PIPELINE_VERSION, FINAL_DIRECTIONS, FINAL_READOUT_PROTOCOLS,
+    LEGACY_FINAL_READOUT_PROTOCOL, TARGET_SYSTEM_PROMPT,
 )
 
 CONDITIONS = {"neutral", "structural_hint", "oracle_hint"}
@@ -117,8 +118,27 @@ def _target_histories(result):
         yield branch["manifestation_context"]["full_messages"]
 
 
+def _active_conditions(record, errors, artifact):
+    recorded = record.get("active_conditions")
+    if recorded is None:
+        return set(CONDITIONS)
+    if not isinstance(recorded, (list, tuple)) or not recorded:
+        errors.append(f"{artifact} active_conditions must be a non-empty list")
+        return set()
+    if len(recorded) != len(set(recorded)):
+        errors.append(f"{artifact} active_conditions must not contain duplicates")
+    unknown = set(recorded) - CONDITIONS
+    if unknown:
+        errors.append(
+            f"{artifact} active_conditions contains unknown values: {sorted(unknown)}"
+        )
+    return set(recorded) & CONDITIONS
+
+
 def validate_run_record(record):
     errors = []
+    expected_system_prompt = record.get("target_system_prompt", TARGET_SYSTEM_PROMPT)
+    expected_conditions = _active_conditions(record, errors, "run")
     engine_version = record.get("research_engine_version")
     if engine_version is not None and engine_version != ACTIVE_PIPELINE_VERSION:
         errors.append(f"stale research engine version: {engine_version}")
@@ -128,16 +148,45 @@ def validate_run_record(record):
         errors.append("run active_final_directions must be exactly the four configured directions")
     results = record.get("results", [])
     conditions = {result.get("condition") for result in results}
-    if conditions != CONDITIONS:
-        errors.append(f"run conditions must be {sorted(CONDITIONS)}, got {sorted(map(str, conditions))}")
+    if conditions != expected_conditions:
+        errors.append(
+            f"run conditions must match active_conditions "
+            f"{sorted(expected_conditions)}, got {sorted(map(str, conditions))}"
+        )
+    ablation_name = record.get("ablation", {}).get("name")
+    readout_protocol = record.get("final_readout_protocol")
+    if (readout_protocol is not None and
+            readout_protocol not in FINAL_READOUT_PROTOCOLS):
+        errors.append(f"run has unsupported final_readout_protocol: {readout_protocol}")
+    if (ablation_name == "no_research_dialogue" and readout_protocol is not None and
+            readout_protocol != LEGACY_FINAL_READOUT_PROTOCOL):
+        errors.append(
+            "no_research_dialogue cannot use a history-bridge readout protocol"
+        )
     for result in results:
         prefix = f"{result.get('case_id')}:{result.get('condition')}"
+        result_readout = result.get("final_readout_protocol")
+        if (readout_protocol is not None and result_readout is not None and
+                result_readout != readout_protocol):
+            errors.append(f"{prefix}: result final readout protocol differs from run")
         turns = result.get("turns", [])
         research_turns = [turn for turn in turns if turn.get("stage") != "initial_analysis"]
-        if not 4 <= len(research_turns) <= 7:
-            errors.append(f"{prefix}: research dialogue must stop dynamically between 4 and 7 turns")
+        if ablation_name == "no_research_dialogue":
+            minimum_turns = maximum_turns = 0
+            allowed_stop_reasons = {"ablation_no_research_dialogue"}
+        else:
+            minimum_turns, maximum_turns = 4, 7
+            allowed_stop_reasons = {
+                "qwen_goal_coverage_sufficient",
+                "goal_aware_planner_coverage_sufficient",
+                "all_stages_completed",
+            }
+        if not minimum_turns <= len(research_turns) <= maximum_turns:
+            errors.append(
+                f"{prefix}: expected {minimum_turns}-{maximum_turns} research turns"
+            )
         stop = result.get("research_stop", {})
-        if stop.get("reason") not in {"qwen_goal_coverage_sufficient", "all_stages_completed"}:
+        if stop.get("reason") not in allowed_stop_reasons:
             errors.append(f"{prefix}: missing valid Qwen research coverage stop record")
         branches = result.get("final_branches", [])
         directions = {branch.get("direction") for branch in branches}
@@ -163,7 +212,7 @@ def validate_run_record(record):
         for messages in _target_histories(result):
             systems = [message.get("content") for message in messages
                        if message.get("role") == "system"]
-            if systems != [TARGET_SYSTEM_PROMPT]:
+            if systems != [expected_system_prompt]:
                 errors.append(f"{prefix}: target history must contain exactly the active system prompt")
                 break
     return errors
@@ -192,16 +241,22 @@ def validate_success_at_4_run_record(record):
 
 def validate_evaluation(record):
     errors = []
+    expected_conditions = _active_conditions(record, errors, "evaluation")
     rows = record.get("rows", [])
     recorded_directions = record.get("active_final_directions", FINAL_DIRECTIONS)
     if list(recorded_directions) != list(FINAL_DIRECTIONS):
         errors.append("evaluation directions must be exactly the four configured directions")
     directions = set(FINAL_DIRECTIONS)
     seen = {(row.get("condition"), row.get("direction")) for row in rows}
-    expected = {(condition, direction) for condition in CONDITIONS for direction in directions}
+    expected = {
+        (condition, direction)
+        for condition in expected_conditions
+        for direction in directions
+    }
     if len(rows) != len(expected):
         errors.append(
-            f"evaluation must contain 3 conditions x {len(directions)} branches, got {len(rows)}"
+            f"evaluation must contain {len(expected_conditions)} conditions x "
+            f"{len(directions)} branches, got {len(rows)}"
         )
     if seen != expected:
         errors.append("evaluation condition/direction matrix is incomplete")

@@ -98,7 +98,14 @@ def validate(value, result, branch):
         # The payload labels the researcher speaker "qwen_researcher"; the evaluator
         # sometimes echoes that label (or "researcher") instead of the enum "qwen".
         # Normalize that single safe alias before the hard check.
-        _source_aliases = {"qwen_researcher": "qwen", "researcher": "qwen"}
+        _source_aliases = {
+            "qwen_researcher": "qwen",
+            "researcher": "qwen",
+            # Evaluators sometimes describe the supplied persona block instead
+            # of copying the compact enum name.  This is a label-only alias;
+            # the quote is still checked literally against the persona text.
+            "initial persona material": "persona",
+        }
         if atom.get("first_source") in _source_aliases:
             atom["first_source"] = _source_aliases[atom["first_source"]]
         if atom.get("first_source") not in texts:

@@ -2,14 +2,15 @@ import json
 import unittest
 from unittest.mock import patch
 
-from ablation.aggregate import exact_mcnemar, paired_comparison
+from ablation.aggregate import exact_mcnemar, paired_comparison, parse_evaluations
 from ablation.context import transform_case
 from ablation.contracts import validate_ablation_run
 from ablation.direction_attribution import attribution
 from ablation.metrics import METRICS
 from ablation.specs import get_spec
 from experiments.qwen_target_persona_research_dialogue import (
-    FINAL_DIRECTIONS, initial_prompt, run_all_conditions_batched,
+    FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL, initial_prompt,
+    run_all_conditions_batched,
 )
 
 
@@ -66,6 +67,31 @@ class AblationTest(unittest.TestCase):
         self.assertIn("No prior dialogue", prompt)
         self.assertNotIn("client one", prompt)
 
+    def test_base_persona_only_precedes_goal_adaptation_and_history(self):
+        case = fixture_case()
+        case["persona_profile"] = {
+            "persona_id": "adapted",
+            "sample_adaptation": {"base_persona_id": "base-1"},
+        }
+        case["persona_history_generation"] = {
+            "profile_selection": {"selected_persona_id": "base-1"},
+            "retrieval_top_k": [{
+                "profile": {"persona_id": "base-1", "background": "base evidence"},
+                "score": 1.0,
+            }],
+        }
+        transformed = transform_case(case, get_spec("base_persona_only"))
+
+        self.assertIn("base evidence", transformed["persona"])
+        self.assertNotIn("final persona narrative", transformed["persona"])
+        self.assertNotIn("sample_adaptation", transformed["persona_profile"])
+        self.assertEqual(transformed["persona_history"], [])
+        self.assertEqual(transformed["metaphor"], "")
+        self.assertEqual(
+            transformed["ablation_context"]["persona_source"],
+            "selected_retrieval_profile_before_goal_adaptation_and_history",
+        )
+
     @patch("experiments.qwen_target_persona_research_dialogue.complete", side_effect=fake_complete)
     def test_no_research_dialogue_still_runs_four_directions(self, _complete):
         spec = get_spec("no_research_dialogue")
@@ -82,9 +108,35 @@ class AblationTest(unittest.TestCase):
         self.assertTrue(all(len(result["turns"]) == 1 for result in results))
         self.assertTrue(all(len(result["final_branches"]) == 4 for result in results))
         self.assertTrue(all(
+            result["final_readout_protocol"] == LEGACY_FINAL_READOUT_PROTOCOL
+            for result in results
+        ))
+        self.assertTrue(all(
             result["research_stop"]["reason"] == "ablation_no_research_dialogue"
             for result in results
         ))
+        self.assertEqual(validate_ablation_run(record), [])
+
+    @patch("experiments.qwen_target_persona_research_dialogue.complete", side_effect=fake_complete)
+    def test_final_response_only_contract_does_not_require_manifestation(self, _complete):
+        spec = get_spec("persona_only")
+        case = transform_case(fixture_case(), spec)
+        results = run_all_conditions_batched(
+            case, "fixture-model", FakeResearcher(), target_workers=4,
+            research_stage_limit=spec.research_stage_limit,
+            enable_dynamic_stop=spec.enable_dynamic_stop,
+        )
+        for result in results:
+            result["phase_exposure"]["manifestation_measurement_goal_exposed"] = False
+            for branch in result["final_branches"]:
+                branch.pop("manifestation_candidate_response", None)
+                branch.pop("manifestation_research_analysis", None)
+                branch.pop("manifestation_context", None)
+        record = {
+            "ablation": spec.metadata(), "case": case, "results": results,
+            "measurement_scope": "final_analysis_response_only",
+        }
+
         self.assertEqual(validate_ablation_run(record), [])
 
     @patch("experiments.qwen_target_persona_research_dialogue.complete", side_effect=fake_complete)
@@ -119,6 +171,28 @@ class AblationTest(unittest.TestCase):
         self.assertEqual(row["baseline_only_successes"], 1)
         self.assertEqual(exact_mcnemar(1, 0), 1.0)
 
+    def test_paired_comparison_accepts_neutral_only_runs(self):
+        def record(success):
+            return {"crisis_label": "category", "outcomes": {
+                "neutral": {metric: success for metric in METRICS}
+            }}
+
+        comparison = paired_comparison(
+            {"a": record(True)}, {"a": record(False)}
+        )
+
+        self.assertEqual(set(comparison["comparisons"]), {"neutral"})
+        self.assertEqual(
+            comparison["comparisons"]["neutral"]["raw_success_at_4"]
+            ["contribution_micro_delta"],
+            1.0,
+        )
+
+    def test_parse_evaluations_allows_multiple_directories_per_variant(self):
+        parsed = parse_evaluations(["full=one", "full=two", "ablated=three"])
+
+        self.assertEqual([str(path) for path in parsed["full"]], ["one", "two"])
+
     def test_direction_shapley_credit_adds_to_success_at_four(self):
         directions = list(FINAL_DIRECTIONS)
 
@@ -140,6 +214,24 @@ class AblationTest(unittest.TestCase):
         self.assertEqual(row["directions"][directions[0]]["or_shapley_rate"], 0.75)
         self.assertEqual(row["directions"][directions[1]]["or_shapley_rate"], 0.25)
         self.assertEqual(row["shapley_additivity_check"], 1.0)
+
+    def test_direction_attribution_accepts_official_neutral_only_matrix(self):
+        directions = list(FINAL_DIRECTIONS)
+        branch_values = {
+            direction: direction == directions[0] for direction in directions
+        }
+        records = {"one": {
+            "crisis_label": "category",
+            "branches": {"neutral": {
+                metric: dict(branch_values) for metric in METRICS
+            }},
+        }}
+
+        result = attribution(records, records)
+
+        self.assertEqual(set(result), {"neutral"})
+        self.assertEqual(result["neutral"]["raw_success_at_4"]
+                         ["full_success_at_4_rate"], 1.0)
 
 
 if __name__ == "__main__":

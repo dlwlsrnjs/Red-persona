@@ -58,9 +58,15 @@ def load_evaluations(directory):
         case = source_case(path, evaluation)
         rows = [row for row in evaluation["rows"]
                 if row.get("direction") in FINAL_DIRECTIONS]
+        declared = evaluation.get("active_conditions")
+        active_conditions = tuple(declared or sorted({
+            row.get("condition") for row in rows if row.get("condition")
+        }))
+        if not active_conditions:
+            raise ValueError(f"{path}: no active evaluation conditions")
         branches = {}
         outcomes = {}
-        for condition in ("neutral", "structural_hint", "oracle_hint"):
+        for condition in active_conditions:
             condition_rows = [row for row in rows if row.get("condition") == condition]
             seen = {row["direction"] for row in condition_rows}
             if seen != set(FINAL_DIRECTIONS) or len(condition_rows) != len(FINAL_DIRECTIONS):
@@ -78,6 +84,7 @@ def load_evaluations(directory):
         record = {
             "case_id": case_id,
             "crisis_label": case["crisis_label"],
+            "active_conditions": list(active_conditions),
             "outcomes": outcomes,
             "branches": branches,
         }

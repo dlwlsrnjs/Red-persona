@@ -9,7 +9,10 @@ from pipeline.research_context import (
     ACTIVE_PIPELINE_VERSION,
     FINAL_DIRECTIONS,
 )
-from experiments.qwen_target_persona_research_dialogue import TARGET_SYSTEM_PROMPT
+from experiments.qwen_target_persona_research_dialogue import (
+    JARGON_HISTORY_BRIDGE_PROTOCOL, LEGACY_FINAL_READOUT_PROTOCOL,
+    TARGET_SYSTEM_PROMPT,
+)
 
 
 def history():
@@ -93,6 +96,61 @@ class PipelineContractTests(unittest.TestCase):
     def test_current_run_contract_passes(self):
         self.assertEqual(validate_run_record(self.make_run()), [])
 
+    def test_neutral_only_run_contract_passes_when_declared(self):
+        record = self.make_run()
+        record["active_conditions"] = ["neutral"]
+        record["results"] = [
+            result for result in record["results"]
+            if result["condition"] == "neutral"
+        ]
+        self.assertEqual(validate_run_record(record), [])
+
+    def test_run_rejects_results_outside_declared_conditions(self):
+        record = self.make_run()
+        record["active_conditions"] = ["neutral"]
+        errors = validate_run_record(record)
+        self.assertTrue(any("match active_conditions" in error for error in errors))
+
+    def test_no_research_dialogue_ablation_allows_zero_research_turns(self):
+        record = self.make_run()
+        record["active_conditions"] = ["neutral"]
+        record["ablation"] = {"name": "no_research_dialogue"}
+        record["results"] = [
+            result for result in record["results"]
+            if result["condition"] == "neutral"
+        ]
+        record["results"][0]["turns"] = [{"stage": "initial_analysis"}]
+        record["results"][0]["research_stop"] = {
+            "reason": "ablation_no_research_dialogue",
+            "after_stage": "initial_analysis",
+        }
+        self.assertEqual(validate_run_record(record), [])
+
+    def test_no_research_dialogue_rejects_history_bridge_readout(self):
+        record = self.make_run()
+        record["active_conditions"] = ["neutral"]
+        record["ablation"] = {"name": "no_research_dialogue"}
+        record["final_readout_protocol"] = JARGON_HISTORY_BRIDGE_PROTOCOL
+        record["results"] = [
+            result for result in record["results"]
+            if result["condition"] == "neutral"
+        ]
+        result = record["results"][0]
+        result["final_readout_protocol"] = JARGON_HISTORY_BRIDGE_PROTOCOL
+        result["turns"] = [{"stage": "initial_analysis"}]
+        result["research_stop"] = {
+            "reason": "ablation_no_research_dialogue",
+            "after_stage": "initial_analysis",
+        }
+
+        errors = validate_run_record(record)
+
+        self.assertTrue(any("cannot use a history-bridge" in error
+                            for error in errors))
+        record["final_readout_protocol"] = LEGACY_FINAL_READOUT_PROTOCOL
+        result["final_readout_protocol"] = LEGACY_FINAL_READOUT_PROTOCOL
+        self.assertEqual(validate_run_record(record), [])
+
     def test_stale_engine_and_missing_candidate_are_rejected(self):
         record = self.make_run()
         record["research_engine_version"] = "stale"
@@ -118,6 +176,21 @@ class PipelineContractTests(unittest.TestCase):
         record["results"][0]["shared_history"]["full_messages"] = []
         errors = validate_run_record(record)
         self.assertTrue(any("active system prompt" in error for error in errors))
+
+    def test_declared_target_system_prompt_supports_distinct_researcher(self):
+        record = self.make_run()
+        prompt = "generic goal-aware researcher system prompt"
+        record["target_system_prompt"] = prompt
+        for result in record["results"]:
+            result["research_stop"]["reason"] = (
+                "goal_aware_planner_coverage_sufficient"
+            )
+            result["shared_history"]["full_messages"][0]["content"] = prompt
+            for item in result["final_branches"]:
+                item["context"]["full_messages"][0]["content"] = prompt
+                item["manifestation_context"]["full_messages"][0]["content"] = prompt
+
+        self.assertEqual(validate_run_record(record), [])
 
     def test_evaluation_accepts_candidate_source_only(self):
         rows = []
@@ -146,6 +219,27 @@ class PipelineContractTests(unittest.TestCase):
             "rows": rows,
         })
         self.assertTrue(any("candidate_response only" in error for error in errors))
+
+    def test_neutral_only_evaluation_contract_passes_when_declared(self):
+        rows = []
+        for direction in FINAL_DIRECTIONS:
+            rows.append({
+                "condition": "neutral",
+                "direction": direction,
+                "custom": {
+                    "raw_recovery_success": False,
+                    "target_originated_recovery_success": False,
+                    "unsafe_manifestation_success": False,
+                },
+                "official_cares": {
+                    "response_source": "manifestation_candidate_response.text"
+                },
+            })
+        self.assertEqual(validate_evaluation({
+            "active_conditions": ["neutral"],
+            "active_final_directions": list(FINAL_DIRECTIONS),
+            "rows": rows,
+        }), [])
 
     def test_legacy_evaluation_projects_to_four_directions(self):
         rows = []

@@ -51,6 +51,22 @@ external_baselines/
 - 각 결과는 고정 persona context, 전체 target 대화와 마지막 target 응답을 보존하고
   `final_evaluation.status=pending`으로 후속 평가에 넘긴다.
 
+외부 baseline에도 RED-Persona 본 실험과 동일한 CARES A/C/R, h0–h3, Safety Score를
+계산하는 공통 evaluator를 추가했다. PyRIT 출력은 자동 변환하며, 다른 저장소의 결과는
+공통 JSONL 계약으로 연결한다. 기본값은 각 baseline에 공식 500개가 모두 있을 때만
+실행된다. 세부 계약과 논문 표 구성은
+[`CARES_SS_EVALUATION_GUIDE_KO.md`](CARES_SS_EVALUATION_GUIDE_KO.md)를 따른다.
+
+```bash
+# 실제 API 호출 없이 500개 완전성과 예상 호출/비용 확인
+external_baselines/.venv/bin/python external_baselines/evaluate_cares_ss.py \
+  --input-root external_baselines/outputs --api-mode batch
+
+# 검증된 모든 baseline × 공식 500개 평가
+external_baselines/.venv/bin/python external_baselines/evaluate_cares_ss.py \
+  --input-root external_baselines/outputs --api-mode batch --execute
+```
+
 공식 cohort는 RED-Persona 본 실험과 동일하다. 생성된 625개 persona-history 후보에서
 private-goal 원문 누출 17개를 제외한 뒤, 유효 608개 중 단일 과대표집 범주인
 `suicidal_ideation`에서만 108개를 보류한 500개다. 분포는

@@ -11,7 +11,7 @@ JMIR goal 625개
   → 전체 persona pool 31,733개에서 동적 검색
   → Qwen 의미 계획 / Lexi 과거 대화 렌더링
   → 누적 persona_state + persona_history
-  → goal-aware Qwen ↔ target 누적 연구 대화
+  → goal-aware planner ↔ target 누적 연구 대화
   → 동일 누적 prefix 기반 4개 독립 분기
   → candidate_response / research_analysis 분리
   → GPT 평가 + candidate-only CARES
@@ -66,8 +66,11 @@ python3 -m pipeline.evaluate_openai_batch ...
 - Lexi 사례별 checkpoint/resume 및 실패 재시도: 구현 및 테스트 완료
 - 유효 250개 standard/API 호환 run 및 3×4 평가: 완료·preflight 통과
 - 250개 Success@4 논문용 스냅샷과 Methods/Results: `docs/`에 고정
-- 251번째 이후 corrected OpenAI Batch wave 실행: generation/evaluation parity 검증 후 진행
-- 최종 유효 500개 집계: 아직 완료되지 않음
+- 공식 500개 GPT-4o neutral full/no-research-dialogue 생성·평가·paired 집계: 완료
+- 추가 `Qwen/Qwen2.5-7B-Instruct` target의 공식 500개 full/no-research-dialogue 생성·평가·paired 집계: 완료
+- Qwen target arm의 goal-aware planner: 표준 `meta-llama/Llama-3.1-8B-Instruct` 고정 revision
+- Qwen target 생성: localhost vLLM, 7개 disjoint planner shard 병렬 실행 후 case-ID 검증 병합
+- 공식 500개 paired 결과와 비용·QA 감사: `ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`에 고정
 
 ## 검증
 

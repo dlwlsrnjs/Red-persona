@@ -1,0 +1,75 @@
+{
+  "version": "cares-jmir-official500-public-summary-v1",
+  "created_at": "2026-10-10",
+  "status": "complete",
+  "cases": 500,
+  "directions_per_case": 4,
+  "responses_per_arm": 2000,
+  "evaluator_model": "gpt-4o-mini",
+  "api_mode": "openai_chat_completions",
+  "cost_usd": 6.384584699999979,
+  "arms": {
+    "gpt4o_history_dialogue": {
+      "cares_counts": {"Accept": 387, "Caution": 1580, "Refuse": 33},
+      "cares_harm_level_counts": {"h0": 1987, "h1": 12, "h2": 1, "h3": 0},
+      "cares_safety_score": 0.19975,
+      "jmir_mean_appropriateness": 3.214,
+      "jmir_harmful_response_count": 4,
+      "jmir_harmful_response_rate": 0.002
+    },
+    "gpt4o_no_dialogue": {
+      "cares_counts": {"Accept": 40, "Caution": 1793, "Refuse": 167},
+      "cares_harm_level_counts": {"h0": 1588, "h1": 53, "h2": 290, "h3": 69},
+      "cares_safety_score": 0.145,
+      "jmir_mean_appropriateness": 3.1285,
+      "jmir_harmful_response_count": 363,
+      "jmir_harmful_response_rate": 0.1815
+    },
+    "qwen_history_dialogue": {
+      "cares_counts": {"Accept": 914, "Caution": 1061, "Refuse": 25},
+      "cares_harm_level_counts": {"h0": 1989, "h1": 8, "h2": 3, "h3": 0},
+      "cares_safety_score": 0.46125,
+      "jmir_mean_appropriateness": 3.0545,
+      "jmir_harmful_response_count": 19,
+      "jmir_harmful_response_rate": 0.0095
+    },
+    "qwen_no_dialogue": {
+      "cares_counts": {"Accept": 44, "Caution": 1773, "Refuse": 183},
+      "cares_harm_level_counts": {"h0": 1567, "h1": 40, "h2": 300, "h3": 93},
+      "cares_safety_score": 0.1585,
+      "jmir_mean_appropriateness": 2.9996666666666676,
+      "jmir_harmful_response_count": 230,
+      "jmir_harmful_response_rate": 0.115
+    }
+  },
+  "paired_history_minus_no_dialogue": {
+    "gpt4o": {
+      "pairs": 2000,
+      "cares_safety_score_delta": 0.05475,
+      "jmir_appropriateness_delta": 0.0855,
+      "jmir_harmful_response_rate_delta": -0.1795
+    },
+    "qwen": {
+      "pairs": 2000,
+      "cares_safety_score_delta": 0.30275,
+      "jmir_appropriateness_delta": 0.054833333333333345,
+      "jmir_harmful_response_rate_delta": -0.1055
+    }
+  },
+  "nonempty_sensitivity": {
+    "qwen_history_dialogue_n": 1996,
+    "qwen_history_dialogue_cares_safety_score": 0.46217434869739477,
+    "qwen_history_dialogue_jmir_mean_appropriateness": 3.0572812291249147,
+    "qwen_history_dialogue_jmir_harmful_response_rate": 0.009018036072144289
+  },
+  "qa": {
+    "empty_candidate_responses": 4,
+    "cares_exact_max_tokens_4_parseable": 337,
+    "cares_compatibility_max_tokens_8": 7661,
+    "cares_compatibility_max_tokens_32": 1,
+    "cares_schema_only_followup": 1,
+    "jmir_identical_request_schema_reruns": 11,
+    "api_failed_requests": 0,
+    "cares_harm_levels_are_model_assisted_not_original_ground_truth": true
+  }
+}

@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from pipeline.runtime_io import atomic_json
 from experiments.qwen_target_persona_research_dialogue import (
-    ACTIVE_PIPELINE_VERSION, FINAL_DIRECTIONS, SNAPSHOT,
+    ACTIVE_PIPELINE_VERSION, DEFAULT_FINAL_READOUT_PROTOCOL, FINAL_DIRECTIONS,
+    FINAL_READOUT_PROTOCOLS, SNAPSHOT,
     QwenResearcher, run_all_conditions_batched,
 )
 from pipeline.contracts import validate_active_cases
@@ -52,6 +53,10 @@ def main():
     parser.add_argument("--exclude-case-id", action="append", default=[])
     parser.add_argument("--target-workers", type=int, default=256)
     parser.add_argument("--qwen-snapshot", type=Path, default=SNAPSHOT)
+    parser.add_argument(
+        "--final-readout-protocol", choices=FINAL_READOUT_PROTOCOLS,
+        default=DEFAULT_FINAL_READOUT_PROTOCOL,
+    )
     parser.add_argument("--retry-failed", action="store_true")
     args = parser.parse_args()
     if not 1 <= args.target_workers <= 256:
@@ -80,10 +85,12 @@ def main():
         try:
             results = run_all_conditions_batched(
                 case, args.target_model, researcher, target_workers=args.target_workers,
+                final_readout_protocol=args.final_readout_protocol,
             )
             atomic_json(output, {"version": "jmir-persona-eval-batch-v1",
                                  "research_engine_version": ACTIVE_PIPELINE_VERSION,
                                  "active_final_directions": list(FINAL_DIRECTIONS),
+                                 "final_readout_protocol": args.final_readout_protocol,
                                  "case_index": offset, "case": case, "results": results})
             if failure.exists():
                 failure.unlink()
@@ -98,7 +105,8 @@ def main():
     summary = {"selected": len(selected), "complete": complete, "skipped": skipped,
                "failed": failed, "target_model": args.target_model,
                "research_engine_version": ACTIVE_PIPELINE_VERSION,
-               "active_final_directions": list(FINAL_DIRECTIONS)}
+               "active_final_directions": list(FINAL_DIRECTIONS),
+               "final_readout_protocol": args.final_readout_protocol}
     summary["seed"] = args.seed
     atomic_json(args.output_dir / "run_summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False))

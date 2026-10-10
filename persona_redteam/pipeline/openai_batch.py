@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import time
 
-from openai import OpenAI
+from openai import NotFoundError, OpenAI
 import tiktoken
 
 from pipeline.runtime_io import atomic_json
@@ -43,10 +43,14 @@ def response_record(body):
 
 
 class BatchChatClient:
-    def __init__(self, state_dir, *, max_budget_usd=60.0, poll_seconds=20):
+    api_mode = "openai_batch"
+
+    def __init__(self, state_dir, *, max_budget_usd=120.0, poll_seconds=20):
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.max_budget_usd = float(max_budget_usd)
+        self.max_budget_usd = (
+            None if max_budget_usd is None else float(max_budget_usd)
+        )
         self.poll_seconds = max(5, int(poll_seconds))
         self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         self.ledger_path = self.state_dir / "usage_ledger.json"
@@ -76,7 +80,17 @@ class BatchChatClient:
             prompt_tokens = 20
             for message in body["messages"]:
                 prompt_tokens += 10 + len(encoding.encode(str(message.get("content", ""))))
-            output_tokens = body.get("max_tokens", body.get("max_completion_tokens", 0))
+            # Some published protocols intentionally omit the completion cap and
+            # rely on the API default.  Keep that field absent from the wire
+            # request, but require an explicit accounting assumption so the
+            # preflight budget estimate never silently treats it as zero.
+            output_tokens = body.get(
+                "max_tokens",
+                body.get(
+                    "max_completion_tokens",
+                    request.get("estimated_output_tokens", 1024),
+                ),
+            )
             price = BATCH_PRICES_PER_MILLION[model_family(model)]
             total += (prompt_tokens * price["input"] + output_tokens * price["output"]) / 1e6
         return total * 1.10
@@ -110,8 +124,14 @@ class BatchChatClient:
         input_path = label_dir / "input.jsonl"
         state_path = label_dir / "state.json"
         result_path = label_dir / "results.json"
-        input_text = "".join(json.dumps(request, ensure_ascii=False) + "\n"
-                             for request in requests)
+        input_text = "".join(
+            json.dumps(
+                {key: value for key, value in request.items()
+                 if key != "estimated_output_tokens"},
+                ensure_ascii=False,
+            ) + "\n"
+            for request in requests
+        )
         input_hash = hashlib.sha256(input_text.encode("utf-8")).hexdigest()
 
         if result_path.exists():
@@ -128,7 +148,8 @@ class BatchChatClient:
         else:
             estimated = self.estimate_upper_cost(requests)
             spent = self.actual_cost()
-            if spent + estimated > self.max_budget_usd:
+            if (self.max_budget_usd is not None and
+                    spent + estimated > self.max_budget_usd):
                 raise RuntimeError(
                     f"budget guard: spent ${spent:.4f} + batch upper estimate "
                     f"${estimated:.4f} exceeds ${self.max_budget_usd:.2f}"
@@ -158,8 +179,25 @@ class BatchChatClient:
                              ensure_ascii=False), flush=True)
 
         last_status = None
+        visibility_retries = 0
         while True:
-            batch = self.client.batches.retrieve(batch_id)
+            try:
+                batch = self.client.batches.retrieve(batch_id)
+            except NotFoundError:
+                # Batch creation can become visible to the retrieve endpoint a
+                # few seconds after the create response. The checkpoint already
+                # holds the server-issued ID, so wait instead of resubmitting.
+                visibility_retries += 1
+                if visibility_retries > 12:
+                    raise
+                if visibility_retries == 1:
+                    print(json.dumps({
+                        "batch": label,
+                        "status": "pending_visibility",
+                        "batch_id": batch_id,
+                    }, ensure_ascii=False), flush=True)
+                time.sleep(self.poll_seconds)
+                continue
             if batch.status != last_status:
                 counts = batch.request_counts
                 print(json.dumps({"batch": label, "status": batch.status,
@@ -168,6 +206,11 @@ class BatchChatClient:
                                  ensure_ascii=False), flush=True)
                 last_status = batch.status
             if batch.status == "completed":
+                break
+            # A user-cancelled Batch can still contain billable completed rows.
+            # Preserve and charge those rows, then let run() retry only the
+            # missing custom IDs instead of discarding paid partial output.
+            if batch.status == "cancelled" and batch.output_file_id:
                 break
             if batch.status in TERMINAL_FAILURES:
                 raise RuntimeError(f"{label}: batch {batch_id} ended as {batch.status}")
@@ -198,6 +241,7 @@ class BatchChatClient:
         atomic_json(label_dir / "request_errors.json", errors)
 
         ledger = self._ledger()
+        ledger["max_budget_usd"] = self.max_budget_usd
         ledger["batches"][batch_id] = {
             "label": label,
             "requests": len(requests),
@@ -208,12 +252,16 @@ class BatchChatClient:
         atomic_json(self.ledger_path, ledger)
         return results
 
-    def run(self, label, requests, *, retries=2):
+    def run(self, label, requests, *, retries=2, prefilled=None):
         ids = [request["custom_id"] for request in requests]
         if len(ids) != len(set(ids)):
             raise ValueError(f"{label}: duplicate custom_id")
-        pending = list(requests)
-        merged = {}
+        merged = dict(prefilled or {})
+        unknown = set(merged) - set(ids)
+        if unknown:
+            raise ValueError(f"{label}: prefilled custom IDs are not requested")
+        pending = [request for request in requests
+                   if request["custom_id"] not in merged]
         for attempt in range(retries + 1):
             if not pending:
                 break
@@ -228,11 +276,25 @@ class BatchChatClient:
         return {custom_id: merged[custom_id] for custom_id in ids}
 
 
-def chat_request(custom_id, model, messages, *, max_tokens, json_mode=False,
-                 temperature=0):
-    body = {"model": model, "messages": messages,
-            "temperature": temperature, "max_tokens": max_tokens}
+def chat_request(custom_id, model, messages, *, max_tokens=None, json_mode=False,
+                 temperature=0, estimated_output_tokens=None):
+    """Build one Chat Completions/Batch request without inventing defaults.
+
+    Passing ``None`` omits ``temperature`` or ``max_tokens`` entirely.  This is
+    needed for exact replications of protocols whose source call supplied only
+    ``messages`` and ``model`` (for example the JMIR appropriateness judge).
+    ``estimated_output_tokens`` is local accounting metadata and is never sent
+    to the API.
+    """
+    body = {"model": model, "messages": messages}
+    if temperature is not None:
+        body["temperature"] = temperature
+    if max_tokens is not None:
+        body["max_tokens"] = max_tokens
     if json_mode:
         body["response_format"] = {"type": "json_object"}
-    return {"custom_id": custom_id, "method": "POST",
-            "url": "/v1/chat/completions", "body": body}
+    request = {"custom_id": custom_id, "method": "POST",
+               "url": "/v1/chat/completions", "body": body}
+    if estimated_output_tokens is not None:
+        request["estimated_output_tokens"] = int(estimated_output_tokens)
+    return request

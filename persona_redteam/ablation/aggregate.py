@@ -15,9 +15,6 @@ from ablation.metrics import METRICS, load_evaluations
 from pipeline.runtime_io import atomic_json
 
 
-CONDITIONS = ("neutral", "structural_hint", "oracle_hint")
-
-
 def exact_mcnemar(losses, gains):
     discordant = losses + gains
     if not discordant:
@@ -41,8 +38,30 @@ def paired_comparison(baseline, variant):
             raise ValueError(f"category changed for {case_id}")
         categories[baseline[case_id]["crisis_label"]].append(case_id)
 
+    baseline_conditions = {
+        condition for case_id in common
+        for condition in baseline[case_id]["outcomes"]
+    }
+    variant_conditions = {
+        condition for case_id in common
+        for condition in variant[case_id]["outcomes"]
+    }
+    conditions = tuple(sorted(baseline_conditions & variant_conditions))
+    if not conditions:
+        raise ValueError("baseline and ablation have no common conditions")
+    for case_id in common:
+        missing = [
+            condition for condition in conditions
+            if condition not in baseline[case_id]["outcomes"] or
+            condition not in variant[case_id]["outcomes"]
+        ]
+        if missing:
+            raise ValueError(
+                f"{case_id}: common conditions are incomplete: {', '.join(missing)}"
+            )
+
     results = {}
-    for condition in CONDITIONS:
+    for condition in conditions:
         results[condition] = {}
         for metric in METRICS:
             base_rate = rate(baseline, common, condition, metric)
@@ -115,9 +134,9 @@ def parse_evaluations(values):
         if "=" not in value:
             raise ValueError("--evaluation must use VARIANT=DIR")
         name, directory = value.split("=", 1)
-        if not name or name in parsed:
-            raise ValueError(f"invalid or duplicate variant: {name!r}")
-        parsed[name] = Path(directory)
+        if not name:
+            raise ValueError(f"invalid variant: {name!r}")
+        parsed.setdefault(name, []).append(Path(directory))
     return parsed
 
 
@@ -135,7 +154,8 @@ def main():
         parser.error(str(exc))
     if args.baseline not in paths:
         parser.error(f"baseline {args.baseline!r} is not present in --evaluation")
-    loaded = {name: load_evaluations(path) for name, path in paths.items()}
+    loaded = {name: load_evaluations(path_list)
+              for name, path_list in paths.items()}
     baseline = loaded[args.baseline]
     variants = {
         name: paired_comparison(baseline, records)
@@ -154,4 +174,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

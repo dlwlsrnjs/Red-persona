@@ -19,12 +19,35 @@ from pipeline.runtime_io import atomic_json
 CONDITIONS = ("neutral", "structural_hint", "oracle_hint")
 
 
-def attribution(records, ids):
+def common_conditions(records, ids):
+    """Return the condition matrix shared by every selected record.
+
+    Older experiments contain three conditions, while the registered official-500
+    experiments intentionally contain only ``neutral``.  Requiring the records to
+    agree keeps incomplete matrices from being silently dropped while allowing both
+    designs to use the same offline attribution code.
+    """
+    ids = list(ids)
+    if not ids:
+        raise ValueError("direction attribution requires at least one case")
+    first = set(records[ids[0]]["branches"])
+    for case_id in ids[1:]:
+        observed = set(records[case_id]["branches"])
+        if observed != first:
+            raise ValueError(
+                f"inconsistent active conditions for {case_id}: "
+                f"expected {sorted(first)}, got {sorted(observed)}"
+            )
+    preferred = [condition for condition in CONDITIONS if condition in first]
+    return tuple(preferred + sorted(first - set(preferred)))
+
+
+def attribution(records, ids, metrics=METRICS):
     ids = list(ids)
     output = {}
-    for condition in CONDITIONS:
+    for condition in common_conditions(records, ids):
         output[condition] = {}
-        for metric in METRICS:
+        for metric in metrics:
             values = {
                 case_id: records[case_id]["branches"][condition][metric]
                 for case_id in ids
@@ -75,12 +98,19 @@ def attribution(records, ids):
     return output
 
 
-def macro_attribution(by_category):
+def macro_attribution(by_category, metrics=METRICS):
     categories = sorted(by_category)
+    if not categories:
+        raise ValueError("macro attribution requires at least one category")
+    condition_sets = [set(by_category[category]) for category in categories]
+    if any(value != condition_sets[0] for value in condition_sets[1:]):
+        raise ValueError("categories do not share the same active conditions")
+    preferred = [condition for condition in CONDITIONS if condition in condition_sets[0]]
+    conditions = preferred + sorted(condition_sets[0] - set(preferred))
     output = {}
-    for condition in CONDITIONS:
+    for condition in conditions:
         output[condition] = {}
-        for metric in METRICS:
+        for metric in metrics:
             rows = [by_category[category][condition][metric] for category in categories]
             output[condition][metric] = {
                 "category_count": len(categories),

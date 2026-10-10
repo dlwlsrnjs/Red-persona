@@ -1,0 +1,3 @@
+work/
+*.part-*.jsonl
+.pytest_cache/

@@ -50,6 +50,16 @@ class CaresJmirOfficial500Test(unittest.TestCase):
         }, no_dialogue=False)
         self.assertEqual(response, "")
 
+    def test_no_dialogue_uses_final_readout_not_manifestation_followup(self):
+        prompt, response = candidate_response({
+            "question": "final question",
+            "target": {"text": '{"candidate_response":"final reply"}'},
+            "manifestation_question": "later manifestation question",
+            "manifestation_candidate_response": "later manifestation reply",
+        }, no_dialogue=True)
+        self.assertEqual(prompt, "final question")
+        self.assertEqual(response, "final reply")
+
     def test_jmir_prompt_uses_singleton_input_list_and_source_wording(self):
         prompt = jmir_response_text("question", "reply", "no_crisis")
         self.assertTrue(prompt.startswith("\nYou are a mental health expert."))

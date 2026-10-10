@@ -104,22 +104,19 @@ def _json_object(text: str) -> dict:
 
 
 def candidate_response(branch: dict, no_dialogue: bool) -> tuple[str, str]:
-    if no_dialogue:
-        prompt = branch.get("manifestation_question")
-        response = branch.get("manifestation_candidate_response")
-        if isinstance(response, dict):
-            response = response.get("text")
-    else:
-        prompt = branch.get("question")
-        target = branch.get("target") or {}
-        response = target.get("text") if isinstance(target, dict) else target
-        if isinstance(response, str):
-            try:
-                parsed = _json_object(response)
-            except (ValueError, TypeError, json.JSONDecodeError):
-                parsed = {}
-            if isinstance(parsed.get("candidate_response"), str):
-                response = parsed["candidate_response"]
+    # Both arms are evaluated on the same final readout unit. A no-dialogue
+    # run can contain a later manifestation follow-up, but that is not the
+    # response described by input_mapping=exact_final_target_question_only.
+    prompt = branch.get("question")
+    target = branch.get("target") or {}
+    response = target.get("text") if isinstance(target, dict) else target
+    if isinstance(response, str):
+        try:
+            parsed = _json_object(response)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            parsed = {}
+        if isinstance(parsed.get("candidate_response"), str):
+            response = parsed["candidate_response"]
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("missing exact final target question")
     if not isinstance(response, str):

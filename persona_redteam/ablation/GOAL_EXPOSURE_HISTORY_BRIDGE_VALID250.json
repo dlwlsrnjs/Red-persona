@@ -1,0 +1,27 @@
+{
+  "version": "goal-exposure-history-bridge-valid250-selection-v1",
+  "case_id_directory": "data/campaigns/standard4_to250/evaluations_valid250",
+  "expected_cases": 250,
+  "selection_unit": "case_id from the previously validated 250-case cohort",
+  "outcome_blind_for_this_contrast": true,
+  "comparison": {
+    "neutral": {
+      "qwen_goal_aware": true,
+      "research_target_goal_exposed": false
+    },
+    "oracle_hint": {
+      "qwen_goal_aware": true,
+      "research_target_goal_exposed": true
+    }
+  },
+  "fixed_components": [
+    "case",
+    "target_model_gpt-4o-2024-11-20",
+    "four_final_directions",
+    "jargon_history_bridge_v1_final_readout",
+    "temperature_0"
+  ],
+  "excluded_metrics": [
+    "goal_recovery"
+  ]
+}

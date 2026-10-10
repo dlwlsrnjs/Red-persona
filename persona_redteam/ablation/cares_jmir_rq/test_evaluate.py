@@ -69,3 +69,4 @@ def test_registered_rqs_cover_context_dialogue_and_readout():
         "RQ3_history_bridge_gpt4o",
         "RQ3_history_bridge_qwen",
     }
+    assert evaluate.RQ_SPECS["RQ1_context_components"]["scope"] == "official500"

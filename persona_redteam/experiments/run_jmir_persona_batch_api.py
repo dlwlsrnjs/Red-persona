@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from pipeline.runtime_io import atomic_json
 from pipeline.contracts import validate_active_cases, validate_success_at_4_run_record
-from pipeline.openai_batch import BatchChatClient, chat_request
+from pipeline.openai_batch import BatchChatClient, chat_request as _batch_chat_request
 from pipeline.local_chat import LocalChatClient
 from pipeline.official_selection import METHOD as OFFICIAL_SELECTION_METHOD
 from pipeline.official_selection import load_official_case_ids, select_new_cases
@@ -49,6 +49,27 @@ CONTEXT_ABLATION_VARIANTS = (
     "no_initial_evidence",
     "no_system_and_guidelines",
 )
+
+
+def chat_request(custom_id, model, messages, *, max_tokens=None, json_mode=False,
+                 temperature=0, estimated_output_tokens=None):
+    """Build target requests with the correct fields for GPT-6 reasoning models."""
+    if model.startswith("gpt-6"):
+        return _batch_chat_request(
+            custom_id, model, messages,
+            max_completion_tokens=max_tokens,
+            json_mode=json_mode,
+            temperature=None,
+            reasoning_effort="none",
+            estimated_output_tokens=estimated_output_tokens,
+        )
+    return _batch_chat_request(
+        custom_id, model, messages,
+        max_tokens=max_tokens,
+        json_mode=json_mode,
+        temperature=temperature,
+        estimated_output_tokens=estimated_output_tokens,
+    )
 
 
 def readout_namespace(protocol):
@@ -359,6 +380,91 @@ def make_initial_states(selected, specs, outputs):
                 "dialogue": [["Researcher", spec["first"]], ["Target", answer["text"]]],
                 "turns": [{"stage": "initial_analysis", "question": spec["first"],
                            "target": answer}],
+            }
+    return states
+
+
+def reuse_initial_states(selected, source_run_dirs, target_system_prompt,
+                         *, omit_system_prompt=False):
+    """Reuse the condition-independent initial target analysis from prior runs.
+
+    The original three-condition design shares one initial target response and
+    changes the target-visible goal exposure only in subsequent researcher
+    questions.  Reusing that prefix for a later condition therefore improves
+    pairing and avoids paying for a duplicate response.
+    """
+    wanted = {case["case_id"] for _, case in selected}
+    sources = {}
+    for path, document in run_artifacts(source_run_dirs):
+        case_id = document["case"]["case_id"]
+        if case_id not in wanted:
+            continue
+        if case_id in sources:
+            raise RuntimeError(
+                f"duplicate initial-state source for {case_id}: "
+                f"{sources[case_id][0]} and {path}"
+            )
+        sources[case_id] = (path, document)
+    missing = sorted(wanted - set(sources))
+    if missing:
+        raise RuntimeError(
+            f"missing {len(missing)} initial-state sources: "
+            + ", ".join(missing[:10])
+        )
+
+    states = {}
+    for _, case in selected:
+        case_id = case["case_id"]
+        source_path, document = sources[case_id]
+        neutral = [
+            result for result in document["results"]
+            if result.get("condition") == "neutral"
+        ]
+        if len(neutral) != 1:
+            raise RuntimeError(
+                f"{source_path}: expected one neutral result for initial reuse"
+            )
+        turns = neutral[0].get("turns", [])
+        if not turns or turns[0].get("stage") != "initial_analysis":
+            raise RuntimeError(f"{source_path}: missing reusable initial analysis")
+        initial_turn = copy.deepcopy(turns[0])
+        answer = copy.deepcopy(initial_turn["target"])
+        expected_messages, expected_first = target_initial_messages(
+            case, target_system_prompt,
+            omit_system_prompt=omit_system_prompt,
+        )
+        if initial_turn.get("question") != expected_first:
+            raise RuntimeError(f"{source_path}: initial question changed")
+        shared = neutral[0].get("shared_history", {}).get("full_messages", [])
+        expected_roles = [message.get("role") for message in expected_messages]
+        source_prefix = shared[:len(expected_messages)]
+        if source_prefix != expected_messages:
+            raise RuntimeError(f"{source_path}: initial target prompt changed")
+        answer_index = len(expected_messages)
+        if (len(shared) <= answer_index or
+                shared[answer_index].get("role") != "assistant" or
+                shared[answer_index].get("content") != answer.get("text")):
+            raise RuntimeError(f"{source_path}: initial target answer mismatch")
+        if expected_roles not in (["system", "user"], ["user"]):
+            raise RuntimeError(f"{source_path}: unexpected initial prompt roles")
+        states[case_id] = {}
+        for condition in CONDITIONS:
+            history = [
+                *copy.deepcopy(expected_messages),
+                {"role": "assistant", "content": answer["text"]},
+            ]
+            states[case_id][condition] = {
+                "history": history,
+                "dialogue": [
+                    ["Researcher", expected_first],
+                    ["Target", answer["text"]],
+                ],
+                "turns": [copy.deepcopy(initial_turn)],
+                "initial_response_reuse": {
+                    "source_file": str(source_path),
+                    "source_condition": "neutral",
+                    "scope": "condition_independent_initial_analysis_only",
+                },
             }
     return states
 
@@ -691,13 +797,20 @@ def no_research_states(cases_by_id, source_states):
 def repair_truncated_initial(selected, states, wave_dir, campaign_dir,
                              client, target_model):
     """Repair legacy 650-token initial answers and reset only the neutral arm."""
+    reference_condition = "neutral" if all(
+        "neutral" in by_condition for by_condition in states.values()
+    ) else (CONDITIONS[0] if len(CONDITIONS) == 1 else None)
+    if reference_condition is None:
+        raise RuntimeError(
+            "initial repair requires neutral or exactly one active condition"
+        )
     manifest_path = campaign_dir / "neutral_initial_length_repair.json"
     if manifest_path.exists():
         manifest = load_json(manifest_path, {})
         changed = set(manifest.get("case_ids", []))
         still_truncated = [
             case_id for case_id in changed
-            if states[case_id]["neutral"]["turns"][0]["target"].get(
+            if states[case_id][reference_condition]["turns"][0]["target"].get(
                 "finish_reason"
             ) == "length"
         ]
@@ -710,7 +823,8 @@ def repair_truncated_initial(selected, states, wave_dir, campaign_dir,
 
     specs = load_json(wave_dir / "initial.json", [])
     current = {
-        "initial-" + case_id: states[case_id]["neutral"]["turns"][0]["target"]
+        "initial-" + case_id:
+            states[case_id][reference_condition]["turns"][0]["target"]
         for case_id in states
     }
     changed = {
@@ -725,7 +839,7 @@ def repair_truncated_initial(selected, states, wave_dir, campaign_dir,
         )
         fresh = make_initial_states(selected, specs, outputs)
         for case_id in states:
-            states[case_id]["neutral"] = fresh[case_id]["neutral"]
+            states[case_id][reference_condition] = fresh[case_id][reference_condition]
         atomic_json(campaign_dir / "research_states.json", states)
     atomic_json(manifest_path, {
         "case_ids": sorted(changed),
@@ -982,6 +1096,11 @@ def main():
     )
     parser.add_argument("--target-workers", type=int, default=128)
     parser.add_argument(
+        "--reuse-initial-from-run-dir", action="append", type=Path, default=[],
+        help=("Reuse the condition-independent initial target analysis from a "
+              "previous run directory; subsequent research stages remain new."),
+    )
+    parser.add_argument(
         "--final-readout-protocol", choices=FINAL_READOUT_PROTOCOLS,
         default=DEFAULT_FINAL_READOUT_PROTOCOL,
         help=("Final-question policy for the full-dialogue arm. The paired "
@@ -1109,6 +1228,12 @@ def main():
 
     if state_path.exists():
         states = load_json(state_path, {})
+    elif args.reuse_initial_from_run_dir:
+        states = reuse_initial_states(
+            selected, args.reuse_initial_from_run_dir, target_system_prompt,
+            omit_system_prompt=omit_target_system_prompt,
+        )
+        atomic_json(state_path, states)
     else:
         specs = prepared_wave(
             wave_dir / "initial.json",
@@ -1326,6 +1451,10 @@ def main():
         "omit_target_system_prompt": omit_target_system_prompt,
         "include_research_guidelines": include_research_guidelines,
         "final_response_only": args.final_response_only,
+        "initial_response_reuse": bool(args.reuse_initial_from_run_dir),
+        "initial_response_reuse_sources": [
+            str(path) for path in args.reuse_initial_from_run_dir
+        ],
         "api_mode": getattr(client, "api_mode", "unknown"),
         "batch_cost_usd": client.actual_cost(),
     })

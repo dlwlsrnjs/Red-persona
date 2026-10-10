@@ -27,6 +27,13 @@ from pipeline.runtime_io import atomic_json
 
 def selected_case_ids(path: Path) -> list[str]:
     value = json.loads(path.read_text(encoding="utf-8"))
+    pilot = value.get("ablation_subset") or {}
+    if (
+        pilot.get("method") == "category_proportional_stable_hash_v1"
+        and isinstance(pilot.get("case_ids"), list)
+        and pilot["case_ids"]
+    ):
+        return [str(item) for item in pilot["case_ids"]]
     for key in ("final_case_ids", "case_ids"):
         if isinstance(value.get(key), list) and value[key]:
             return [str(item) for item in value[key]]

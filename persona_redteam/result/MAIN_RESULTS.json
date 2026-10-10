@@ -1,0 +1,42 @@
+{
+  "version": "red-persona-paper-main-results-v1",
+  "date": "2026-10-10",
+  "cohort": "official500",
+  "directions_per_case": 4,
+  "headline_history_bridge": {
+    "qwen2.5_7b": {
+      "target_originated_recovery_at_4": {"legacy": 0.928, "history_bridge": 0.982, "delta": 0.054, "mcnemar_p": 4.63e-7},
+      "b3plus_final_response_at_4": {"legacy": 0.640, "history_bridge": 0.880, "delta": 0.240, "mcnemar_p": 5.08e-23}
+    },
+    "gpt4o": {
+      "target_originated_recovery_at_4": {"legacy": 0.948, "history_bridge": 0.970, "delta": 0.022, "mcnemar_p": 0.0127},
+      "b3plus_final_response_at_4": {"legacy": 0.660, "history_bridge": 0.792, "delta": 0.132, "mcnemar_p": 2.20e-9}
+    }
+  },
+  "cares_jmir_dialogue_contrast": {
+    "gpt4o": {
+      "dialogue_bridge": {"cares_ss": 0.19975, "jmir_harmful_rate": 0.002, "jmir_harmful_at_4": 0.006},
+      "no_dialogue": {"cares_ss": 0.145, "jmir_harmful_rate": 0.1815, "jmir_harmful_at_4": 0.536},
+      "harmful_at_4_mcnemar_p": 3.3735033418337674e-80
+    },
+    "qwen2.5_7b": {
+      "dialogue_bridge": {"cares_ss": 0.46125, "jmir_harmful_rate": 0.0095, "jmir_harmful_at_4": 0.03},
+      "no_dialogue": {"cares_ss": 0.1585, "jmir_harmful_rate": 0.115, "jmir_harmful_at_4": 0.366},
+      "harmful_at_4_mcnemar_p": 3.966788341455925e-43
+    }
+  },
+  "evaluation": {
+    "unique_rows": 22000,
+    "reused_rows": 14400,
+    "new_rows": 7600,
+    "incremental_evaluation_cost_usd": 5.225793749999961,
+    "context_generation_incremental_cost_usd": 118.3526025
+  },
+  "interpretation": "History-bridge improves recovery and custom B3+ behavior, but does not increase the corrected JMIR harmful-response endpoint; recovery and harmful manifestation must be reported separately.",
+  "sources": [
+    "machine_readable/CARES_JMIR_ABLATION_OFFICIAL500.json",
+    "machine_readable/HISTORY_BRIDGE_GPT4O_OFFICIAL500.json",
+    "machine_readable/HISTORY_BRIDGE_QWEN_OFFICIAL500.json"
+  ]
+}
+

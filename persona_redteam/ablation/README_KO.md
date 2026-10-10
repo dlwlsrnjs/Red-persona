@@ -1,5 +1,22 @@
 # RED-Persona component ablation
 
+## Canonical OURS 기준
+
+모든 ablation의 기준 arm은 **`neutral` research dialogue +
+`jargon_history_bridge_v1` + four independent final directions**다. 저장소 내부 arm ID는
+`gpt4o_history_dialogue`이며, 논문에서는 `OURS`로 표기한다.
+
+- `oracle_hint`: 연구 대화 중 private goal을 타깃에게 공개하는 ablation
+- `legacy_v15`: 같은 누적 대화에서 history-bridge만 제거하는 ablation
+- `no_dialogue`: 연구 대화와 대화 기반 bridge를 함께 제거하는 method-package ablation
+
+OURS 설정과 CARES SS/JMIR 주 결과 및 보조 Goal recovery 표의 단일 기준은
+[`../result/OURS/RESULTS_KO.md`](../result/OURS/RESULTS_KO.md)와
+[`../result/OURS/EXPERIMENT_CONTRACT.json`](../result/OURS/EXPERIMENT_CONTRACT.json)이다.
+다른 arm을 full 또는 OURS로 부르지 않는다.
+Canonical OURS는 `experiments/run_ours_official500.py`로만 실행하고, 이 폴더의 변형들은 일반
+runner를 사용해 별도 출력 디렉터리에 저장한다.
+
 이 폴더는 본 실험 코드를 바꾸지 않고 구성 요소별 기여도를 같은 사례 ID에 대한 paired
 comparison으로 측정한다. 제거된 구성 요소가 full method의 성공률을 얼마나 높였는지는
 `full rate - ablated rate`로 정의한다. 양수면 full method에서 해당 요소가 지표를 높였고,
@@ -44,13 +61,15 @@ python -m ablation.offline_direction_suite
 1. 저장된 full 대 no-dialogue: 반복 연구 대화의 기여
 2. 저장된 legacy 대 history bridge: final readout prompt의 기여
 3. 저장된 네 방향 결과의 재조합: 방향별 고유 기여와 Success@k 포화
-4. outcome-blind 120개 context/persona subset: 다섯 context-removal arm과 full reference
+4. outcome-blind 120개에서 시작해 Official-500 전체로 확장한 context/persona 분석:
+   다섯 context-removal arm과 full reference
 
 네 번째 분석은 `persona_only`, `dialogue_only`, `no_initial_evidence`,
-`no_system_and_guidelines`, `base_persona_only`를 120개 같은 사례에서 실제 생성·평가했다. 결과와
-해석 제한은 `RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`, 민감 텍스트를 제거한 집계는
-`RESULTS_CONTEXT_ABLATION_SUBSET120.json`에 있다. 결과는 full 우위를 가정하지 않았으며,
-실제로 B3+ final-response는 모든 제거 조건이 full보다 높았다.
+`no_system_and_guidelines`, `base_persona_only`를 먼저 120개 같은 사례에서 탐색한 뒤, 기존 120개를
+재사용하고 각 arm 380개를 추가해 Official-500 전체로 확장했다. 완료된 CARES SS/JMIR 결과는
+`cares_jmir_rq/RESULTS_KO.md`와 `cares_jmir_rq/RESULTS.json`에 있다. 500개 확장은 120개 결과를
+본 뒤 결정됐으므로 사전등록 확증 결과가 아니라 탐색 결과로 보고한다. 최초 120개 custom
+Recovery/B3+ 결과는 감사 기록으로 `RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`에 유지한다.
 
 ```bash
 python -m ablation.direction_attribution \

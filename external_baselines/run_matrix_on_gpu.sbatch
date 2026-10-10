@@ -107,6 +107,7 @@ MATRIX_ARGS=(
   --output-dir "$OUTPUT_ROOT"
   --max-concurrent-jobs "${MATRIX_MAX_JOBS:-18}"
   --job-retries "${MATRIX_JOB_RETRIES:-2}"
+  --case-start "${CASE_START:-0}"
 )
 for endpoint in "${QWEN_ENDPOINTS[@]}"; do
   MATRIX_ARGS+=(--qwen-endpoint "$endpoint")
@@ -116,6 +117,12 @@ if [[ "${QWEN_ONLY:-0}" == 1 ]]; then
   if [[ -z "${OPENAI_API_KEY:-}" ]]; then
     echo "OPENAI_API_KEY is absent: PCSA and GPT-4o target runs remain pending"
   fi
+fi
+if [[ -n "${MATRIX_TARGETS:-}" ]]; then
+  IFS=',' read -r -a SELECTED_TARGETS <<<"$MATRIX_TARGETS"
+  for target in "${SELECTED_TARGETS[@]}"; do
+    MATRIX_ARGS+=(--target-name "$target")
+  done
 fi
 if [[ -n "${MATRIX_METHODS:-}" ]]; then
   IFS=',' read -r -a SELECTED_METHODS <<<"$MATRIX_METHODS"
@@ -147,5 +154,19 @@ else
   MATRIX_ARGS+=(--pilot-cases "${PILOT_CASES:-1}")
 fi
 
+if [[ "${AUDIT_TRUNCATED:-0}" == 1 ]]; then
+  HF_HUB_OFFLINE=1 external_baselines/.venv/bin/python \
+    external_baselines/audit_truncation.py \
+    --input-dir "$OUTPUT_ROOT" \
+    --quarantine
+fi
+
 external_baselines/.venv/bin/python external_baselines/run_baseline_matrix.py \
   "${MATRIX_ARGS[@]}"
+
+if [[ "${AUDIT_TRUNCATED:-0}" == 1 ]]; then
+  HF_HUB_OFFLINE=1 external_baselines/.venv/bin/python \
+    external_baselines/audit_truncation.py \
+    --input-dir "$OUTPUT_ROOT" \
+    --fail-on-truncated
+fi

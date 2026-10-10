@@ -204,6 +204,7 @@ def build_jobs(
     output_root: Path,
     pilot_cases: int | None,
     retry_failed: bool,
+    case_start: int = 0,
     qwen_endpoints: tuple[str, ...] = (),
 ) -> list[MatrixJob]:
     jobs: list[MatrixJob] = []
@@ -283,6 +284,8 @@ def build_jobs(
                 )
             if pilot_cases is not None:
                 command.extend(("--limit", str(pilot_cases)))
+            if case_start:
+                command.extend(("--start", str(case_start)))
             if retry_failed:
                 command.append("--retry-failed")
             jobs.append(
@@ -430,6 +433,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--cohort-index", type=Path, default=DEFAULT_COHORT_INDEX)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--pilot-cases", type=int, default=1)
+    parser.add_argument(
+        "--case-start",
+        type=int,
+        default=0,
+        help="zero-based official cohort offset for a resumable cost shard",
+    )
     parser.add_argument("--full-500", action="store_true")
     parser.add_argument("--max-concurrent-jobs", type=int, default=18)
     parser.add_argument("--job-retries", type=int, default=2)
@@ -453,7 +462,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=[],
         help="local Qwen replica URL; repeat to enable round-robin assignment",
     )
-    parser.add_argument("--retry-failed", action="store_true")
+    parser.add_argument(
+        "--retry-failed",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="retry existing failed case checkpoints (default: enabled)",
+    )
     parser.add_argument(
         "--run-label",
         help="suffix for matrix manifest/summary files when resuming a subset",
@@ -462,6 +476,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.pilot_cases < 1:
         parser.error("--pilot-cases must be at least 1")
+    if args.case_start < 0:
+        parser.error("--case-start must be non-negative")
+    if args.full_500 and args.case_start:
+        parser.error("--full-500 cannot be combined with --case-start")
     if not 1 <= args.max_concurrent_jobs <= 18:
         parser.error("--max-concurrent-jobs must be between 1 and 18")
     if not 0 <= args.job_retries <= 5:
@@ -502,6 +520,12 @@ def main(argv: list[str] | None = None) -> int:
             f"found {cohort_count}"
         )
     pilot_cases = None if args.full_500 else args.pilot_cases
+    if args.case_start >= cohort_count:
+        raise ValueError(
+            f"--case-start {args.case_start} is outside the {cohort_count}-case cohort"
+        )
+    if pilot_cases is not None:
+        pilot_cases = min(pilot_cases, cohort_count - args.case_start)
     jobs = build_jobs(
         targets=targets,
         adversary=adversary,
@@ -512,6 +536,7 @@ def main(argv: list[str] | None = None) -> int:
         output_root=args.output_dir,
         pilot_cases=pilot_cases,
         retry_failed=args.retry_failed,
+        case_start=args.case_start,
         qwen_endpoints=tuple(args.qwen_endpoint),
     )
     manifest = {
@@ -523,6 +548,12 @@ def main(argv: list[str] | None = None) -> int:
             "cohort_available_count": cohort_count,
             "expected_full_count": EXPECTED_FULL_CASE_COUNT,
             "cases_per_job": EXPECTED_FULL_CASE_COUNT if pilot_cases is None else pilot_cases,
+            "case_start": args.case_start,
+            "case_stop_exclusive": (
+                EXPECTED_FULL_CASE_COUNT
+                if pilot_cases is None
+                else args.case_start + pilot_cases
+            ),
         },
         "parallelism": {
             "job_count": len(jobs),
@@ -531,6 +562,12 @@ def main(argv: list[str] | None = None) -> int:
             "method_count": len(methods),
             "qwen_replica_count": len(args.qwen_endpoint) or 1,
             "job_retries": args.job_retries,
+        },
+        "recovery": {
+            "retry_failed_case_checkpoints": args.retry_failed,
+            "successful_case_checkpoints_are_reused": True,
+            "job_retries_after_initial_attempt": args.job_retries,
+            "batch_partial_failures_retry_only_unresolved_custom_ids": True,
         },
         "call_budget_policy": PAPER_BUDGET_POLICY,
         "qwen_replica_pool": {

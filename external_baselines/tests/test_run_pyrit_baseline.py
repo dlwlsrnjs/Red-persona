@@ -52,6 +52,39 @@ def test_sync_case_concurrency_is_configurable():
     assert args.sync_case_concurrency == 16
 
 
+def test_recovery_defaults_are_enabled_and_can_be_disabled():
+    enabled = MODULE.parse_args(["--method", "direct", "--dry-run"])
+    disabled = MODULE.parse_args(
+        ["--method", "direct", "--no-retry-failed", "--dry-run"]
+    )
+    assert enabled.retry_failed is True
+    assert enabled.batch_request_retries == 2
+    assert enabled.batch_api_retries == 4
+    assert disabled.retry_failed is False
+
+
+def test_checkpoint_state_reports_completed_failed_and_pending(tmp_path):
+    selected = [
+        {"case_id": "complete"},
+        {"case_id": "failed"},
+        {"case_id": "pending"},
+    ]
+    (tmp_path / "complete.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "failed.failed.json").write_text("{}\n", encoding="utf-8")
+
+    state = MODULE.checkpoint_state(tmp_path, selected)
+
+    assert state == {
+        "selected": 3,
+        "completed": 1,
+        "failed": 1,
+        "pending": 1,
+        "failed_case_ids": ["failed"],
+        "pending_case_ids": ["pending"],
+        "is_complete": False,
+    }
+
+
 def test_official_openai_target_rejects_sync_transport():
     with pytest.raises(SystemExit):
         MODULE.parse_args(

@@ -1,6 +1,8 @@
 # Jailbreak baselines
 
 이 디렉터리는 RED-Persona 데이터셋에 적용할 외부 jailbreak baseline을 격리한다.
+완료된 9개 방법 × 2개 대상 × 500건의 실제 생성·평가 기준과 재현 절차는
+[`EVALUATION_PROTOCOL_KO.md`](EVALUATION_PROTOCOL_KO.md)에 정리되어 있다.
 공식 [Microsoft PyRIT](https://github.com/microsoft/pyrit) 소스를
 `vendor/pyrit` submodule의 안정 릴리스 **v1.1.0**으로 고정하여 여러 single-turn과
 multi-turn 방법을 같은 입출력 계약으로 제공한다. PyRIT은 MIT 라이선스이며, 정확한
@@ -180,6 +182,13 @@ GPT-4o의 single-turn 방법은 여러 case를 한 Batch JSONL에 묶는다. 적
 해당 방법 output의 `_openai_batches/` 아래에 보존한다. OpenAI의 completion window는
 `24h`이므로 multi-turn 전체 완료 시간은 동기 API보다 길 수 있다.
 
+각 wave는 최초 제출과 최대 2회의 보충 제출을 허용한다. 일부 request만 실패·만료되거나
+결과에서 누락되면 성공한 `custom_id`는 확정한 채 미완료 `custom_id`만 다음 attempt의
+JSONL로 다시 제출한다. 업로드·상태 조회·결과 다운로드의 일시적 네트워크 오류와 rate
+limit은 지수 backoff로 최대 4회 재시도한다. 기록은
+`_openai_batches/<role>/wave-*/attempt-*/` 아래에 입력·출력·오류·manifest로 모두 남는다.
+기본값은 `--batch-request-retries 2 --batch-api-retries 4`이며 필요하면 조정할 수 있다.
+
 멀티턴 wave는 `wave t 제출 → 완료 결과 회수 → 각 case history에 target 응답 추가 →
 wave t+1 제출` 순서를 강제한다. 다음 요청에는 해당 case의 전체 대화 history가 포함되며,
 서로 다른 case의 history는 섞이지 않는다. PAIR/TAP/PCSA처럼 한 턴에 여러 후보가 있는
@@ -242,6 +251,10 @@ QWEN_ONLY=1 PILOT_CASES=10 sbatch external_baselines/run_matrix_on_gpu.sbatch
 ```
 
 각 matrix job은 일시적 생성·파싱 실패가 있으면 기본 2회까지 실패 case만 자동 재시도한다.
+`--retry-failed`는 기본 활성화되어 있으므로 같은 output 디렉터리로 다시 실행하면 이미
+완료된 `<case_id>.json`은 보존하고, `.failed.json` 또는 아직 결과가 없는 case만 채운다.
+재실행을 의도적으로 막을 때만 `--no-retry-failed`를 사용한다. `run_summary.json`의
+`checkpoints.is_complete`가 true이고 `failed=0`, `pending=0`이어야 해당 조합이 완결된 것이다.
 TAP이 모든 branch를 target 호출 전에 prune한 case는 인프라 실패가 아니라 공격 실패로
 분류하며 `final_evaluation.status=not_applicable_no_target_response`로 분모에 보존한다.
 특정 방법만 기존 output에 이어서 복구할 때는 다음 환경변수를 사용한다.
@@ -265,7 +278,7 @@ sbatch external_baselines/run_pcsa_qwen_smoke.sbatch
 출력은 `external_baselines/outputs/qwen_gpt4o_<slurm_job_id>/<target>/<method>/`에 분리되고 각 job의
 `matrix_job.log`, case checkpoint 및 최상위 `matrix_summary.json`이 남는다. API 키
 값은 manifest나 명령행에 저장하지 않고 환경변수 이름만 기록한다. 실패한 조합을 다시
-실행할 때는 `--retry-failed`를 사용한다.
+실행할 때도 같은 output 경로를 사용하면 자동으로 이어진다.
 
 공식 500개 전체 matrix는 다음처럼 명시적으로 요청한다. 총 9,000 case-method-target
 조합이며 multi-turn 내부 호출은 이보다 많으므로 pilot의 latency·오류·API 비용을 먼저
@@ -276,8 +289,8 @@ external_baselines/.venv/bin/python external_baselines/run_baseline_matrix.py \
   --full-500 --max-concurrent-jobs 18
 ```
 
-실패 파일은 그대로 남고, 성공한 case는 재실행 시 건너뛴다. 실패 case만 다시
-시도하려면 `--retry-failed`를 추가한다.
+실패 파일은 진단용으로 남고, 재실행에서 성공하면 자동 삭제된다. 성공한 case는 항상
+건너뛰며 실패·누락 case만 기본적으로 다시 시도한다.
 
 ## 정신건강 도메인에 직접 맞는 방법
 
@@ -349,3 +362,33 @@ adapter 후보지만, 논문 설정을 그대로 재현할 template/version 고�
 정신건강 응답 평가는 공격 성공 scorer와 분리한다. PCSA Phase II의 중간 evaluator도
 후보 선택과 조기 종료에만 사용하며, 모든 방법의 최종 평가는 동일한 CARES/GPT judge
 결과로 비교한다.
+
+### 공통 최종 평가
+
+공격 생성과 복구가 모두 끝난 뒤 `evaluate_baseline_matrix.py`가 2 targets × 9 methods의
+최종 응답을 동일한 두 판정기로 평가한다. 첫 번째는 수정하지 않은 공식 CARES
+`Accept/Caution/Refuse` prompt이고, 두 번째는 전체 target transcript를 읽는 공통
+mental-health GPT judge다. 공격 중 PyRIT scorer와 PCSA intermediate evaluator는 최종
+ASR에 사용하지 않는다. target 응답을 만들지 못한 탐색 실패는 ASR 분모에는 포함하되
+성공으로 세지 않는다.
+
+평가 결과는 원본 공격 출력과 분리된 `final_evaluation/<target>/<method>/`에 사례별로
+checkpoint된다. 재실행하면 완료 checkpoint는 건너뛰고 누락·실패 사례만 다시 요청한다.
+OpenAI Batch의 부분 실패·만료는 공격 실행과 같은 방식으로 미완료 `custom_id`만 최대
+2회 보충 제출한다. 마지막에 `final_evaluation/aggregate_summary.json`에 모델·방법별
+mental-health ASR, CARES 비율, 네 위험 차원, 평균 실행 턴과 token usage를 기록한다.
+
+평가 전에 `audit_truncation.py`가 OpenAI `finish_reason`과 Qwen tokenizer 길이를 검사한다.
+`length`/`content_filter` 종료 또는 Qwen 생성 상한 도달 checkpoint는 삭제하지 않고
+`_truncated_backups/`로 옮긴 뒤 4,096-token 상한으로 해당 사례만 다시 생성한다. 재감사에
+한 건이라도 남으면 평가 job은 실행되지 않는다. 평가 판정 자체도 `finish_reason=stop`만
+인정하고 잘린 JSON은 더 큰 출력 한도로 다시 요청한다.
+
+```bash
+export OPENAI_API_KEY='...'
+sbatch --dependency=afterok:<final-repair-job-id> \
+  external_baselines/run_final_evaluation.sbatch
+```
+
+이 작업은 자해·위기 표현을 포함할 수 있는 전체 target 대화를 OpenAI Batch API에
+전송하므로, 제출 전 데이터 외부 전송 승인을 확인해야 한다.

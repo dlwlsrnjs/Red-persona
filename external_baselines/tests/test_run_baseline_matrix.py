@@ -125,6 +125,7 @@ def test_dry_run_has_18_concurrent_jobs_and_pcsa_phase2(capsys):
         "candidates_per_turn": 4,
     }
     assert value["call_budget_policy"] == MODULE.PAPER_BUDGET_POLICY
+    assert all("--retry-failed" in job["command"] for job in value["jobs"])
 
 
 def test_dry_run_records_seven_qwen_replica_pool(capsys):
@@ -144,8 +145,27 @@ def test_full_matrix_uses_official_500(capsys):
     value = json.loads(capsys.readouterr().out)
     assert value["dataset"]["expected_full_count"] == 500
     assert value["dataset"]["cases_per_job"] == 500
+    assert value["dataset"]["case_start"] == 0
+    assert value["dataset"]["case_stop_exclusive"] == 500
     assert value["dataset"]["cohort_index"] == str(MODULE.DEFAULT_COHORT_INDEX.resolve())
     assert all("--limit" not in job["command"] for job in value["jobs"])
+
+
+def test_matrix_supports_nonoverlapping_cost_shards(capsys):
+    assert MODULE.main(
+        [
+            "--dry-run",
+            "--target-name", "gpt4o",
+            "--case-start", "375",
+            "--pilot-cases", "125",
+        ]
+    ) == 0
+    value = json.loads(capsys.readouterr().out)
+    assert value["dataset"]["case_start"] == 375
+    assert value["dataset"]["case_stop_exclusive"] == 500
+    assert value["dataset"]["cases_per_job"] == 125
+    assert all("--start" in job["command"] for job in value["jobs"])
+    assert all(job["target"] == "gpt4o" for job in value["jobs"])
 
 
 def test_matrix_can_filter_to_qwen_methods_without_pcsa_or_openai(capsys, monkeypatch):

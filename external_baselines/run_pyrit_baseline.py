@@ -357,6 +357,9 @@ def build_manifest(
             "batch_case_concurrency": (
                 args.batch_case_concurrency if args.target_transport == "openai_batch" else None
             ),
+            "batch_request_retries": (
+                args.batch_request_retries if args.target_transport == "openai_batch" else None
+            ),
             "batch_wave_execution": (
                 {
                     "mode": (
@@ -415,6 +418,13 @@ def build_manifest(
         },
         "internal_scorer_is_final_evaluation": False,
         "final_evaluation": evaluation_contract(),
+        "recovery": {
+            "retry_failed_checkpoints": args.retry_failed,
+            "successful_case_checkpoints_are_immutable": True,
+            "batch_request_retries": args.batch_request_retries,
+            "batch_api_retries": args.batch_api_retries,
+            "batch_retry_backoff_seconds": args.batch_retry_backoff_seconds,
+        },
     }
 
 
@@ -511,6 +521,9 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                 work_dir=batch_work_dir,
                 poll_interval_seconds=args.batch_poll_seconds,
                 flush_interval_seconds=args.batch_flush_seconds,
+                max_request_retries=args.batch_request_retries,
+                api_call_retries=args.batch_api_retries,
+                retry_backoff_seconds=args.batch_retry_backoff_seconds,
             )
 
         async def _send_prompt_to_target_async(
@@ -671,7 +684,12 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
     async def process_case(case: dict[str, Any]) -> None:
         output = args.output_dir / f"{case['case_id']}.json"
         failure = args.output_dir / f"{case['case_id']}.failed.json"
-        if output.exists() or (failure.exists() and not args.retry_failed):
+        if output.exists():
+            if failure.exists():
+                failure.unlink()
+            counts["skipped"] += 1
+            return
+        if failure.exists() and not args.retry_failed:
             counts["skipped"] += 1
             return
         try:
@@ -785,6 +803,32 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
     return counts
 
 
+def checkpoint_state(
+    output_dir: Path, selected: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Summarize durable case artifacts across all attempts of a resumed run."""
+    completed: list[str] = []
+    failed: list[str] = []
+    pending: list[str] = []
+    for case in selected:
+        case_id = case["case_id"]
+        if (output_dir / f"{case_id}.json").exists():
+            completed.append(case_id)
+        elif (output_dir / f"{case_id}.failed.json").exists():
+            failed.append(case_id)
+        else:
+            pending.append(case_id)
+    return {
+        "selected": len(selected),
+        "completed": len(completed),
+        "failed": len(failed),
+        "pending": len(pending),
+        "failed_case_ids": failed,
+        "pending_case_ids": pending,
+        "is_complete": len(completed) == len(selected),
+    }
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--method", choices=METHODS, required=True)
@@ -816,11 +860,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--target-transport", choices=("sync", "openai_batch"), default="sync"
     )
     parser.add_argument("--target-temperature", type=float, default=0.0)
-    parser.add_argument("--target-max-completion-tokens", type=int, default=2048)
+    parser.add_argument("--target-max-completion-tokens", type=int, default=4096)
     parser.add_argument("--sync-case-concurrency", type=int, default=1)
     parser.add_argument("--batch-case-concurrency", type=int, default=64)
     parser.add_argument("--batch-poll-seconds", type=float, default=60.0)
     parser.add_argument("--batch-flush-seconds", type=float, default=1.0)
+    parser.add_argument("--batch-request-retries", type=int, default=2)
+    parser.add_argument("--batch-api-retries", type=int, default=4)
+    parser.add_argument("--batch-retry-backoff-seconds", type=float, default=5.0)
     parser.add_argument("--adversary-endpoint", default=DEFAULT_ADVERSARY_ENDPOINT)
     parser.add_argument("--adversary-model", default=DEFAULT_ADVERSARY_MODEL)
     parser.add_argument("--adversary-api-key-env", default="ADVERSARY_API_KEY")
@@ -838,7 +885,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=("sync", "openai_batch"),
         default="openai_batch",
     )
-    parser.add_argument("--retry-failed", action="store_true")
+    parser.add_argument(
+        "--retry-failed",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="retry existing failed case checkpoints (default: enabled)",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     if args.max_turns is None:
@@ -863,6 +915,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--batch-poll-seconds must be non-negative")
     if args.batch_flush_seconds < 0:
         parser.error("--batch-flush-seconds must be non-negative")
+    if args.batch_request_retries < 0:
+        parser.error("--batch-request-retries must be non-negative")
+    if args.batch_api_retries < 0:
+        parser.error("--batch-api-retries must be non-negative")
+    if args.batch_retry_backoff_seconds < 0:
+        parser.error("--batch-retry-backoff-seconds must be non-negative")
     if args.stop is not None and args.stop < args.start:
         parser.error("--stop must be greater than or equal to --start")
     if args.limit is not None and args.limit < 1:
@@ -952,9 +1010,11 @@ def main(argv: list[str] | None = None) -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     _atomic_json(args.output_dir / "run_manifest.json", manifest)
     counts = asyncio.run(_run(args, selected))
-    _atomic_json(args.output_dir / "run_summary.json", {**manifest, **counts})
-    print(json.dumps(counts))
-    return 1 if counts["failed"] else 0
+    checkpoints = checkpoint_state(args.output_dir, selected)
+    summary = {**manifest, "last_attempt": counts, "checkpoints": checkpoints}
+    _atomic_json(args.output_dir / "run_summary.json", summary)
+    print(json.dumps({**counts, "checkpoints": checkpoints}))
+    return 0 if checkpoints["is_complete"] else 1
 
 
 if __name__ == "__main__":

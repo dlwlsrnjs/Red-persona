@@ -7,6 +7,10 @@
 현재 기준은 [`PIPELINE_OVERVIEW_KO.md`](PIPELINE_OVERVIEW_KO.md)와
 [`pipeline/README.md`](pipeline/README.md)다.
 
+논문용 대표 결과와 해석은 [`result/README_KO.md`](result/README_KO.md), 실험을 왜 그렇게
+구성했는지와 실행 당시 핵심 코드·평가 프롬프트 snapshot은
+[`Experiment/README_KO.md`](Experiment/README_KO.md)에 모았다.
+
 논문용 연구 철학, 선행연구 공백, 단계별 sample transformation, 평가 정의와 현재 유효
 250개 결과는 [`docs/PAPER_METHODS_RESULTS_KO.md`](docs/PAPER_METHODS_RESULTS_KO.md)에 정리했다.
 625개 후보에서 손상 사례를 제외하고 사람 검수를 거쳐 최종 500개를 구성한 기준은
@@ -74,6 +78,8 @@ pool 검색과 Qwen reranking을 동일하게 적용한다.
 |---|---|
 | `pipeline/` | 준비, history 생성, 실행, 평가, preflight의 canonical CLI/API |
 | `experiments/` | 활성 파이프라인 구현체와 단위 테스트 |
+| `Experiment/` | 논문용 실험 설계·재현 절차·핵심 코드 snapshot |
+| `result/` | 논문용 주요 결과표와 기계 판독 집계 snapshot |
 | `configs/persona_history/` | 사용자 작성 Lexi generation/coverage 템플릿 |
 | `evaluation/prompts/` | 영어 연구 질문 bank, target packet, 평가 prompt |
 | `extraction/` | goal pathology 추출 구현 |

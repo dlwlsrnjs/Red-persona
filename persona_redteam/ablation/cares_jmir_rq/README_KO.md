@@ -18,7 +18,7 @@ ablation/cares_jmir_rq/
 checkpoint는 민감 텍스트를 포함하므로 Git에서 제외되는
 `data/evaluations/ablation_cares_jmir_rq/`에만 저장한다.
 
-`LABELED_ROWS.jsonl`은 14,400개 평가 row 각각에 대해 arm, target, case/category,
+`LABELED_ROWS.jsonl`은 22,000개 평가 row 각각에 대해 arm, target, case/category,
 direction, prompt/response SHA-256, h-level, A/C/R, SS, JMIR 3회 점수·평균·harmful 여부만
 공개한다. 실제 prompt/response와 judge 설명은 포함하지 않는다. hash로 로컬 원시 결과와
 공개 label이 같은 평가 단위인지 감사할 수 있다.
@@ -35,17 +35,18 @@ direction, prompt/response SHA-256, h-level, A/C/R, SS, JMIR 3회 점수·평균
 응답을 보지 않고 라벨링한 단위이며 `model_assisted_adapted_label_not_original_cares_ground_truth`
 표시를 모든 row에 둔다. case-level `original_request` 라벨은 이 파일에 섞지 않는다.
 
-현재 첫 공개본은 이미 완료된 Official-500 네 arm의 8,000 response row에서 중복을 제거한
-6,970개 exact prompt 라벨을 포함한다. 진행 중인 RQ ablation이 완료되면 신규 exact prompt
-라벨을 같은 schema로 추가하고 occurrence를 다시 합친다. 따라서 소비자는 행 순번이 아니라
-`prompt_sha256`을 join key로 사용해야 한다.
+현재 공개본은 Official-500 전체의 RQ1–RQ3 평가에서 사용한 exact prompt 라벨을 같은 schema로
+합친다. 따라서 소비자는 행 순번이 아니라 `prompt_sha256`을 join key로 사용해야 한다.
 
 ## 연구질문
 
 ### RQ1 — persona/history/context 구성요소
 
-결과를 보기 전에 공식 500개에서 고정한 category-proportional 120개 paired subset을 쓴다.
-full history-bridge와 다음 다섯 arm을 비교한다.
+처음에는 결과를 보기 전에 공식 500개에서 고정한 category-proportional 120개 paired subset으로
+탐색했다. 이후 사용자 요청에 따라 동일한 고정 Official-500 전체로 확장했으며, 기존 120개
+응답과 새 SS/JMIR 라벨은 그대로 재사용하고 나머지 380개만 생성했다. full history-bridge와
+다음 다섯 arm을 모두 500개 × 네 방향으로 비교한다. 전체 500개 확장은 120개 결과 확인 뒤
+결정됐으므로 논문에서 사전등록 확증 분석으로 기술하지 않는다.
 
 | arm | 제거한 구성요소 |
 |---|---|
@@ -95,12 +96,11 @@ label을 결합했던 잘못된 SS는 명시적으로 거부하고 재사용하�
 
 ## 비용을 줄이는 재사용
 
-- 기존 Official-500의 8,000개 full/no-dialogue row는 CARES와 JMIR 결과를 모두 재사용한다.
-- context 2,400개와 legacy-readout 4,000개의 과거 CARES A/C/R 판정은 exact
-  question-response pair에 대한 같은 공식 prompt 결과이므로 재사용한다.
-- 위 6,400개에서 잘못 결합됐던 case-level h-label은 버리고 exact final question의
-  h-level만 새로 평가한다.
-- 신규 6,400개에만 JMIR 3-repeat를 실행한다.
+- 기존 Official-500 네 arm 8,000개, legacy-readout 4,000개, 최초 context subset
+  2,400개까지 총 14,400개 row의 완성된 CARES·JMIR 결과를 byte-for-byte 재사용한다.
+- 다섯 context arm의 나머지 380개 × 네 방향, 총 7,600개 row만 새로 평가한다.
+- 신규 7,600개는 exact final question의 h-level, exact response의 CARES A/C/R,
+  JMIR 3-repeat를 모두 같은 프롬프트와 설정으로 실행한다.
 - 동일 final question의 h-level은 prompt SHA-256으로 중복 제거한다.
 - Batch checkpoint가 있으면 재실행 시 완료 요청을 다시 호출하지 않는다.
 
@@ -132,7 +132,7 @@ python -m ablation.cares_jmir_rq.evaluate \
 ```
 
 `--execute`가 없으면 API 호출이 없다. Batch 상태는
-`data/evaluations/ablation_cares_jmir_rq/checkpoints/`에 저장되며 중단 후 같은 명령으로
+`data/evaluations/ablation_cares_jmir_rq_official500_context/checkpoints/`에 저장되며 중단 후 같은 명령으로
 재개한다.
 
 큰 Batch의 소수 tail이 장시간 멈춘 경우에는 Batch를 취소해 partial output이 확정된 뒤

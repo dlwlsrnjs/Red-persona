@@ -26,7 +26,11 @@ from experiments.evaluate_cares_jmir_official500 import (
     DEFAULT_EVALUATOR_MODEL,
     SELECTION,
     candidate_response,
+    cares_repair_requests,
     cares_risk_messages,
+    cares_response_text,
+    cares_schema_repair_requests,
+    cares_second_repair_requests,
     estimate_costs,
     jmir_response_text,
     jmir_schema_repair_requests,
@@ -46,10 +50,10 @@ from pipeline.runtime_io import atomic_json
 
 OFFICIAL_RESULTS = ROOT / "data/evaluations/cares_jmir_official500/results.json"
 CONTEXT_SELECTION = ROOT / "ablation/CONTEXT_ABLATION_SUBSET120.json"
-CONTEXT_PRIOR = ROOT / "data/ablation/gpt4o_context_ablation_history_bridge_subset120.json"
 GPT_BRIDGE_PRIOR = ROOT / "data/evaluations/gpt-4o-2024-11-20_history_bridge_official500_paired_openai.json"
 QWEN_BRIDGE_PRIOR = ROOT / "data/evaluations/qwen2.5-7b-instruct_history_bridge_official500_paired_openai.json"
-DEFAULT_OUTPUT_DIR = ROOT / "data/evaluations/ablation_cares_jmir_rq"
+PRIOR_COMPLETE_RESULTS = ROOT / "data/evaluations/ablation_cares_jmir_rq/results.json"
+DEFAULT_OUTPUT_DIR = ROOT / "data/evaluations/ablation_cares_jmir_rq_official500_context"
 PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_PUBLIC_JSON = PACKAGE_DIR / "RESULTS.json"
 DEFAULT_PUBLIC_MD = PACKAGE_DIR / "RESULTS_KO.md"
@@ -60,23 +64,23 @@ DEFAULT_HARM_LABELS = PACKAGE_DIR / "CARES_HARM_LEVEL_LABELS.jsonl"
 CONTEXT_ARMS = {
     "gpt4o_context_persona_only": (
         "persona_only",
-        ROOT / "data/ablation/runs/gpt4o_history_bridge_persona_only_subset120",
+        ROOT / "data/ablation/runs/gpt4o_history_bridge_persona_only_official500",
     ),
     "gpt4o_context_dialogue_only": (
         "dialogue_only",
-        ROOT / "data/ablation/runs/gpt4o_history_bridge_dialogue_only_subset120",
+        ROOT / "data/ablation/runs/gpt4o_history_bridge_dialogue_only_official500",
     ),
     "gpt4o_context_no_initial_evidence": (
         "no_initial_evidence",
-        ROOT / "data/ablation/runs/gpt4o_history_bridge_no_initial_evidence_subset120",
+        ROOT / "data/ablation/runs/gpt4o_history_bridge_no_initial_evidence_official500",
     ),
     "gpt4o_context_no_system_and_guidelines": (
         "no_system_and_guidelines",
-        ROOT / "data/ablation/runs/gpt4o_history_bridge_no_system_and_guidelines_subset120",
+        ROOT / "data/ablation/runs/gpt4o_history_bridge_no_system_and_guidelines_official500",
     ),
     "gpt4o_context_base_persona_only": (
         "base_persona_only",
-        ROOT / "data/ablation/runs/gpt4o_history_bridge_base_persona_only_subset120",
+        ROOT / "data/ablation/runs/gpt4o_history_bridge_base_persona_only_official500",
     ),
 }
 
@@ -97,10 +101,10 @@ RQ_SPECS = {
     "RQ1_context_components": {
         "question": (
             "Which target-visible persona/history/instruction components change "
-            "response safety on the outcome-blind 120-case paired subset?"
+            "response safety on the complete Official-500 paired cohort?"
         ),
         "reference_arm": "gpt4o_history_dialogue",
-        "scope": "context_subset120",
+        "scope": "official500",
         "variants": {
             "gpt4o_context_persona_only": "remove prior dialogue, turn states, and metaphor",
             "gpt4o_context_dialogue_only": "remove final persona, turn states, and metaphor",
@@ -155,12 +159,12 @@ def utc_now() -> str:
 
 def context_case_ids(path: Path = CONTEXT_SELECTION) -> list[str]:
     value = json.loads(path.read_text(encoding="utf-8"))
-    subset = value.get("ablation_subset") or {}
-    ids = [str(item) for item in subset.get("case_ids", [])]
-    if len(ids) != 120 or len(set(ids)) != 120:
-        raise ValueError("context ablation must contain 120 unique case IDs")
-    if not set(ids) <= set(selected_case_ids()):
-        raise ValueError("context subset is not contained in Official-500")
+    ids = [str(item) for item in value.get("final_case_ids", [])]
+    official = selected_case_ids()
+    if len(ids) != 500 or len(set(ids)) != 500:
+        raise ValueError("context ablation must contain 500 unique case IDs")
+    if set(ids) != set(official):
+        raise ValueError("context ablation does not match Official-500")
     return ids
 
 
@@ -238,58 +242,56 @@ def build_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         new_rows.extend(extract_run_rows(
             arm, spec["run_dir"], all_ids, spec["target_model"], "legacy_readout"
         ))
-    subset_ids = context_case_ids()
+    context_ids = context_case_ids()
     for arm, (_, run_dir) in CONTEXT_ARMS.items():
         new_rows.extend(extract_run_rows(
-            arm, run_dir, subset_ids, "gpt-4o-2024-11-20", "history_dialogue"
+            arm, run_dir, context_ids, "gpt-4o-2024-11-20", "history_dialogue"
         ))
-    if len(new_rows) != 6400:
-        raise ValueError(f"expected 6,400 new ablation rows; found {len(new_rows)}")
-    rows = [*official, *new_rows]
-    keys = [(row["arm"], row["case_id"], row["direction"]) for row in rows]
+    if len(new_rows) != 14000:
+        raise ValueError(f"expected 14,000 ablation rows; found {len(new_rows)}")
+    source_rows = [*official, *new_rows]
+    keys = [(row["arm"], row["case_id"], row["direction"]) for row in source_rows]
     if len(keys) != len(set(keys)):
         raise ValueError("duplicate arm/case/direction evaluation unit")
-    return rows, new_rows
-
-
-def prior_cares_labels(new_rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    lookup: dict[tuple[str, str, str], dict[str, Any]] = {}
-    source_by_arm: dict[str, Path] = {}
-    for arm, spec in BRIDGE_CONTROLS.items():
-        value = json.loads(spec["prior"].read_text(encoding="utf-8"))
-        source_by_arm[arm] = spec["prior"]
-        for row in value["rows"]:
-            if row.get("arm") == "control":
-                lookup[(arm, str(row["case_id"]), str(row["direction"]))] = row
-    context = json.loads(CONTEXT_PRIOR.read_text(encoding="utf-8"))
-    for arm, (prior_arm, _) in CONTEXT_ARMS.items():
-        source_by_arm[arm] = CONTEXT_PRIOR
-        for row in context["rows"][prior_arm]:
-            lookup[(arm, str(row["case_id"]), str(row["direction"]))] = row
-
-    result = {}
-    for row in new_rows:
-        key = (row["arm"], row["case_id"], row["direction"])
-        if key not in lookup:
-            raise ValueError(f"missing prior CARES label for {key}")
-        prior = lookup[key]
-        label = parse_cares_label(str(prior["cares_raw"]))
-        if label != prior["cares_label"]:
-            raise ValueError(f"prior CARES label/raw mismatch for {key}")
-        result[row["row_id"]] = {
-            "label": label,
-            "raw": prior["cares_raw"],
-            "source": str(source_by_arm[row["arm"]]),
-        }
-    return result
+    if not PRIOR_COMPLETE_RESULTS.exists():
+        raise FileNotFoundError(
+            "the completed 120-case evaluation is required for incremental reuse: "
+            f"{PRIOR_COMPLETE_RESULTS}"
+        )
+    prior_rows = json.loads(PRIOR_COMPLETE_RESULTS.read_text(encoding="utf-8"))["rows"]
+    prior_by_id = {row["row_id"]: row for row in prior_rows}
+    if len(prior_by_id) != 14400:
+        raise ValueError("prior completed evaluation must contain 14,400 unique rows")
+    rows = []
+    pending = []
+    for source in source_rows:
+        prior = prior_by_id.get(source["row_id"])
+        if prior is None:
+            rows.append(source)
+            pending.append(source)
+            continue
+        for field in (
+            "arm", "case_id", "direction", "prompt_sha256", "response_sha256",
+        ):
+            if prior.get(field) != source.get(field):
+                raise ValueError(
+                    f"prior scored row mismatch for {source['row_id']} field {field}"
+                )
+        rows.append(prior)
+    if len(rows) != 22000 or len(pending) != 7600:
+        raise ValueError(
+            f"expected 22,000 total and 7,600 pending rows; found "
+            f"{len(rows)} total and {len(pending)} pending"
+        )
+    return rows, pending
 
 
 def missing_requests(
-    official_rows: list[dict[str, Any]], new_rows: list[dict[str, Any]],
+    reused_rows: list[dict[str, Any]], new_rows: list[dict[str, Any]],
     evaluator_model: str,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
     risk_reuse = {}
-    for row in official_rows:
+    for row in reused_rows:
         risk_reuse.setdefault(row["prompt_sha256"], row["cares"])
     missing_prompts = {}
     for row in new_rows:
@@ -304,6 +306,19 @@ def missing_requests(
         )
         for prompt_hash, prompt in sorted(missing_prompts.items())
     ]
+    cares_requests = [
+        chat_request(
+            f"cares-{row['row_id']}", evaluator_model,
+            [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": cares_response_text(
+                    row["prompt"], row["candidate_response"]
+                )},
+            ],
+            max_tokens=4, temperature=0,
+        )
+        for row in new_rows
+    ]
     jmir_requests = [
         chat_request(
             f"jmir-{row['row_id']}-{repeat}", evaluator_model,
@@ -316,26 +331,30 @@ def missing_requests(
     ]
     return {
         "cares_input_risk": risk_requests,
+        "cares_response": cares_requests,
         "jmir_response": jmir_requests,
-        "primary": [*risk_requests, *jmir_requests],
+        "primary": [*risk_requests, *cares_requests, *jmir_requests],
     }, risk_reuse
 
 
 def prepare(
     output_dir: Path, api_mode: str, evaluator_model: str
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     rows, new_rows = build_rows()
-    prior_labels = prior_cares_labels(new_rows)
-    official_rows = rows[:8000]
-    requests, risk_reuse = missing_requests(official_rows, new_rows, evaluator_model)
+    reused_rows = [row for row in rows if "cares" in row and "jmir" in row]
+    if len(reused_rows) != 14400:
+        raise ValueError(f"expected 14,400 fully reused rows; found {len(reused_rows)}")
+    requests, risk_reuse = missing_requests(reused_rows, new_rows, evaluator_model)
     estimate = estimate_costs({
         "cares_input_risk": requests["cares_input_risk"],
+        "cares_response": requests["cares_response"],
         "jmir_response": requests["jmir_response"],
     }, api_mode)
     estimate["note"] = (
-        "Existing 8,000 full/no-dialogue rows and 6,400 prior exact CARES A/C/R "
-        "judgments are reused. Estimate covers only missing exact-prompt h-level "
-        "and three-repeat JMIR calls; malformed JMIR repairs are conditional."
+        "All 14,400 rows completed before the Official-500 context expansion are "
+        "reused byte-for-byte. Estimate covers the 7,600 newly generated response "
+        "rows: exact-prompt h-level, CARES A/C/R, and three-repeat JMIR calls. "
+        "Malformed-output repairs are conditional."
     )
     preflight = {
         "version": "ablation-cares-jmir-rq-preflight-v1",
@@ -343,13 +362,15 @@ def prepare(
         "status": "prepared_not_evaluated",
         "rq_specs": RQ_SPECS,
         "total_unique_rows": len(rows),
-        "official_rows_reused_fully": len(official_rows),
+        "official_rows_reused_fully": 8000,
+        "previously_scored_rows_reused_fully": len(reused_rows),
         "new_rows": len(new_rows),
-        "prior_cares_response_labels_reused": len(prior_labels),
+        "prior_cares_response_labels_reused": len(reused_rows),
         "official_prompt_h_levels_reused": sum(
             row["prompt_sha256"] in risk_reuse for row in new_rows
         ),
         "missing_unique_prompt_h_levels": len(requests["cares_input_risk"]),
+        "new_cares_response_requests": len(requests["cares_response"]),
         "new_jmir_response_units": len(new_rows),
         "new_jmir_requests_three_repeats": len(requests["jmir_response"]),
         "requests_and_cost": estimate,
@@ -363,8 +384,7 @@ def prepare(
     output_dir.mkdir(parents=True, exist_ok=True)
     atomic_json(output_dir / "evaluation_rows.json", rows)
     atomic_json(output_dir / "preflight.json", preflight)
-    atomic_json(output_dir / "prior_cares_label_reuse.json", prior_labels)
-    return rows, new_rows, prior_labels, preflight
+    return rows, new_rows, preflight
 
 
 def _request_metadata(result: dict[str, Any]) -> dict[str, Any]:
@@ -375,14 +395,17 @@ def _request_metadata(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def merge_new_rows(
-    official_rows: list[dict[str, Any]], new_rows: list[dict[str, Any]],
-    prior_labels: dict[str, dict[str, Any]], primary: dict[str, dict[str, Any]],
-    repairs: dict[str, dict[str, Any]],
+    reused_rows: list[dict[str, Any]], new_rows: list[dict[str, Any]],
+    primary: dict[str, dict[str, Any]],
+    cares_repairs: dict[str, dict[str, Any]],
+    cares_second_repairs: dict[str, dict[str, Any]],
+    cares_schema_repairs: dict[str, dict[str, Any]],
+    jmir_repairs: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     risk_reuse = {}
-    for row in official_rows:
+    for row in reused_rows:
         risk_reuse.setdefault(row["prompt_sha256"], row["cares"])
-    scored = list(official_rows)
+    scored = list(reused_rows)
     for row in new_rows:
         prompt_hash = row["prompt_sha256"]
         if prompt_hash in risk_reuse:
@@ -399,7 +422,25 @@ def merge_new_rows(
             risk_raw = risk["text"]
             risk_request = _request_metadata(risk)
             risk_source = "new_exact_final_prompt_annotation"
-        prior = prior_labels[row["row_id"]]
+        cares_exact = primary[f"cares-{row['row_id']}"]
+        cares_result = cares_exact
+        cares_repair_kind = None
+        try:
+            cares_label = parse_cares_label(cares_result["text"])
+        except ValueError:
+            cares_result = cares_repairs[f"cares8-{row['row_id']}"]
+            try:
+                cares_label = parse_cares_label(cares_result["text"])
+                cares_repair_kind = "compatibility_max8"
+            except ValueError:
+                cares_result = cares_second_repairs[f"cares32-{row['row_id']}"]
+                try:
+                    cares_label = parse_cares_label(cares_result["text"])
+                    cares_repair_kind = "compatibility_max32"
+                except ValueError:
+                    cares_result = cares_schema_repairs[f"careslabel-{row['row_id']}"]
+                    cares_label = parse_cares_label(cares_result["text"])
+                    cares_repair_kind = "schema_only_followup"
         repeats = []
         for repeat in range(3):
             request_id = f"jmir-{row['row_id']}-{repeat}"
@@ -409,7 +450,7 @@ def merge_new_rows(
             try:
                 score, explanation = parse_jmir_score(exact["text"])
             except (ValueError, TypeError, json.JSONDecodeError):
-                result = repairs[f"jmirfix-{row['row_id']}-{repeat}"]
+                result = jmir_repairs[f"jmirfix-{row['row_id']}-{repeat}"]
                 score, explanation = parse_jmir_score(result["text"])
                 repaired = True
             repeats.append({
@@ -432,11 +473,13 @@ def merge_new_rows(
                 "input_risk_raw": risk_raw,
                 "input_risk_request": risk_request,
                 "input_risk_source": risk_source,
-                "response_label": prior["label"],
-                "response_raw": prior["raw"],
-                "response_judgment_source": "prior_exact_cares_official_prompt",
-                "response_judgment_provenance": prior["source"],
-                "safety_score": SAFETY_SCORE_TABLE[level][prior["label"]],
+                "response_label": cares_label,
+                "response_raw": cares_result["text"],
+                "response_exact_raw": cares_exact["text"],
+                "response_judgment_source": "new_exact_cares_official_prompt",
+                "response_repair_kind": cares_repair_kind,
+                "response_request": _request_metadata(cares_result),
+                "safety_score": SAFETY_SCORE_TABLE[level][cares_label],
             },
             "jmir": {
                 "evaluations": repeats,
@@ -776,7 +819,7 @@ def markdown_report(public: dict[str, Any]) -> str:
         lines.append("")
     lines.extend([
         "## 해석 제한", "",
-        "- RQ1은 결과를 보기 전에 고정한 category-proportional 120개 exploratory subset이다.",
+        "- RQ1은 먼저 outcome-blind 120개 subset으로 탐색한 뒤 사용자 요청에 따라 같은 고정 Official-500 전체로 확장했다. 500개 확장은 최초 120개 결과를 본 뒤 결정됐으므로 확증적 사전등록 결과로 쓰지 않는다.",
         "- `persona_only`, `dialogue_only`, `no_initial_evidence`, `base_persona_only`는 여러 요소를 동시에 제거한 bundle effect다.",
         "- RQ2의 no-dialogue 조건은 대화뿐 아니라 대화 기반 bridge readout도 적용할 수 없으므로 method-package contrast다.",
         "- RQ3은 같은 누적 history에서 final readout만 바꾼 가장 국소적인 prompt contrast다.",
@@ -789,15 +832,15 @@ def markdown_report(public: dict[str, Any]) -> str:
 
 def execute(
     *, output_dir: Path, rows: list[dict[str, Any]], new_rows: list[dict[str, Any]],
-    prior_labels: dict[str, dict[str, Any]], api_mode: str, workers: int,
+    api_mode: str, workers: int,
     max_budget_usd: float | None, poll_seconds: int, evaluator_model: str,
     public_json: Path, public_md: Path,
     public_rows: Path,
     harm_labels: Path,
     standard_tail: bool = False,
 ) -> dict[str, Any]:
-    official_rows = rows[:8000]
-    requests, _ = missing_requests(official_rows, new_rows, evaluator_model)
+    reused_rows = [row for row in rows if "cares" in row and "jmir" in row]
+    requests, _ = missing_requests(reused_rows, new_rows, evaluator_model)
     client = make_client(
         api_mode, output_dir / "checkpoints", workers, max_budget_usd, poll_seconds
     )
@@ -825,14 +868,37 @@ def execute(
             ))
     else:
         primary = client.run("ablation_cares_jmir_primary", requests["primary"])
-    repair_requests = jmir_schema_repair_requests(new_rows, primary, evaluator_model)
-    if repair_requests and tail_client is not None:
-        repairs = tail_client.run("ablation_jmir_schema_repair", repair_requests)
-    elif repair_requests:
-        repairs = client.run("ablation_jmir_schema_repair", repair_requests)
-    else:
-        repairs = {}
-    scored = merge_new_rows(official_rows, new_rows, prior_labels, primary, repairs)
+    repair_client = tail_client or client
+    cares_repair_specs = cares_repair_requests(new_rows, primary, evaluator_model)
+    cares_repairs = (
+        repair_client.run("ablation_cares_response_repair_max8", cares_repair_specs)
+        if cares_repair_specs else {}
+    )
+    cares_second_specs = cares_second_repair_requests(
+        new_rows, cares_repairs, evaluator_model
+    )
+    cares_second_repairs = (
+        repair_client.run("ablation_cares_response_repair_max32", cares_second_specs)
+        if cares_second_specs else {}
+    )
+    cares_schema_specs = cares_schema_repair_requests(
+        new_rows, cares_second_repairs, evaluator_model
+    )
+    cares_schema_repairs = (
+        repair_client.run("ablation_cares_response_schema_repair", cares_schema_specs)
+        if cares_schema_specs else {}
+    )
+    jmir_repair_specs = jmir_schema_repair_requests(
+        new_rows, primary, evaluator_model
+    )
+    jmir_repairs = (
+        repair_client.run("ablation_jmir_schema_repair", jmir_repair_specs)
+        if jmir_repair_specs else {}
+    )
+    scored = merge_new_rows(
+        reused_rows, new_rows, primary,
+        cares_repairs, cares_second_repairs, cares_schema_repairs, jmir_repairs,
+    )
     record = {
         "version": "ablation-cares-jmir-rq-results-v1",
         "created_at": utc_now(),
@@ -845,8 +911,9 @@ def execute(
             client.actual_cost() + (tail_client.actual_cost() if tail_client else 0.0)
         ),
         "reuse": {
-            "official_rows_fully_reused": len(official_rows),
-            "prior_cares_labels_reused": len(prior_labels),
+            "official_rows_fully_reused": 8000,
+            "previously_scored_rows_fully_reused": len(reused_rows),
+            "prior_cares_labels_reused": len(reused_rows),
             "invalid_legacy_ss_reused": False,
         },
         "metric_definitions": {
@@ -889,7 +956,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     export_official500_public()
-    rows, new_rows, prior_labels, preflight = prepare(
+    rows, new_rows, preflight = prepare(
         args.output_dir, args.api_mode, args.evaluator_model
     )
     if not args.execute:
@@ -899,7 +966,6 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=args.output_dir,
         rows=rows,
         new_rows=new_rows,
-        prior_labels=prior_labels,
         api_mode=args.api_mode,
         workers=args.workers,
         max_budget_usd=args.max_budget_usd,

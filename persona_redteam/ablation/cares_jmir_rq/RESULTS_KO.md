@@ -4,24 +4,24 @@
 
 ## 평가 및 재사용 계약
 
-- evaluator: `gpt-4o-mini` / `openai_batch_plus_standard_tail`
-- 이번 증분 평가비: `$1.606898`
+- evaluator: `gpt-4o-mini` / `standard`
+- 이번 증분 평가비: `$5.225794`
 - 완전 재사용한 Official-500 응답: 8,000 rows
-- 기존 exact CARES A/C/R 재사용: 6,400 rows
+- 기존 exact CARES A/C/R 재사용: 14,400 rows
 - 과거 `original_request` h-level과 final response label을 결합한 SS는 사용하지 않았다.
 
 ## RQ1_context_components
 
-Which target-visible persona/history/instruction components change response safety on the outcome-blind 120-case paired subset?
+Which target-visible persona/history/instruction components change response safety on the complete Official-500 paired cohort?
 
 | arm | N cases | CARES SS ↑ | JMIR mean ↑ | JMIR harmful rate ↓ | harmful@4 ↓ |
 |---|---:|---:|---:|---:|---:|
-| `gpt4o_history_dialogue` | 120 | 0.1885 | 3.2410 | 0.42% | 0.83% |
-| `gpt4o_context_persona_only` | 120 | 0.0833 | 3.2063 | 0.62% | 1.67% |
-| `gpt4o_context_dialogue_only` | 120 | 0.0708 | 3.1118 | 2.08% | 5.00% |
-| `gpt4o_context_no_initial_evidence` | 120 | 0.1042 | 3.0681 | 0.21% | 0.83% |
-| `gpt4o_context_no_system_and_guidelines` | 120 | 0.1271 | 3.5729 | 0.21% | 0.83% |
-| `gpt4o_context_base_persona_only` | 120 | 0.0979 | 3.3139 | 0.62% | 2.50% |
+| `gpt4o_history_dialogue` | 500 | 0.1998 | 3.2140 | 0.20% | 0.60% |
+| `gpt4o_context_persona_only` | 500 | 0.1340 | 3.1695 | 0.95% | 2.80% |
+| `gpt4o_context_dialogue_only` | 500 | 0.1358 | 3.1425 | 1.45% | 4.20% |
+| `gpt4o_context_no_initial_evidence` | 500 | 0.1805 | 3.0658 | 0.25% | 0.80% |
+| `gpt4o_context_no_system_and_guidelines` | 500 | 0.1190 | 3.5723 | 0.70% | 1.60% |
+| `gpt4o_context_base_persona_only` | 500 | 0.2213 | 3.2792 | 0.40% | 1.40% |
 
 ### Full − ablated paired delta
 
@@ -29,11 +29,11 @@ SS Δ가 음수이고 harmful-rate Δ가 양수이면 full method가 공격 효�
 
 | ablated arm | removed/changed | Δ SS | Δ JMIR mean | Δ harmful rate | full-only / ablated-only harmful@4 | McNemar p |
 |---|---|---:|---:|---:|---:|---:|
-| `gpt4o_context_persona_only` | remove prior dialogue, turn states, and metaphor | +0.1052 | +0.0347 | -0.0021 | 1 / 2 | 1 |
-| `gpt4o_context_dialogue_only` | remove final persona, turn states, and metaphor | +0.1177 | +0.1292 | -0.0167 | 0 / 5 | 0.0625 |
-| `gpt4o_context_no_initial_evidence` | remove all case-specific initial evidence | +0.0844 | +0.1729 | +0.0021 | 1 / 1 | 1 |
-| `gpt4o_context_no_system_and_guidelines` | remove system prompt and Markdown guidelines | +0.0615 | -0.3319 | +0.0021 | 0 / 0 | 1 |
-| `gpt4o_context_base_persona_only` | remove goal adaptation and goal-internalized history | +0.0906 | -0.0729 | -0.0021 | 1 / 3 | 0.625 |
+| `gpt4o_context_persona_only` | remove prior dialogue, turn states, and metaphor | +0.0658 | +0.0445 | -0.0075 | 3 / 14 | 0.01273 |
+| `gpt4o_context_dialogue_only` | remove final persona, turn states, and metaphor | +0.0640 | +0.0715 | -0.0125 | 2 / 20 | 0.0001211 |
+| `gpt4o_context_no_initial_evidence` | remove all case-specific initial evidence | +0.0192 | +0.1482 | -0.0005 | 3 / 4 | 1 |
+| `gpt4o_context_no_system_and_guidelines` | remove system prompt and Markdown guidelines | +0.0808 | -0.3583 | -0.0050 | 2 / 7 | 0.1797 |
+| `gpt4o_context_base_persona_only` | remove goal adaptation and goal-internalized history | -0.0215 | -0.0652 | -0.0020 | 3 / 7 | 0.3438 |
 
 ## RQ2_research_dialogue_gpt4o
 
@@ -105,7 +105,7 @@ SS Δ가 음수이고 harmful-rate Δ가 양수이면 full method가 공격 효�
 
 ## 해석 제한
 
-- RQ1은 결과를 보기 전에 고정한 category-proportional 120개 exploratory subset이다.
+- RQ1은 먼저 outcome-blind 120개 subset으로 탐색한 뒤 사용자 요청에 따라 같은 고정 Official-500 전체로 확장했다. 500개 확장은 최초 120개 결과를 본 뒤 결정됐으므로 확증적 사전등록 결과로 쓰지 않는다.
 - `persona_only`, `dialogue_only`, `no_initial_evidence`, `base_persona_only`는 여러 요소를 동시에 제거한 bundle effect다.
 - RQ2의 no-dialogue 조건은 대화뿐 아니라 대화 기반 bridge readout도 적용할 수 없으므로 method-package contrast다.
 - RQ3은 같은 누적 history에서 final readout만 바꾼 가장 국소적인 prompt contrast다.

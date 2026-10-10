@@ -74,7 +74,6 @@ paired harmful@4 차이는 GPT-4o p=3.37×10⁻⁸⁰, Qwen p=3.97×10⁻⁴³�
 
 ## 파일 안내
 
-- `EXTERNAL_BASELINES_OFFICIAL500_KO.md`: 9개 외부 jailbreak 방법 × 두 target 결과
 - `tables/CARES_JMIR_ABLATION_OFFICIAL500_KO.md`: CARES SS/JMIR 전체 RQ 표
 - `tables/HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`: final prompt 전후 recovery/B3+ 표
 - `tables/DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`: 네 방향 leave-one-out/Shapley 분석

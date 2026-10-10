@@ -112,21 +112,6 @@ CARES SS와 JMIR appropriateness/harmful-response 지표로 고정해 중복 판
 - 원문 응답은 `/data1/users/ljk98/Red-persona-artifacts/target_model_pilot40/`에 보관한다.
 - 공개 저장소에는 aggregate 결과와 prompt/response hash 기반 라벨만 올린다.
 
-## 단계별 실행
-
-Git에서 제외된 prepared history가 없으면 먼저 공개 데이터로 40개 pre-generation case를
-복구하고 Qwen+Lexi로 history를 만든다. 그 뒤 Luna, Llama, 결합 단계를 순서대로 제출한다.
-
-```bash
-PILOT_STAGE=prepare sbatch --export=ALL persona_redteam/experiments/run_target_model_pilot40.sbatch
-PILOT_STAGE=gpt6_luna sbatch --export=ALL persona_redteam/experiments/run_target_model_pilot40.sbatch
-PILOT_STAGE=llama31_8b sbatch --export=ALL persona_redteam/experiments/run_target_model_pilot40.sbatch
-PILOT_STAGE=combine sbatch --export=ALL persona_redteam/experiments/run_target_model_pilot40.sbatch
-```
-
-실제 운영에서는 각 단계를 `afterok` dependency로 연결한다. Luna 생성과 두 target의 평가는
-모두 OpenAI Batch이며 standard tail은 허용하지 않는다.
-
 ## 공개 결과 위치
 
 완료 후 다음 경로가 논문용 공개 결과의 기준이다.

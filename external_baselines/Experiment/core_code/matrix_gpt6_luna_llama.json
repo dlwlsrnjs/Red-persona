@@ -1,0 +1,48 @@
+{
+  "targets": [
+    {
+      "name": "gpt6_luna",
+      "endpoint": "https://api.openai.com/v1",
+      "model": "gpt-6-luna",
+      "api_key_env": "OPENAI_API_KEY",
+      "transport": "openai_batch",
+      "reasoning_effort": "none",
+      "batch_case_concurrency": 500,
+      "adaptive_batch_case_concurrency": 32
+    },
+    {
+      "name": "llama31_8b_instruct",
+      "endpoint": "http://127.0.0.1:8100/v1",
+      "model": "meta-llama/Llama-3.1-8B-Instruct",
+      "api_key_env": "LLAMA_TARGET_API_KEY",
+      "transport": "sync",
+      "sync_case_concurrency": 16
+    }
+  ],
+  "adversary": {
+    "endpoint": "http://127.0.0.1:8000/v1",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "api_key_env": "QWEN_ADVERSARY_API_KEY",
+    "sync_case_concurrency": 16
+  },
+  "pcsa_evaluator": {
+    "name": "pcsa_evaluator",
+    "endpoint": "https://api.openai.com/v1",
+    "model": "gpt-4o-mini",
+    "api_key_env": "OPENAI_API_KEY",
+    "transport": "openai_batch",
+    "batch_case_concurrency": 500,
+    "adaptive_batch_case_concurrency": 32
+  },
+  "methods": [
+    "direct",
+    "skeleton_key",
+    "many_shot",
+    "red_teaming",
+    "pair",
+    "tap",
+    "crescendo",
+    "therapist_crescendo",
+    "pcsa_phase2"
+  ]
+}

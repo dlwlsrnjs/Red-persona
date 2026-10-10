@@ -3,6 +3,9 @@
 이 디렉터리는 RED-Persona 데이터셋에 적용할 외부 jailbreak baseline을 격리한다.
 완료된 9개 방법 × 2개 대상 × 500건의 실제 생성·평가 기준과 재현 절차는
 [`EVALUATION_PROTOCOL_KO.md`](EVALUATION_PROTOCOL_KO.md)에 정리되어 있다.
+논문용 외부 비교군 실험 구성은 [`Experiment/README_KO.md`](Experiment/README_KO.md),
+결과 요약은 [`result/README_KO.md`](result/README_KO.md)에서 시작한다. 이 두 폴더는
+`persona_redteam/`의 OURS 실험·결과와 명시적으로 분리한다.
 공식 [Microsoft PyRIT](https://github.com/microsoft/pyrit) 소스를
 `vendor/pyrit` submodule의 안정 릴리스 **v1.1.0**으로 고정하여 여러 single-turn과
 multi-turn 방법을 같은 입출력 계약으로 제공한다. PyRIT은 MIT 라이선스이며, 정확한

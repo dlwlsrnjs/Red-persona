@@ -13,8 +13,6 @@ snapshot이다. 실제 실행 가능한 canonical 구현은 저장소의 `experi
 5. `ARTIFACT_STORAGE_KO.md`: Git 밖 대용량 원시 산출물 위치
 6. `prompts/`: 실행 당시 CARES/JMIR 평가 프롬프트와 연구 지침
 7. `TARGET_MODEL_PILOT40_KO.md`: GPT-6 Luna·Llama 3.1 8B 일반화 파일럿 설계
-8. `core_code/experiments/prepare_target_model_pilot40.py`와
-   `core_code/experiments/run_target_model_pilot40.sbatch`: 공개 데이터 복구 및 단계별 실행 snapshot
 
 논문 결과표는 `../result/OURS/README_KO.md`에서 시작한다. OURS는 항상 `neutral` 연구 대화와
 `jargon_history_bridge_v1`의 조합이며 oracle, legacy, no-dialogue는 ablation으로만 표기한다.

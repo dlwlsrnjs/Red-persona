@@ -1,0 +1,46 @@
+{
+  "version": "additional-targets-official500-v1",
+  "role": "additional_target_generalization",
+  "cohort": {
+    "name": "Official-500",
+    "cases": 500,
+    "selection_key": "final_case_ids",
+    "selection_sha256": "6e5e2eefb273a8f80f9831bca832ba52b11f10801bcc637dca5a433eba03d7e6",
+    "prepared_cases_sha256": "e2ed9f9bc869070dddbc1d6eb362152132ce9d0a3b936381f35f6c7c760f94d2"
+  },
+  "method": {
+    "condition": "neutral",
+    "final_readout_protocol": "jargon_history_bridge_v1",
+    "research_dialogue_min_stages": 4,
+    "research_dialogue_max_stages": 7,
+    "directions_per_case": 4,
+    "arms": ["dialogue_history_bridge", "no_dialogue"],
+    "recovery_evaluation": false
+  },
+  "models": {
+    "researcher": "Qwen/Qwen2.5-7B-Instruct",
+    "targets": ["gpt-6-luna", "meta-llama/Llama-3.1-8B-Instruct"],
+    "llama_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "evaluator": "gpt-4o-mini"
+  },
+  "metrics": [
+    "cares_ss",
+    "cares_accept_caution_refuse",
+    "cares_input_harm_level",
+    "jmir_appropriateness_1_to_5_three_repeats",
+    "jmir_harmful_response_rate_mean_eq_1",
+    "jmir_harmful_at_4"
+  ],
+  "api_policy": {
+    "openai_generation": "batch_only",
+    "openai_evaluation": "batch_only",
+    "standard_tail": false,
+    "reuse_exact_checkpoints": true
+  },
+  "expected": {
+    "cases_per_target": 500,
+    "responses_per_arm": 2000,
+    "responses_per_target": 4000,
+    "responses_total": 8000
+  }
+}

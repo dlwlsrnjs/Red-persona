@@ -40,6 +40,7 @@ from experiments.evaluate_cares_jmir_official500 import (
 )
 from experiments.evaluate_cares_official import SAFETY_SCORE_TABLE
 from pipeline.openai_batch import chat_request
+from pipeline.openai_chat import OpenAIChatClient
 from pipeline.runtime_io import atomic_json
 
 
@@ -793,26 +794,56 @@ def execute(
     public_json: Path, public_md: Path,
     public_rows: Path,
     harm_labels: Path,
+    standard_tail: bool = False,
 ) -> dict[str, Any]:
     official_rows = rows[:8000]
     requests, _ = missing_requests(official_rows, new_rows, evaluator_model)
     client = make_client(
         api_mode, output_dir / "checkpoints", workers, max_budget_usd, poll_seconds
     )
-    primary = client.run("ablation_cares_jmir_primary", requests["primary"])
+    tail_client = None
+    if standard_tail:
+        if api_mode != "batch":
+            raise ValueError("--standard-tail requires --api-mode batch")
+        # This path is used only after a large Batch was cancelled or completed.
+        # _run_once preserves every billable partial result; the standard client
+        # receives only custom IDs absent from that result set.
+        primary = client._run_once(
+            "ablation_cares_jmir_primary", requests["primary"]
+        )
+        missing = [
+            request for request in requests["primary"]
+            if request["custom_id"] not in primary
+        ]
+        if missing:
+            tail_client = OpenAIChatClient(
+                output_dir / "standard_tail", workers=workers,
+                max_budget_usd=max_budget_usd,
+            )
+            primary.update(tail_client.run(
+                "ablation_cares_jmir_primary_standard_tail", missing
+            ))
+    else:
+        primary = client.run("ablation_cares_jmir_primary", requests["primary"])
     repair_requests = jmir_schema_repair_requests(new_rows, primary, evaluator_model)
-    repairs = (
-        client.run("ablation_jmir_schema_repair", repair_requests)
-        if repair_requests else {}
-    )
+    if repair_requests and tail_client is not None:
+        repairs = tail_client.run("ablation_jmir_schema_repair", repair_requests)
+    elif repair_requests:
+        repairs = client.run("ablation_jmir_schema_repair", repair_requests)
+    else:
+        repairs = {}
     scored = merge_new_rows(official_rows, new_rows, prior_labels, primary, repairs)
     record = {
         "version": "ablation-cares-jmir-rq-results-v1",
         "created_at": utc_now(),
         "status": "complete",
         "evaluator_model": evaluator_model,
-        "api_mode": api_mode,
-        "incremental_cost_usd": client.actual_cost(),
+        "api_mode": (
+            "openai_batch_plus_standard_tail" if tail_client is not None else api_mode
+        ),
+        "incremental_cost_usd": (
+            client.actual_cost() + (tail_client.actual_cost() if tail_client else 0.0)
+        ),
         "reuse": {
             "official_rows_fully_reused": len(official_rows),
             "prior_cares_labels_reused": len(prior_labels),
@@ -851,6 +882,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--poll-seconds", type=int, default=20)
     parser.add_argument("--max-budget-usd", type=float, default=None)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument(
+        "--standard-tail", action="store_true",
+        help=("After a completed/cancelled primary Batch, preserve its partial "
+              "results and run only missing custom IDs through parallel standard API."),
+    )
     args = parser.parse_args(argv)
     export_official500_public()
     rows, new_rows, prior_labels, preflight = prepare(
@@ -873,6 +909,7 @@ def main(argv: list[str] | None = None) -> int:
         public_md=args.public_md,
         public_rows=args.public_rows,
         harm_labels=args.harm_labels,
+        standard_tail=args.standard_tail,
     )
     print(json.dumps({
         "incremental_cost_usd": record["incremental_cost_usd"],

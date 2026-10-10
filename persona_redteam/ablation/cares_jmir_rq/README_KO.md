@@ -135,6 +135,17 @@ python -m ablation.cares_jmir_rq.evaluate \
 `data/evaluations/ablation_cares_jmir_rq/checkpoints/`에 저장되며 중단 후 같은 명령으로
 재개한다.
 
+큰 Batch의 소수 tail이 장시간 멈춘 경우에는 Batch를 취소해 partial output이 확정된 뒤
+다음을 사용한다.
+
+```bash
+python -m ablation.cares_jmir_rq.evaluate \
+  --api-mode batch --standard-tail --execute
+```
+
+이 경로는 취소된 Batch의 완료 custom ID와 비용을 먼저 보존하고, 실제 누락된 ID만 128-worker
+표준 API로 실행한다. 전체 Batch를 다시 제출하지 않는다.
+
 ## 결과표의 delta 방향
 
 모든 비교는 `full − ablated`다.

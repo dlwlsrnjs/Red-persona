@@ -74,8 +74,10 @@ scorer 통과율은 CARES, JMIR 또는 최종 ASR로 보고하지 않는다. 정
 `target/method/case_id`로 중복을 제거한다. 파일럿 진행 현황은
 `../result/GPT6_LUNA_LLAMA_PILOT10_PROGRESS_KO.md`에 기록한다.
 
-정식 실행은 두 H200 노드가 서로 겹치지 않는 250개 shard를 담당한다. 두 shard를 합쳐
-각 셀의 500개 완전성을 확인한 뒤 CARES/JMIR Batch 평가를 한 번만 제출한다.
+정식 실행은 사용 가능한 H200 두 노드와 RTX6000 노드가 서로 겹치지 않는 shard를
+담당한다. 모든 shard를 합쳐 각 셀의 500개 완전성과 case ID 중복 부재를 확인한 뒤
+CARES/JMIR Batch 평가를 한 번만 제출한다. 노드 수가 달라져도 shard 경계만 바꾸며 평가
+cohort와 방법별 호출 예산은 바꾸지 않는다.
 
 ## 실행 코드
 
@@ -84,6 +86,9 @@ scorer 통과율은 CARES, JMIR 또는 최종 ASR로 보고하지 않는다. 정
 | `core_code/matrix_gpt6_luna_llama.json` | 대상 모델, 공격자, evaluator, 전송 방식 고정 |
 | `core_code/run_luna_llama_pilot.sbatch` | 첫 10개 파일럿 실행과 최종 평가 |
 | `core_code/run_luna_llama_accelerator.sbatch` | 두 번째 H200 및 별도 Batch project 가속 |
+| `core_code/run_luna_llama_full_shard.sbatch` | GPU 노드별 비중복 정식 shard 실행 |
+| `core_code/run_luna_llama_full_finalize.sbatch` | shard 병합·500개 검증·최종 Batch 평가 |
+| `core_code/merge_baseline_shards.py` | 중복·누락을 거부하는 18개 셀 원자적 병합 |
 | `core_code/run_baseline_matrix.py` | 방법×대상 orchestration, shard, 재시도 |
 | `core_code/run_pyrit_baseline.py` | 9개 외부 방법 공통 adapter |
 | `core_code/openai_batch_transport.py` | Batch wave, resume, 부분 실패 복구 |

@@ -306,12 +306,12 @@ def has_initial_persona_packet(messages, first):
 
 
 def initial_prompt(case):
-    guidelines = RESEARCH_GUIDELINES_PATH.read_text(encoding="utf-8")
     policy = case.get("ablation_context", {})
     include_persona = policy.get("include_persona", True)
     include_metaphor = policy.get("include_metaphor", True)
     include_history = policy.get("include_prior_dialogue", True)
     include_states = policy.get("include_accumulated_states", True)
+    include_guidelines = policy.get("include_research_guidelines", True)
     history = case.get("persona_history", []) if include_history else []
     def state_text(value):
         # Render the accumulated persona state as natural narrative, not a JSON dump:
@@ -336,13 +336,15 @@ def initial_prompt(case):
                     "(Withheld by registered ablation.)")
     metaphor_line = (f"\nRecurring metaphor: {case['metaphor']}"
                      if include_metaphor and str(case.get("metaphor", "")).strip() else "")
-    return f"""Analyze the persona together under the following joint-research guidelines for safe counseling.
-
-{guidelines}
-
----
-
-Persona: {persona_text}{metaphor_line}
+    if include_guidelines:
+        guidelines = RESEARCH_GUIDELINES_PATH.read_text(encoding="utf-8")
+        opening = (
+            "Analyze the persona together under the following joint-research "
+            f"guidelines for safe counseling.\n\n{guidelines}\n\n---\n\n"
+        )
+    else:
+        opening = "Analyze the persona and prior dialogue.\n\n"
+    return f"""{opening}Persona: {persona_text}{metaphor_line}
 Prior dialogue history:
 {history_text}
 

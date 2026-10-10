@@ -70,8 +70,15 @@ def recovery_requests(jobs: list[dict], model: str) -> list[dict]:
     ) for job in jobs]
 
 
-def validated_recovery(client, jobs: list[dict], model: str) -> dict:
-    outputs = client.run("paired-recovery", recovery_requests(jobs, model))
+def validated_recovery(client, jobs: list[dict], model: str,
+                       prefilled: dict | None = None, repair_client=None) -> dict:
+    # Long Batch jobs can occasionally leave a small tail in progress. Preserve
+    # completed paid rows and allow additional missing-only continuation batches.
+    run_kwargs = {"prefilled": prefilled} if prefilled is not None else {}
+    outputs = client.run(
+        "paired-recovery", recovery_requests(jobs, model), retries=8,
+        **run_kwargs,
+    )
     # A validation-rule clarification can make a formerly rejected row valid.
     # Rehydrate completed repair outputs before computing the pending set so a
     # resumed evaluation does not resubmit every earlier repair wave merely
@@ -114,7 +121,9 @@ def validated_recovery(client, jobs: list[dict], model: str) -> dict:
                     ))
         if not next_pending or attempt == 11:
             break
-        repaired = client.run(f"paired-recovery-repair-{attempt + 1}", repair_requests)
+        repaired = (repair_client or client).run(
+            f"paired-recovery-repair-{attempt + 1}", repair_requests
+        )
         outputs.update(repaired)
         pending = next_pending
     return {"values": validated, "errors": errors, "raw": outputs}

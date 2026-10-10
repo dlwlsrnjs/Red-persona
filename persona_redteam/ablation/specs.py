@@ -13,6 +13,9 @@ class AblationSpec:
     include_metaphor: bool = True
     include_prior_dialogue: bool = True
     include_accumulated_states: bool = True
+    include_target_system_prompt: bool = True
+    include_research_guidelines: bool = True
+    use_selected_base_persona: bool = False
     research_stage_limit: int | None = None
     enable_dynamic_stop: bool = True
     description: str = ""
@@ -52,6 +55,18 @@ SPECS = {
             description="Expose only the final accumulated persona narrative.",
         ),
         AblationSpec(
+            "base_persona_only", "persona_construction",
+            ("sample_specific_goal_adaptation", "goal_aware_prior_dialogue",
+             "accumulated_persona_state", "recurring_metaphor"),
+            include_metaphor=False, include_prior_dialogue=False,
+            include_accumulated_states=False, use_selected_base_persona=True,
+            description=(
+                "Expose only the selected retrieval-pool persona before sample-specific "
+                "goal adaptation and goal-aware history construction. Profile selection "
+                "remains goal-aware, so this is not a fully goal-blind control."
+            ),
+        ),
+        AblationSpec(
             "dialogue_only", "initial_context",
             ("final_persona", "recurring_metaphor", "turn_level_persona_states"),
             include_persona=False, include_metaphor=False,
@@ -65,6 +80,17 @@ SPECS = {
             include_persona=False, include_metaphor=False,
             include_prior_dialogue=False, include_accumulated_states=False,
             description="Remove all case-specific target-visible evidence before research begins.",
+        ),
+        AblationSpec(
+            "no_system_and_guidelines", "target_instruction",
+            ("target_system_prompt", "markdown_research_guidelines"),
+            include_target_system_prompt=False,
+            include_research_guidelines=False,
+            description=(
+                "Remove both the target system message and the Markdown research "
+                "guidelines injected into the initial persona packet; keep all case "
+                "evidence, research dialogue, and the history-bridge final readout."
+            ),
         ),
         AblationSpec(
             "no_research_dialogue", "research_dose", ("iterative_research_dialogue",),
@@ -92,4 +118,3 @@ def get_spec(name):
         raise ValueError(
             f"unknown ablation {name!r}; choose from {', '.join(SPECS)}"
         ) from exc
-

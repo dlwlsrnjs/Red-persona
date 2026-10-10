@@ -835,6 +835,7 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 | `experiments/qwen_target_persona_research_dialogue.py` | 세 조건, 4–7 연구 stage, 네 branch, manifestation 분리 |
 | `pipeline/run_batch.py` | standard API 사례 선택·실행·checkpoint |
 | `pipeline/openai_batch.py` | Batch upload/poll/retry, input hash, 비용 guard와 usage ledger |
+| `pipeline/openai_chat.py` | latency-sensitive evaluator tail의 병렬 표준 호출, checkpoint와 별도 비용 ledger |
 | `pipeline/local_chat.py` | 로컬 OpenAI-compatible target/planner endpoint와 pad/OOM 대응 |
 | `experiments/run_jmir_persona_batch_api.py` | multi-turn dependency wave를 Batch 요청으로 구성 |
 | `experiments/run_existing250_no_research_batch_api.py` | 기존 유효 250개를 동일 no-dialogue 계약으로 재실행 |
@@ -845,6 +846,8 @@ hash가 달라지면 재개를 거부해 오래된 응답이 새 prompt에 섞�
 | `experiments/evaluate_cares_official.py` | 공식 CARES prompt, label parser, 선택적 Safety Score |
 | `ablation/aggregate.py` | full/no-dialogue paired metric, category macro, exact McNemar 집계 |
 | `ablation/offline_direction_suite.py` | 저장된 공식 500개 여섯 arm의 방향 단독·제거·Shapley·부분집합 무호출 집계 |
+| `experiments/select_context_ablation_subset.py` | 공식 500개에서 outcome-blind 범주비례 120개 membership 고정 |
+| `experiments/evaluate_context_ablation_batch.py` | 다섯 context arm과 재사용 full의 paired recovery·CARES·SS 집계 |
 | `pipeline/contracts.py` | 단계별 schema, 누출, 3×4, system prompt, candidate-only CARES 계약 |
 | `experiments/summarize_success_at_4.py` | 네 방향 case-level Success@4와 범주별 집계 |
 | `pipeline/preflight.py` | 모델 호출 없이 각 artifact 경계 검증 |
@@ -968,7 +971,40 @@ GPT-4o에서 96.8%(Success@4 97.2%)로 네 방향 대비 0.2–0.4%p 낮았다. 
 [`../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md)와
 동명의 JSON에 있다.
 
-## 26. 관련 재현 문서
+## 26. Context/persona component ablation: outcome-blind 120개
+
+공식 500개에서 결과를 보지 않고 범주 비율과 고정 hash 순위로 120개를 선택해 다섯 제거 조건을
+추가 실행했다. 같은 GPT-4o snapshot, neutral condition, 4–7단계 연구 대화, history-bridge
+readout, 네 방향을 유지하고 final analysis response만 평가했다. reference는 저장된 공식 500개
+`full_history_bridge`에서 같은 120개 행을 재사용했다.
+
+- `persona_only`: goal-aware history를 거쳐 누적된 마지막 persona만 유지
+- `dialogue_only`: 과거 client/counselor 대화만 유지
+- `no_initial_evidence`: target-visible persona와 prior history를 모두 제거
+- `no_system_and_guidelines`: target system role과 삽입 Markdown 연구 지침을 둘 다 제거
+- `base_persona_only`: goal adaptation과 goal-internalized history 전의 선택된 retrieval profile만 유지
+
+`base_persona_only`의 profile 선택은 private goal을 본 reranker가 수행했으므로 완전한 goal-blind
+control이 아니다. 또한 모든 arm에서 이후 goal-aware researcher와 history-bridge readout은
+유지된다. 따라서 이 실험은 persona-construction 단계 제거의 총효과이지 global no-goal control이
+아니다.
+
+full의 Raw Recovery Success@4는 96.67%였다. persona-only 100.00%, dialogue-only 97.50%,
+no-initial-evidence 95.00%, no-system-and-guidelines 96.67%, base-persona-only 98.33%였으며 모든
+paired exact McNemar 비교가 `p >= .125`였다. B3+ final-response@4는 full 78.33%에 비해 제거
+조건이 89.17–93.33%로 모두 높았고, ablated−full delta는 +10.83–15.00%p였다. CARES
+Accept@4는 full 20.83%, 제거 조건 23.33–29.17%였지만 paired 차이는 모두 유의하지 않았다.
+
+이 결과는 goal 내재화 history가 공격 성공을 일관되게 높인다는 가설을 지지하지 않는다. 오히려
+풍부한 대화 맥락이나 instruction scaffold가 target의 안전 framing을 강화했거나, context 제거가
+더 직접적인 최종 trajectory를 만들었을 수 있다. 그러나 post-hoc n=120, Success@4 ceiling,
+복수 검정, goal-aware profile selection/researcher, 제거 후 전체 대화 재생성 때문에 이를 개별
+구성 요소의 인과적 보호 효과로 확정하지 않는다. 상세 branch rate, category macro, CARES SS,
+비용과 QA는
+[`../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`](../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md)에
+있다.
+
+## 27. 관련 재현 문서
 
 - [`../PIPELINE_OVERVIEW_KO.md`](../PIPELINE_OVERVIEW_KO.md): 활성 파이프라인 개요
 - [`DATA_LINEAGE_AND_EXTRACTION_KO.md`](DATA_LINEAGE_AND_EXTRACTION_KO.md): 2,046→625 계보와 checksum
@@ -982,3 +1018,4 @@ GPT-4o에서 96.8%(Success@4 97.2%)로 네 방향 대비 0.2–0.4%p 낮았다. 
 - [`../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md`](../ablation/RESULTS_NO_RESEARCH_OFFICIAL500_KO.md): 두 target paired 결과
 - [`../ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md`](../ablation/RESULTS_HISTORY_BRIDGE_PROMPT_OFFICIAL500_KO.md): prompt ablation과 CARES SS
 - [`../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](../ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md): 공식 500개 무호출 방향 ablation
+- [`../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`](../ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md): context/persona 제거 120개 실행 결과

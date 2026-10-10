@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import time
 
-from openai import OpenAI
+from openai import NotFoundError, OpenAI
 import tiktoken
 
 from pipeline.runtime_io import atomic_json
@@ -160,8 +160,25 @@ class BatchChatClient:
                              ensure_ascii=False), flush=True)
 
         last_status = None
+        visibility_retries = 0
         while True:
-            batch = self.client.batches.retrieve(batch_id)
+            try:
+                batch = self.client.batches.retrieve(batch_id)
+            except NotFoundError:
+                # Batch creation can become visible to the retrieve endpoint a
+                # few seconds after the create response. The checkpoint already
+                # holds the server-issued ID, so wait instead of resubmitting.
+                visibility_retries += 1
+                if visibility_retries > 12:
+                    raise
+                if visibility_retries == 1:
+                    print(json.dumps({
+                        "batch": label,
+                        "status": "pending_visibility",
+                        "batch_id": batch_id,
+                    }, ensure_ascii=False), flush=True)
+                time.sleep(self.poll_seconds)
+                continue
             if batch.status != last_status:
                 counts = batch.request_counts
                 print(json.dumps({"batch": label, "status": batch.status,
@@ -216,12 +233,16 @@ class BatchChatClient:
         atomic_json(self.ledger_path, ledger)
         return results
 
-    def run(self, label, requests, *, retries=2):
+    def run(self, label, requests, *, retries=2, prefilled=None):
         ids = [request["custom_id"] for request in requests]
         if len(ids) != len(set(ids)):
             raise ValueError(f"{label}: duplicate custom_id")
-        pending = list(requests)
-        merged = {}
+        merged = dict(prefilled or {})
+        unknown = set(merged) - set(ids)
+        if unknown:
+            raise ValueError(f"{label}: prefilled custom IDs are not requested")
+        pending = [request for request in requests
+                   if request["custom_id"] not in merged]
         for attempt in range(retries + 1):
             if not pending:
                 break

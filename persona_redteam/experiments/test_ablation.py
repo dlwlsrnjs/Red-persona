@@ -67,6 +67,31 @@ class AblationTest(unittest.TestCase):
         self.assertIn("No prior dialogue", prompt)
         self.assertNotIn("client one", prompt)
 
+    def test_base_persona_only_precedes_goal_adaptation_and_history(self):
+        case = fixture_case()
+        case["persona_profile"] = {
+            "persona_id": "adapted",
+            "sample_adaptation": {"base_persona_id": "base-1"},
+        }
+        case["persona_history_generation"] = {
+            "profile_selection": {"selected_persona_id": "base-1"},
+            "retrieval_top_k": [{
+                "profile": {"persona_id": "base-1", "background": "base evidence"},
+                "score": 1.0,
+            }],
+        }
+        transformed = transform_case(case, get_spec("base_persona_only"))
+
+        self.assertIn("base evidence", transformed["persona"])
+        self.assertNotIn("final persona narrative", transformed["persona"])
+        self.assertNotIn("sample_adaptation", transformed["persona_profile"])
+        self.assertEqual(transformed["persona_history"], [])
+        self.assertEqual(transformed["metaphor"], "")
+        self.assertEqual(
+            transformed["ablation_context"]["persona_source"],
+            "selected_retrieval_profile_before_goal_adaptation_and_history",
+        )
+
     @patch("experiments.qwen_target_persona_research_dialogue.complete", side_effect=fake_complete)
     def test_no_research_dialogue_still_runs_four_directions(self, _complete):
         spec = get_spec("no_research_dialogue")
@@ -90,6 +115,28 @@ class AblationTest(unittest.TestCase):
             result["research_stop"]["reason"] == "ablation_no_research_dialogue"
             for result in results
         ))
+        self.assertEqual(validate_ablation_run(record), [])
+
+    @patch("experiments.qwen_target_persona_research_dialogue.complete", side_effect=fake_complete)
+    def test_final_response_only_contract_does_not_require_manifestation(self, _complete):
+        spec = get_spec("persona_only")
+        case = transform_case(fixture_case(), spec)
+        results = run_all_conditions_batched(
+            case, "fixture-model", FakeResearcher(), target_workers=4,
+            research_stage_limit=spec.research_stage_limit,
+            enable_dynamic_stop=spec.enable_dynamic_stop,
+        )
+        for result in results:
+            result["phase_exposure"]["manifestation_measurement_goal_exposed"] = False
+            for branch in result["final_branches"]:
+                branch.pop("manifestation_candidate_response", None)
+                branch.pop("manifestation_research_analysis", None)
+                branch.pop("manifestation_context", None)
+        record = {
+            "ablation": spec.metadata(), "case": case, "results": results,
+            "measurement_scope": "final_analysis_response_only",
+        }
+
         self.assertEqual(validate_ablation_run(record), [])
 
     @patch("experiments.qwen_target_persona_research_dialogue.complete", side_effect=fake_complete)

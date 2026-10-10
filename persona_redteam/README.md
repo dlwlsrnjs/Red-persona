@@ -33,6 +33,12 @@ CARES harmful-level 주석과 Safety Score는
 저비용 ablation은
 [`ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md`](ablation/RESULTS_OFFLINE_DIRECTION_ATTRIBUTION_OFFICIAL500_KO.md)에
 고정했다.
+공식 500개에서 outcome-blind로 고른 120개에 대해 persona-only, dialogue-only, 초기 증거 없음,
+system+Markdown 지침 없음, goal 내재화 전 원본 persona-only를 실제 실행한 context ablation은
+[`ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`](ablation/RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md)와
+민감 텍스트를 제외한
+[`ablation/RESULTS_CONTEXT_ABLATION_SUBSET120.json`](ablation/RESULTS_CONTEXT_ABLATION_SUBSET120.json)에
+고정했다.
 
 ## 활성 흐름
 

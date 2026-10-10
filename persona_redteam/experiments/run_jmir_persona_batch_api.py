@@ -39,6 +39,16 @@ from experiments.qwen_target_persona_research_dialogue import (
 DEFAULT_CONDITIONS = ("neutral", "structural_hint", "oracle_hint")
 CONDITIONS = DEFAULT_CONDITIONS
 CONDITION_CODES = {"neutral": "n", "structural_hint": "s", "oracle_hint": "o"}
+CONTEXT_ABLATION_VARIANTS = (
+    "no_metaphor",
+    "no_prior_dialogue",
+    "no_accumulated_states",
+    "persona_only",
+    "base_persona_only",
+    "dialogue_only",
+    "no_initial_evidence",
+    "no_system_and_guidelines",
+)
 
 
 def readout_namespace(protocol):
@@ -312,10 +322,23 @@ def run_with_budget_splitting(client, label, requests, *, adaptive=False):
     return {**left, **right}
 
 
-def initial_wave(selected, target_system_prompt=TARGET_SYSTEM_PROMPT):
+def target_initial_messages(case, target_system_prompt, *, omit_system_prompt=False):
+    messages, first = target_initial_history(case, target_system_prompt)
+    if omit_system_prompt:
+        messages = [message for message in messages if message.get("role") != "system"]
+        if any(message.get("role") == "system" for message in messages):
+            raise AssertionError("target system prompt omission failed")
+    return messages, first
+
+
+def initial_wave(selected, target_system_prompt=TARGET_SYSTEM_PROMPT,
+                 *, omit_system_prompt=False):
     specs = []
     for _, case in selected:
-        history, first = target_initial_history(case, target_system_prompt)
+        history, first = target_initial_messages(
+            case, target_system_prompt,
+            omit_system_prompt=omit_system_prompt,
+        )
         specs.append({"custom_id": "initial-" + case["case_id"],
                       "case_id": case["case_id"], "first": first,
                       "messages": history})
@@ -601,7 +624,8 @@ def apply_manifestation(specs, outputs, cases_by_id, states, final, first_by_cas
 
 
 def final_results(case, states, final, target_model,
-                  final_readout_protocol=LEGACY_FINAL_READOUT_PROTOCOL):
+                  final_readout_protocol=LEGACY_FINAL_READOUT_PROTOCOL,
+                  manifestation_included=True):
     output = []
     for condition in CONDITIONS:
         state = states[case["case_id"]][condition]
@@ -611,7 +635,7 @@ def final_results(case, states, final, target_model,
             "phase_exposure": {
                 "research_dialogue_goal_exposed": INTERVENTION_LEVELS[condition]
                                                     ["research_target_goal_exposed"],
-                "manifestation_measurement_goal_exposed": True,
+                "manifestation_measurement_goal_exposed": manifestation_included,
             },
             "private_goal": case["original_request"],
             "target_visible_persona": case["persona"],
@@ -969,6 +993,22 @@ def main():
         help=("Active experimental condition; repeat for multiple conditions. "
               "Defaults to all three conditions."),
     )
+    parser.add_argument(
+        "--ablation-variant", choices=CONTEXT_ABLATION_VARIANTS,
+        help=("Apply one registered target-visible context removal before any "
+              "new target call. Use a distinct campaign and output directory."),
+    )
+    parser.add_argument(
+        "--final-response-only", action="store_true",
+        help=("Stop after the four final analysis responses. This excludes the "
+              "separate manifestation follow-up and is intended for the registered "
+              "history-bridge final-response evaluation."),
+    )
+    parser.add_argument(
+        "--omit-target-system-prompt", action="store_true",
+        help=("Remove the target system message while preserving the persona packet, "
+              "research dialogue, history-bridge readout, model, and decoding policy."),
+    )
     args = parser.parse_args()
     if args.target_workers < 1:
         parser.error("--target-workers must be at least 1")
@@ -1000,6 +1040,25 @@ def main():
     if selected_errors:
         parser.error("selected cases failed leakage/contract checks: " +
                      "; ".join(selected_errors[:5]))
+    ablation_spec = None
+    if args.ablation_variant and args.omit_target_system_prompt:
+        parser.error(
+            "run one removal at a time: do not combine --ablation-variant with "
+            "--omit-target-system-prompt"
+        )
+    if args.ablation_variant:
+        ablation_spec = get_spec(args.ablation_variant)
+        selected = [
+            (index, transform_case(case, ablation_spec))
+            for index, case in selected
+        ]
+    omit_target_system_prompt = (
+        args.omit_target_system_prompt or
+        bool(ablation_spec and not ablation_spec.include_target_system_prompt)
+    )
+    include_research_guidelines = not bool(
+        ablation_spec and not ablation_spec.include_research_guidelines
+    )
     if args.prepare_only:
         print(json.dumps({
             "status": "prepared", "target_total": args.target_total,
@@ -1007,6 +1066,10 @@ def main():
             "start": args.start, "stop": args.stop,
             "active_conditions": list(CONDITIONS),
             "final_readout_protocol": args.final_readout_protocol,
+            "ablation_variant": args.ablation_variant,
+            "omit_target_system_prompt": omit_target_system_prompt,
+            "include_research_guidelines": include_research_guidelines,
+            "final_response_only": args.final_response_only,
             "selection_path": str(args.selection_path or
                                   args.campaign_dir / "selection.json"),
         }, ensure_ascii=False))
@@ -1020,8 +1083,13 @@ def main():
         TARGET_SYSTEM_PROMPT if uses_default_researcher
         else GENERIC_TARGET_SYSTEM_PROMPT
     )
-    first_by_case = {case_id: target_initial_history(case, target_system_prompt)[1]
-                     for case_id, case in cases_by_id.items()}
+    first_by_case = {
+        case_id: target_initial_messages(
+            case, target_system_prompt,
+            omit_system_prompt=omit_target_system_prompt,
+        )[1]
+        for case_id, case in cases_by_id.items()
+    }
     if args.target_base_url:
         client = LocalChatClient(
             args.campaign_dir / "local_target_batches",
@@ -1044,7 +1112,10 @@ def main():
     else:
         specs = prepared_wave(
             wave_dir / "initial.json",
-            lambda: initial_wave(selected, target_system_prompt),
+            lambda: initial_wave(
+                selected, target_system_prompt,
+                omit_system_prompt=omit_target_system_prompt,
+            ),
         )
         outputs = client.run("generation-initial", [
             chat_request(spec["custom_id"], args.target_model, spec["messages"],
@@ -1165,40 +1236,42 @@ def main():
     if bind_planner_audits(final, researcher):
         atomic_json(final_path, final)
 
-    manifestation_specs = planner_wave(
-        wave_dir / f"{final_wave_namespace}manifestation.json",
-        lambda: prepare_manifestation_wave(
-            cases_by_id, states, final, researcher,
-            args.final_readout_protocol,
-        ),
-        researcher,
-    )
-    manifestation_outputs = client.run(
-        f"generation-{final_wave_namespace}manifestation", [
-        chat_request(spec["custom_id"], args.target_model, spec["messages"],
-                     max_tokens=1200, json_mode=True)
-        for spec in manifestation_specs
-    ])
-    if not args.allow_truncated:
-        manifestation_outputs = repair_length_outputs(
-            f"generation-{final_wave_namespace}manifestation-length",
-            manifestation_specs, manifestation_outputs, client,
-            args.target_model, token_limits=(1600, 2200),
+    if not args.final_response_only:
+        manifestation_specs = planner_wave(
+            wave_dir / f"{final_wave_namespace}manifestation.json",
+            lambda: prepare_manifestation_wave(
+                cases_by_id, states, final, researcher,
+                args.final_readout_protocol,
+            ),
+            researcher,
         )
-    manifestation_outputs = repair_manifestation_schema(
-        f"generation-{final_wave_namespace}manifestation-schema",
-        manifestation_specs, manifestation_outputs, client, args.target_model,
-    )
-    apply_manifestation(
-        manifestation_specs, manifestation_outputs, cases_by_id, states, final,
-        first_by_case,
-    )
-    atomic_json(final_path, final)
+        manifestation_outputs = client.run(
+            f"generation-{final_wave_namespace}manifestation", [
+            chat_request(spec["custom_id"], args.target_model, spec["messages"],
+                         max_tokens=1200, json_mode=True)
+            for spec in manifestation_specs
+        ])
+        if not args.allow_truncated:
+            manifestation_outputs = repair_length_outputs(
+                f"generation-{final_wave_namespace}manifestation-length",
+                manifestation_specs, manifestation_outputs, client,
+                args.target_model, token_limits=(1600, 2200),
+            )
+        manifestation_outputs = repair_manifestation_schema(
+            f"generation-{final_wave_namespace}manifestation-schema",
+            manifestation_specs, manifestation_outputs, client, args.target_model,
+        )
+        apply_manifestation(
+            manifestation_specs, manifestation_outputs, cases_by_id, states, final,
+            first_by_case,
+        )
+        atomic_json(final_path, final)
 
     for index, case in selected:
         atomic_json(args.output_dir / f"{case['case_id']}.json", {
             "version": (
-                "jmir-persona-eval-batch-v2-" +
+                ("jmir-persona-final-response-only-batch-v1-"
+                 if args.final_response_only else "jmir-persona-eval-batch-v2-") +
                 getattr(client, "api_mode", "unknown")
             ),
             "research_engine_version": ACTIVE_PIPELINE_VERSION,
@@ -1208,11 +1281,33 @@ def main():
             "researcher_model": researcher.model_name,
             "researcher_revision": researcher.revision,
             "researcher_role_label": researcher.role_label,
-            "target_system_prompt": target_system_prompt,
+            "target_system_prompt": (
+                None if omit_target_system_prompt else target_system_prompt
+            ),
+            "target_system_prompt_omitted": omit_target_system_prompt,
+            "research_guidelines_included": include_research_guidelines,
+            "measurement_scope": (
+                "final_analysis_response_only" if args.final_response_only
+                else "final_analysis_plus_manifestation_followup"
+            ),
+            **(
+                {"ablation": ablation_spec.metadata()}
+                if ablation_spec else
+                ({"ablation": {
+                    "name": "no_target_system_prompt",
+                    "family": "target_instruction",
+                    "removes": ["target_system_prompt"],
+                    "description": (
+                        "Remove the target system message only; keep all case evidence, "
+                        "research dialogue, and history-bridge final readout."
+                    ),
+                }} if args.omit_target_system_prompt else {})
+            ),
             "case_index": index, "case": case,
             "results": final_results(
                 case, states, final, args.target_model,
                 args.final_readout_protocol,
+                manifestation_included=not args.final_response_only,
             ),
         })
     atomic_json(args.output_dir / "run_summary.json", {
@@ -1227,6 +1322,10 @@ def main():
         "active_conditions": list(CONDITIONS),
         "active_final_directions": list(FINAL_DIRECTIONS),
         "final_readout_protocol": args.final_readout_protocol,
+        "ablation_variant": args.ablation_variant,
+        "omit_target_system_prompt": omit_target_system_prompt,
+        "include_research_guidelines": include_research_guidelines,
+        "final_response_only": args.final_response_only,
         "api_mode": getattr(client, "api_mode", "unknown"),
         "batch_cost_usd": client.actual_cost(),
     })

@@ -38,15 +38,18 @@ credit의 네 방향 합은 full Success@4와 정확히 같아야 한다.
 python -m ablation.offline_direction_suite
 ```
 
-현재 비용 제한 아래 정식으로 유지하는 ablation 묶음은 다음 세 가지다.
+현재 저장소에서 결과까지 완료한 ablation 묶음은 다음 네 가지다.
 
 1. 저장된 full 대 no-dialogue: 반복 연구 대화의 기여
 2. 저장된 legacy 대 history bridge: final readout prompt의 기여
 3. 저장된 네 방향 결과의 재조합: 방향별 고유 기여와 Success@k 포화
+4. outcome-blind 120개 context/persona subset: 다섯 context-removal arm과 full reference
 
-`persona_only`, `dialogue_only`, `no_initial_evidence` 등은 구현은 유지하지만 target 응답과 평가를
-새로 생성해야 한다. 따라서 현 단계에서는 실행하지 않으며, 추가 예산이나 별도 confirmatory
-subset이 정해질 때만 수행한다.
+네 번째 분석은 `persona_only`, `dialogue_only`, `no_initial_evidence`,
+`no_system_and_guidelines`, `base_persona_only`를 120개 같은 사례에서 실제 생성·평가했다. 결과와
+해석 제한은 `RESULTS_CONTEXT_ABLATION_SUBSET120_KO.md`, 민감 텍스트를 제거한 집계는
+`RESULTS_CONTEXT_ABLATION_SUBSET120.json`에 있다. 결과는 full 우위를 가정하지 않았으며,
+실제로 B3+ final-response는 모든 제거 조건이 full보다 높았다.
 
 ```bash
 python -m ablation.direction_attribution \
@@ -71,8 +74,10 @@ python -m ablation.direction_attribution \
 | `no_prior_dialogue` | 전체 prior dialogue | 최종 persona 외 대화 궤적의 기여 |
 | `no_accumulated_states` | turn별 누적 state | 중간 state 표기의 추가 기여 |
 | `persona_only` | metaphor, dialogue, 중간 state | 최종 persona 단독 성능 |
+| `base_persona_only` | sample-specific goal adaptation, goal-aware history, 누적 persona, metaphor | 검색에서 선택된 원본 profile 단독 성능; profile 선택 자체는 goal-aware |
 | `dialogue_only` | 최종 persona, metaphor, 중간 state | 원 대화 단독 성능 |
 | `no_initial_evidence` | 모든 사례별 초기 증거 | context negative control |
+| `no_system_and_guidelines` | target system message, 삽입 Markdown 연구 가이드라인 | 사례 증거와 대화는 유지한 instruction-scaffold 제거 |
 | `no_research_dialogue` | 반복 Qwen 연구 대화 | initial analysis에서 바로 네 방향 분기 |
 | `fixed_four_research_turns` | dynamic stopping | 정확히 4단계의 고정 dose |
 | `fixed_seven_research_turns` | dynamic stopping | 정확히 7단계의 고정 dose |
@@ -81,6 +86,14 @@ python -m ablation.direction_attribution \
 `persona_only`와 `no_prior_dialogue`는 같은 실험이 아니다. 전자는 metaphor도 제거하고, 후자는
 최종 persona와 metaphor를 유지한다. `dialogue_only`는 turn-level persona state까지 숨겨서
 자연어 client/counselor 발화의 기여만 남긴다.
+
+`base_persona_only`는 `persona_only`보다 더 앞 단계로 돌아간다. `persona_only`가 goal-aware
+history를 거쳐 갱신된 마지막 persona state를 사용한다면, `base_persona_only`는 retrieval 후
+Qwen이 선택한 원본 pool profile만 사용한다. sample-specific goal adaptation과 prior history를
+모두 제외하지만 profile 선택은 private goal을 본 reranker가 수행했으므로 완전한 goal-blind
+persona 대조군으로 부르지 않는다. `no_system_and_guidelines`는 시스템 역할 메시지와
+`evaluation/prompts/safe_counseling_joint_research_guidelines.md` 본문을 함께 제거한다. 둘 중
+하나만 제거한 실행은 공식 ablation 결과에 포함하지 않는다.
 
 마지막 prompt 비교는 context-removal registry가 아니라 저장된 동일 full history 위에서 실행하는
 readout ablation이므로 `experiments/run_history_bridge_prompt_pilot.py`가 별도로 담당한다. control은
@@ -103,6 +116,44 @@ micro가 공식 500개 cohort에 대한 주 분석이다. macro는 희소 범주
 안 된다. 중복 oversampling은 독립 표본 수를 늘리지 않으므로 사용하지 않는다.
 
 ## 3. 실행
+
+### Outcome-blind 120개 context/persona ablation
+
+membership은 공식 500개를 바꾸지 않고 subset만 앞에 배치한
+`CONTEXT_ABLATION_SUBSET120.json`에 고정한다. 다음 명령은 같은 seed와 category-proportional
+largest-remainder 규칙을 재현한다.
+
+```bash
+python experiments/select_context_ablation_subset.py \
+  --official-selection data/campaigns/batch_after250_to500_v2/selection.json \
+  --cases data/prepared/generated/jmir_eval_full_with_history.json \
+  --sample-size 120 --seed 20261010-context-ablation \
+  --output ablation/CONTEXT_ABLATION_SUBSET120.json
+```
+
+각 arm은 `experiments/run_jmir_persona_batch_api.py`에 `--ablation-variant`,
+`--final-response-only`, `--condition neutral`, `--start 0 --stop 120`을 주고 서로 다른 output,
+campaign 디렉터리에서 실행한다. `base_persona_only`는 retrieval의 선택 profile로 돌아가며,
+`no_system_and_guidelines`는 system role과 Markdown 지침을 함께 제거한다. 평가는 저장된 full
+reference와 다섯 새 arm을 같은 case ID로 결합한다.
+
+```bash
+python experiments/evaluate_context_ablation_batch.py \
+  --selection ablation/CONTEXT_ABLATION_SUBSET120.json \
+  --baseline-evaluation data/evaluations/gpt-4o-2024-11-20_history_bridge_official500_paired_openai.json \
+  --arm persona_only=data/ablation/runs/gpt4o_history_bridge_persona_only_subset120 \
+  --arm dialogue_only=data/ablation/runs/gpt4o_history_bridge_dialogue_only_subset120 \
+  --arm no_initial_evidence=data/ablation/runs/gpt4o_history_bridge_no_initial_evidence_subset120 \
+  --arm no_system_and_guidelines=data/ablation/runs/gpt4o_history_bridge_no_system_and_guidelines_subset120 \
+  --arm base_persona_only=data/ablation/runs/gpt4o_history_bridge_base_persona_only_subset120 \
+  --cases data/prepared/generated/jmir_eval_full_with_history.json \
+  --state-dir data/campaigns/eval_gpt4o_context_ablation_subset120_v1/openai_batches \
+  --recovery-tail-state-dir data/campaigns/eval_gpt4o_context_ablation_subset120_v1/recovery_standard_tail \
+  --cares-state-dir data/campaigns/eval_gpt4o_context_ablation_subset120_v1/cares_standard \
+  --cares-api-mode standard --standard-workers 128 \
+  --output data/ablation/gpt4o_context_ablation_history_bridge_subset120.json \
+  --summary-output ablation/RESULTS_CONTEXT_ABLATION_SUBSET120.json
+```
 
 ### 공식 주 비교: neutral full dialogue 대 no research dialogue
 

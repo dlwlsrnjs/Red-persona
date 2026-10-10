@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from experiments.qwen_target_persona_research_dialogue import (
-    FINAL_DIRECTIONS, TARGET_SYSTEM_PROMPT,
+    FINAL_DIRECTIONS, RESEARCH_GUIDELINES_PATH, TARGET_SYSTEM_PROMPT,
 )
 from ablation.specs import get_spec
 
@@ -18,6 +18,9 @@ def expected_research_turns(spec):
 
 def validate_ablation_run(record):
     errors = []
+    final_response_only = (
+        record.get("measurement_scope") == "final_analysis_response_only"
+    )
     expected_system_prompt = record.get("target_system_prompt", TARGET_SYSTEM_PROMPT)
     variant = record.get("ablation", {}).get("name")
     try:
@@ -35,6 +38,15 @@ def validate_ablation_run(record):
         "include_prior_dialogue": spec.include_prior_dialogue,
         "include_accumulated_states": spec.include_accumulated_states,
     }
+    # Older registered runs predate this explicit default-true field. Require it
+    # for the removal arm, while accepting the equivalent omitted default in
+    # already completed artifacts.
+    if not spec.include_research_guidelines or "include_research_guidelines" in policy:
+        expected_policy["include_research_guidelines"] = spec.include_research_guidelines
+    if spec.use_selected_base_persona:
+        expected_policy["persona_source"] = (
+            "selected_retrieval_profile_before_goal_adaptation_and_history"
+        )
     if policy != expected_policy:
         errors.append("case ablation_context does not match the registered variant")
     if not spec.include_persona and case.get("persona"):
@@ -43,6 +55,9 @@ def validate_ablation_run(record):
         errors.append("removed metaphor remains in the transformed case")
     if not spec.include_prior_dialogue and case.get("persona_history"):
         errors.append("removed prior dialogue remains in the transformed case")
+    if spec.use_selected_base_persona and case.get("persona_profile", {}).get(
+            "sample_adaptation"):
+        errors.append("goal-adapted persona remains in the base-persona condition")
     results = record.get("results", [])
     conditions = {result.get("condition") for result in results}
     active_conditions = set(record.get("active_conditions", CONDITIONS))
@@ -83,19 +98,33 @@ def validate_ablation_run(record):
             errors.append(f"{prefix}: final branches do not share one prefix")
         for branch in branches:
             direction = branch.get("direction")
-            if "manifestation_candidate_response" not in branch:
+            if (not final_response_only and
+                    "manifestation_candidate_response" not in branch):
                 errors.append(f"{prefix}:{direction}: missing separated candidate response")
-            if "manifestation_research_analysis" not in branch:
+            if (not final_response_only and
+                    "manifestation_research_analysis" not in branch):
                 errors.append(f"{prefix}:{direction}: missing separated research analysis")
         histories = [result.get("shared_history", {}).get("full_messages", [])]
         histories.extend(branch.get("context", {}).get("full_messages", [])
                          for branch in branches)
-        histories.extend(branch.get("manifestation_context", {}).get("full_messages", [])
-                         for branch in branches)
+        if not final_response_only:
+            histories.extend(
+                branch.get("manifestation_context", {}).get("full_messages", [])
+                for branch in branches
+            )
         for messages in histories:
             systems = [message.get("content") for message in messages
                        if message.get("role") == "system"]
-            if systems != [expected_system_prompt]:
+            expected_systems = (
+                [expected_system_prompt] if spec.include_target_system_prompt else []
+            )
+            if systems != expected_systems:
                 errors.append(f"{prefix}: target system prompt changed")
                 break
+            if not spec.include_research_guidelines:
+                guidelines = RESEARCH_GUIDELINES_PATH.read_text(encoding="utf-8")
+                if any(guidelines in str(message.get("content", ""))
+                       for message in messages):
+                    errors.append(f"{prefix}: removed Markdown guidelines remain")
+                    break
     return errors

@@ -57,3 +57,38 @@ def test_discover_rows_retains_pre_target_prune(monkeypatch, tmp_path):
     assert scored["target_call_available"] is True
     assert pruned["target_call_available"] is False
     assert pruned["unscored_reason"] == "attack_exhausted_before_target_response"
+
+
+def test_uploaded_exact_prompt_label_is_reused(monkeypatch, tmp_path):
+    prompt = "same exact target prompt"
+    prompt_hash = module.hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    labels = tmp_path / "labels.jsonl"
+    labels.write_text(
+        json.dumps({
+            "schema_version": "red-persona-cares-exact-prompt-harm-level-v1",
+            "prompt_sha256": prompt_hash,
+            "prompt": prompt,
+            "harmful_level": 2,
+            "annotation": {"harmful_level": 2},
+        }) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        module,
+        "evaluation_requests",
+        lambda rows, model: {
+            "cares_input_risk": [
+                {"custom_id": f"risk-{prompt_hash[:32]}"},
+                {"custom_id": "risk-not-reused"},
+            ],
+            "cares_response": [],
+            "jmir_response": [],
+        },
+    )
+
+    requests, reused = module.evaluation_requests_with_label_reuse(
+        [{"prompt_sha256": prompt_hash}], "gpt-4o-mini", labels
+    )
+
+    assert set(reused) == {prompt_hash}
+    assert requests["cares_input_risk"] == [{"custom_id": "risk-not-reused"}]

@@ -42,13 +42,53 @@ BASELINE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = BASELINE_DIR.parent
 DEFAULT_INPUT_ROOT = BASELINE_DIR / "outputs"
 DEFAULT_OUTPUT_DIR = BASELINE_DIR / "evaluations" / "cares_jmir_official500"
-DEFAULT_COHORT = REPO_ROOT / "data" / "red_persona_official_500.jsonl"
+LABEL_BUNDLE = REPO_ROOT / "persona_redteam" / "ablation" / "cares_jmir_rq"
+DEFAULT_COHORT = LABEL_BUNDLE / "OFFICIAL500_PUBLIC_LABELED.jsonl"
+DEFAULT_HARM_LABELS = LABEL_BUNDLE / "CARES_HARM_LEVEL_LABELS.jsonl"
 DEFAULT_EVALUATOR_MODEL = "gpt-4o-mini"
 EXPECTED_CASES = 500
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def load_harm_labels(path: Path) -> dict[str, dict[str, Any]]:
+    labels: dict[str, dict[str, Any]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        prompt = str(row["prompt"])
+        prompt_hash = str(row["prompt_sha256"])
+        if hashlib.sha256(prompt.encode("utf-8")).hexdigest() != prompt_hash:
+            raise ValueError(f"{path}: prompt SHA-256 mismatch")
+        if prompt_hash in labels:
+            raise ValueError(f"{path}: duplicate prompt SHA-256 {prompt_hash}")
+        if row.get("harmful_level") not in {0, 1, 2, 3}:
+            raise ValueError(f"{path}: invalid CARES h-level")
+        labels[prompt_hash] = row
+    return labels
+
+
+def evaluation_requests_with_label_reuse(
+    rows: list[dict[str, Any]], evaluator_model: str, harm_labels: Path
+) -> tuple[dict[str, list[dict]], dict[str, dict[str, Any]]]:
+    requests = evaluation_requests(rows, evaluator_model)
+    available = load_harm_labels(harm_labels)
+    required_hashes = {row["prompt_sha256"] for row in rows}
+    reused = {
+        prompt_hash: available[prompt_hash]
+        for prompt_hash in required_hashes
+        if prompt_hash in available
+    }
+    reused_request_ids = {f"risk-{prompt_hash[:32]}" for prompt_hash in reused}
+    requests["cares_input_risk"] = [
+        request
+        for request in requests["cares_input_risk"]
+        if request["custom_id"] not in reused_request_ids
+    ]
+    return requests, reused
 
 
 def discover_rows(input_root: Path, cohort: Path) -> list[dict[str, Any]]:
@@ -214,10 +254,19 @@ def prepare(
     output_dir: Path,
     api_mode: str,
     evaluator_model: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, list[dict]], dict]:
+    harm_labels: Path,
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, list[dict]],
+    dict[str, Any],
+    dict[str, dict[str, Any]],
+]:
     all_rows = discover_rows(input_root, cohort)
     scorable = [row for row in all_rows if row["target_call_available"]]
-    requests = evaluation_requests(scorable, evaluator_model)
+    requests, reused_harm_labels = evaluation_requests_with_label_reuse(
+        scorable, evaluator_model, harm_labels
+    )
     preflight = {
         "version": "external-baseline-cares-jmir-preflight-v1",
         "created_at": utc_now(),
@@ -227,6 +276,8 @@ def prepare(
         "rows_total": len(all_rows),
         "rows_scorable": len(scorable),
         "no_target_response_rows": len(all_rows) - len(scorable),
+        "public_labeled_cohort": str(cohort.resolve()),
+        "public_exact_prompt_harm_labels": str(harm_labels.resolve()),
         "rows_by_baseline": dict(sorted(Counter(
             row["baseline_id"] for row in all_rows
         ).items())),
@@ -234,6 +285,8 @@ def prepare(
             row["crisis_label"] for row in all_rows
         ).items())),
         "unique_final_prompts": len({row["prompt_sha256"] for row in scorable}),
+        "reused_exact_prompt_harm_labels": len(reused_harm_labels),
+        "new_exact_prompt_harm_labels_required": len(requests["cares_input_risk"]),
         "requests_and_cost": estimate_costs(requests, api_mode),
         "protocol": protocol_metadata(api_mode, evaluator_model),
         "label_policy": {
@@ -241,7 +294,8 @@ def prepare(
                 "reuse official case-level label from the fixed 500 cohort"
             ),
             "cares_h0_h3": (
-                "annotate exact final target prompt, response-blind and hash-deduplicated"
+                "reuse uploaded exact-prompt label by SHA-256; annotate only missing "
+                "final target prompts response-blind and hash-deduplicated"
             ),
             "legacy_case_h_levels_reused": False,
             "reason": (
@@ -259,7 +313,7 @@ def prepare(
     output_dir.mkdir(parents=True, exist_ok=True)
     atomic_json(output_dir / "evaluation_rows.json", all_rows)
     atomic_json(output_dir / "preflight.json", preflight)
-    return all_rows, scorable, requests, preflight
+    return all_rows, scorable, requests, preflight, reused_harm_labels
 
 
 def execute(
@@ -273,6 +327,8 @@ def execute(
     max_budget_usd: float | None,
     poll_seconds: int,
     evaluator_model: str,
+    reused_harm_labels: dict[str, dict[str, Any]],
+    harm_labels: Path,
 ) -> dict[str, Any]:
     client = make_client(
         api_mode,
@@ -285,6 +341,16 @@ def execute(
         name: client.run(name, requests[name])
         for name in ("cares_input_risk", "cares_response", "jmir_response")
     }
+    for prompt_hash, label in reused_harm_labels.items():
+        raw["cares_input_risk"][f"risk-{prompt_hash[:32]}"] = {
+            "text": json.dumps(label["annotation"], ensure_ascii=False),
+            "model": "reused-public-exact-prompt-label",
+            "finish_reason": "reused",
+            "usage": None,
+            "request_id": None,
+            "revision": label.get("schema_version"),
+            "system_fingerprint": None,
+        }
     repairs = cares_repair_requests(
         scorable, raw["cares_response"], evaluator_model
     )
@@ -318,6 +384,11 @@ def execute(
         "api_mode": api_mode,
         "cost_usd": client.actual_cost(),
         "protocol": protocol_metadata(api_mode, evaluator_model),
+        "label_reuse": {
+            "source": str(harm_labels.resolve()),
+            "reused_exact_prompt_harm_labels": len(reused_harm_labels),
+            "new_exact_prompt_harm_labels": len(requests["cares_input_risk"]),
+        },
         "summary": summarize(scored, all_rows),
         "rows": scored,
     }
@@ -329,6 +400,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-root", type=Path, default=DEFAULT_INPUT_ROOT)
     parser.add_argument("--cohort", type=Path, default=DEFAULT_COHORT)
+    parser.add_argument("--harm-labels", type=Path, default=DEFAULT_HARM_LABELS)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--api-mode", choices=("standard", "batch"), default="batch")
     parser.add_argument("--evaluator-model", default=DEFAULT_EVALUATOR_MODEL)
@@ -337,12 +409,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--poll-seconds", type=int, default=20)
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args(argv)
-    all_rows, scorable, requests, preflight = prepare(
+    all_rows, scorable, requests, preflight, reused_harm_labels = prepare(
         input_root=args.input_root,
         cohort=args.cohort,
         output_dir=args.output_dir,
         api_mode=args.api_mode,
         evaluator_model=args.evaluator_model,
+        harm_labels=args.harm_labels,
     )
     if not args.execute:
         print(json.dumps(preflight, ensure_ascii=False, indent=2))
@@ -357,6 +430,8 @@ def main(argv: list[str] | None = None) -> int:
         max_budget_usd=args.max_budget_usd,
         poll_seconds=args.poll_seconds,
         evaluator_model=args.evaluator_model,
+        reused_harm_labels=reused_harm_labels,
+        harm_labels=args.harm_labels,
     )
     print(json.dumps({
         "status": result["status"],

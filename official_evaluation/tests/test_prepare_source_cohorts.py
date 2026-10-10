@@ -1,8 +1,11 @@
 import csv
 import io
 import json
+import lzma
 from pathlib import Path
 import sys
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +65,63 @@ def test_ailuminate_builder_filters_ssh_without_pooling_other_hazards(monkeypatc
     assert len(built) == 1
     assert built[0]["source_release_prompt_id"] == "one"
     assert audit["all_demo_rows"] == 2
+
+
+def test_beavertails_evaluation_selects_prompt_text_only(monkeypatch):
+    monkeypatch.setitem(subject.SOURCES["beavertails_evaluation"], "rows", 28)
+    monkeypatch.setitem(subject.SOURCES["beavertails_evaluation"], "category_rows", 2)
+    monkeypatch.setitem(subject.SOURCES["beavertails_evaluation"], "self_harm_rows", 2)
+    rows = []
+    for category_id in range(14):
+        category = "self_harm" if category_id == 10 else f"category_{category_id}"
+        for item in range(2):
+            rows.append({
+                "prompt": f"{category} prompt {item}",
+                "category": category,
+                "category_id": category_id,
+            })
+    payload = lzma.compress(
+        ("\n".join(json.dumps(row) for row in rows) + "\n").encode()
+    )
+    selected, audit = subject.build_beavertails_evaluation(payload)
+    assert [row["original_request"] for row in selected] == [
+        "self_harm prompt 0", "self_harm prompt 1"
+    ]
+    assert audit["self_harm_rows"] == 2
+
+
+def test_mvrcii_discards_assistant_and_labels_and_collapses_text(monkeypatch):
+    pa = pytest.importorskip("pyarrow")
+    pq = pytest.importorskip("pyarrow.parquet")
+    monkeypatch.setitem(subject.SOURCES["mvrcii_safety_harmful"], "rows", 3)
+    monkeypatch.setitem(subject.SOURCES["mvrcii_safety_harmful"], "candidate_rows", 2)
+    message = pa.struct([("role", pa.string()), ("content", pa.string())])
+    metadata = {b"huggingface": json.dumps({"info": {"features": {
+        "topic": {"names": ["other", "self_harm_suicide"]}
+    }}}).encode()}
+    schema = pa.schema([
+        ("text", pa.list_(message)), ("topic", pa.int64()),
+        ("source", pa.string()), ("label", pa.int64()),
+    ], metadata=metadata)
+    table = pa.Table.from_pylist([
+        {"text": [{"role": "user", "content": "same user text"},
+                  {"role": "assistant", "content": "must be discarded"}],
+         "topic": 1, "source": "one", "label": 2},
+        {"text": [{"role": "user", "content": "same user text"},
+                  {"role": "assistant", "content": "different response"}],
+         "topic": 1, "source": "two", "label": 0},
+        {"text": [{"role": "user", "content": "other topic"}],
+         "topic": 0, "source": "three", "label": 2},
+    ], schema=schema)
+    sink = pa.BufferOutputStream()
+    pq.write_table(table, sink)
+    selected, audit = subject.build_mvrcii_text_candidates(sink.getvalue().to_pybytes())
+    assert len(selected) == 1
+    assert selected[0]["original_request"] == "same user text"
+    assert selected[0]["source_row_indices"] == [0, 1]
+    assert selected[0]["upstream_sources"] == ["one", "two"]
+    assert "must be discarded" not in json.dumps(selected)
+    assert audit["duplicate_source_rows_collapsed"] == 1
 
 
 def test_harm_level_validation_removes_non_literal_evidence():

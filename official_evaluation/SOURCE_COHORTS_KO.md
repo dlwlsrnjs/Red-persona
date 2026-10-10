@@ -1,4 +1,4 @@
-# JMIR 2,046 전체 선별 및 AILuminate SSH 외부 검증
+# 텍스트 후보 수집: JMIR와 세 독립 외부 세트
 
 ## 고정된 실험 모집단
 
@@ -15,10 +15,17 @@ AILuminate v1.0 Demo의 `Suicide & Self-Harm (ssh)` 100개는 JMIR와 합쳐 하
 계산하지 않는다. 데이터 출처와 난이도가 다른 **독립 외부 검증 세트**로 별도 표에 보고한다.
 Demo 세트에 적용한 결과를 MLCommons의 공식 AILuminate 점수라고 부르지 않는다.
 
+BeaverTails-Evaluation에서는 공식 prompt-only `self_harm` 범주 50개를 보존한다.
+`mvrcii/safety-harmful`에서는 제공된 `self_harm_suicide` 인덱스로 89행을 찾되, assistant
+응답과 upstream 라벨은 모두 버리고 사용자 텍스트만 중복 제거한 71개를 보존한다. 이
+단계에서는 어느 문장이 실제 요청인지, 얼마나 유해한지 아직 판정하지 않는다.
+
 | 세트 | 행 수 | 용도 |
 |---|---:|---|
-| JMIR 공개 test | 2,046 | CARES Level 0–3 전수 선별 후 Level 1/2 후보 구성 |
+| JMIR 공개 test | 2,046 | 요청성 판정 후 CARES Level 0–3 후보 구성 |
 | AILuminate v1.0 Demo SSH | 100 | 독립적인 self-harm 외부 검증 |
+| BeaverTails-Evaluation Self-Harm | 50 | 공식 prompt-only 외부 후보 |
+| mvrcii safety-harmful 텍스트 후보 | 71 | 89행에서 assistant·라벨 제거 및 텍스트 중복 제거 |
 | 기존 RED-Persona 공식 cohort | 500 | 과거 결과 비교만; 새 선별에는 미사용 |
 
 ## 재현 방법
@@ -36,15 +43,25 @@ python official_evaluation/prepare_source_cohorts.py --download
 python official_evaluation/prepare_source_cohorts.py \
   --jmir-inputs /path/to/sampled_dataset_n_2046_nPerD168_seed0.json \
   --jmir-labels /path/to/gpt-4o-mini-labeled-sampled_dataset_n_2046_nPerD168_seed0-merged-labels.json \
-  --ailuminate-csv /path/to/airr_official_1.0_demo_en_us_prompt_set_release.csv
+  --ailuminate-csv /path/to/airr_official_1.0_demo_en_us_prompt_set_release.csv \
+  --beavertails-evaluation /path/to/test.jsonl.xz \
+  --mvrcii-safety-harmful /path/to/train.parquet
 ```
 
 생성 위치는 `official_evaluation/work/source_cohorts/`다.
 
 - `jmir_2046_screening.jsonl`: JMIR 2,046개 전부
 - `ailuminate_v1_demo_ssh_100.jsonl`: AILuminate SSH 100개
+- `beavertails_evaluation_self_harm_50.jsonl`: BeaverTails-Evaluation 50개
+- `mvrcii_safety_harmful_text_candidates_71.jsonl`: mvrcii의 고유 사용자 텍스트 71개
 - `all_screening_2146.jsonl`: 라벨링 작업 편의를 위한 연결 파일. 성능 집계에는 합쳐 쓰지 않음
+- `all_text_candidates_2267.jsonl`: 모든 소스의 **출처+텍스트 전용** 수집 파일
 - `manifest.json`: 원본 URL, 체크섬, 행 수, 중복 및 선택 정책 감사 기록
+
+`all_text_candidates_2267.jsonl`의 기본 필드는 `candidate_id`, `source`,
+`source_row_ids`, `text`, `text_sha256`이다. mvrcii 행에는 출처 계보를 잃지 않도록
+`upstream_sources`만 추가한다. upstream assistant 응답이나
+harmful/refusal/compliance/subtopic 라벨은 넣지 않는다.
 
 ## 중요한 식별자 규칙
 
@@ -52,11 +69,15 @@ JMIR의 `dataset_id`는 2,046행에서 고유하지 않으므로 join key로 사
 `source_row_index`를 사례 식별자로 사용하고, 입력·라벨 파일은 `inputs`와 `dataset_id`가
 같은 순서로 정확히 정렬되어 있는지 확인한다. 동일 문장 중복도 임의로 제거하지 않는다.
 
-## 새 CARES Level 1/2 선별과 보고
+## 판정 순서
 
-harm level은 모델 응답, 공격 방법, 기존 결과를 전혀 보여주지 않고 사용자 요청만으로
-라벨링한다. 중복 문장은 비용 절감을 위해 한 번 판정해 동일 판정을 전파할 수 있지만 원본
-행 수와 분모는 유지한다.
+1. 먼저 출처와 텍스트만 수집한다.
+2. 다음 단계에서 텍스트만 보고 요청/비요청을 판정한다.
+3. 요청으로 판정된 텍스트에만 CARES Level 0–3을 별도로 판정한다.
+4. 모델 응답, 공격 방법, 기존 결과, upstream 안전 라벨은 두 판정에서 모두 숨긴다.
+
+중복 문장은 비용 절감을 위해 한 번 판정하고 동일 판정을 원본 행에 전파할 수 있지만,
+공식 데이터셋의 전체 결과를 보고할 때는 각 데이터셋의 원래 분모도 함께 보존한다.
 
 ## 원문 직접 점검 결과
 
@@ -89,11 +110,17 @@ ground truth가 아니다. 최종 선별은 응답과 기존 성능을 숨긴 du
 - AILuminate SSH 100개도 이름만 보고 전부 Level 2라고 가정하지 않고 같은 response-blind 절차로
   라벨링한다.
 
+BeaverTails-Evaluation 50개와 mvrcii 71개도 source tag만으로 Level 2라고 가정하지 않는다.
+mvrcii에서 89행을 직접 점검했을 때 ransomware·산불·성범죄·동물 위해 등 다른 주제의
+텍스트가 섞여 있었으므로, source tag는 후보를 찾는 데만 사용한다.
+
 그 다음 단계에서 새로 선별된 CARES Level 1/2에만 pathology route와 persona를 연결한다. 이렇게 해야
-2,146개 전부에 불필요한 persona/API 작업을 하지 않는다.
+2,267개 전부에 불필요한 persona/API 작업을 하지 않는다.
 
 ## 공식 출처
 
 - JMIR 공개 데이터 저장소: <https://github.com/ellisalicante/LLMs-Mental-Health-Crisis>
 - AILuminate v1.0 Demo CSV: <https://github.com/mlcommons/ailuminate/blob/main/airr_official_1.0_demo_en_us_prompt_set_release.csv>
 - AILuminate 설명과 라이선스: <https://github.com/mlcommons/ailuminate/blob/main/README.md>
+- BeaverTails-Evaluation: <https://huggingface.co/datasets/PKU-Alignment/BeaverTails-Evaluation>
+- mvrcii safety-harmful: <https://huggingface.co/datasets/mvrcii/safety-harmful>

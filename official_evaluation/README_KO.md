@@ -5,7 +5,8 @@
 실행할 수 있고, 여러 작업자는 `--num-shards`와 `--shard-index`로 파일을 나눠 맡는다.
 
 새 데이터 선별은 기존 공식 500개가 아니라 **JMIR 원본 2,046개 전체**에서 시작한다.
-AILuminate v1.0 Demo의 SSH 100개는 별도 외부 검증으로 유지한다. 원본 준비와 정확한
+AILuminate SSH 100, BeaverTails-Evaluation Self-Harm 50, mvrcii 사용자 텍스트 후보
+71개는 서로 분리된 외부 세트로 유지한다. 원본 준비와 정확한
 분리 원칙은 `SOURCE_COHORTS_KO.md`와 `prepare_source_cohorts.py`를 따른다.
 JMIR의 H1/H2는 사람 평가자 ID이므로 위험도라는 뜻으로 쓰지 않는다. 아래 Level 1/2는
 모두 이 실험에서 새로 부여한 **CARES input-risk level**이다.
@@ -35,8 +36,8 @@ GPT judge 네 개 하위 판정은 감사 가능한 원자료로 함께 저장�
 
 | 파일 | 역할 |
 |---|---|
-| `prepare_source_cohorts.py` | JMIR 2,046 전체와 AILuminate SSH 100의 원본·체크섬 검증 및 선별 입력 생성 |
-| `annotate_harm_levels.py` | 2,146행의 response-blind CARES Level 0–3 Batch 판정 및 Level 1/2 분리 |
+| `prepare_source_cohorts.py` | 네 소스의 원본·체크섬 검증과 출처+텍스트 전용 2,267개 후보 생성 |
+| `annotate_harm_levels.py` | 요청으로 확인된 텍스트의 response-blind CARES Level 0–3 Batch 판정 |
 | `prepare_external500.py` | 완성된 9×2×500 외부 베이스라인을 공통 JSONL로 변환 |
 | `evaluate_harmbench.py` | 공식 HarmBench 13B classifier 실행, 재시작·샤딩 지원 |
 | `evaluate_cares.py` | 공식 CARES prompt 실행 또는 기존 A/C/R 판정 재사용 |
@@ -81,23 +82,19 @@ python official_evaluation/evaluate_cares.py \
 Batch는 OpenAI 서비스의 Batch API이며 Slurm과 무관하다. 중단 시 같은 `--work-dir`로
 재실행하면 저장된 Batch ID를 다시 조회한다.
 
-## JMIR 2,046 + AILuminate SSH 100 선별
+## 텍스트 후보 수집과 이후 판정
 
-API에 올리지 않고 요청 파일만 먼저 검증하려면 다음처럼 실행한다.
+먼저 API를 호출하지 않고 네 소스에서 출처와 텍스트만 수집한다.
 
 ```bash
-python official_evaluation/annotate_harm_levels.py \
-  --input official_evaluation/work/source_cohorts/all_screening_2146.jsonl \
-  --output-dir official_evaluation/work/harm_levels \
-  --work-dir official_evaluation/work/harm_level_batch \
-  --prepare-only official_evaluation/work/harm_level_requests
+python official_evaluation/prepare_source_cohorts.py --download
 ```
 
-실제 실행에서는 `--prepare-only`만 제거한다. 동일 요청 22개는 한 번만 판정해 원본 행에
-전파하므로 각 독립 판정 pass는 2,124건이다. primary/secondary가 다른 경우만 세 번째
-adjudication Batch에 들어간다. 최종 `selected_cares_level1.jsonl`과
-`selected_cares_level2.jsonl`은 분리되며,
-JMIR와 AILuminate 성능도 절대로 합산하지 않는다.
+`all_text_candidates_2267.jsonl`에는 출처, 원본 행 위치, 사용자 텍스트, 해시만 있다.
+assistant 응답과 upstream 안전/거부/subtopic 라벨은 없다. 다음 실험은 두 개의 독립 Batch로
+나눈다. 첫 Batch는 요청/비요청만 판정한다. 요청으로 확인된 텍스트만 두 번째
+`annotate_harm_levels.py` Batch에서 CARES Level 0–3으로 판정한다. 현재 단계에서는 두
+Batch 모두 제출하지 않는다. JMIR와 세 외부 세트의 성능은 절대로 합산하지 않는다.
 
 ```bash
 export OPENAI_API_KEY='...'
@@ -207,8 +204,8 @@ ASR을 주표로 사용하고, `@k`는 각 방법의 호출 예산과 함께 별
   `mental_health_behavior_v1`으로 명시적 unsafe behavior에 결정론적으로 변환한다.
   따라서 표기명은 `HarmBench-classifier ASR (adapted behaviors)`가 정확하다.
 - CARES prompt는 공식 원문을 그대로 보존하고 `Reject` 출력만 `Refuse`로 정규화한다.
-- 이 고정 `h=2` 규칙은 **기존 PCSA 외부-baseline 비교 입력**에만 적용한다. 새 JMIR
-  2,046/AILuminate 100 선별에는 새로 판정한 CARES input-risk level을 사용한다.
+- 이 고정 `h=2` 규칙은 **기존 PCSA 외부-baseline 비교 입력**에만 적용한다. 새 텍스트
+  후보는 요청 여부를 먼저 확인한 뒤 새로 판정한 CARES input-risk level을 사용한다.
 
 참고 문헌: [HarmBench 공식 저장소](https://github.com/centerforaisafety/HarmBench),
 [HarmBench 논문](https://proceedings.mlr.press/v235/mazeika24a.html),

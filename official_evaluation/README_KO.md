@@ -37,6 +37,8 @@ GPT judge 네 개 하위 판정은 감사 가능한 원자료로 함께 저장�
 | 파일 | 역할 |
 |---|---|
 | `prepare_source_cohorts.py` | 네 소스의 원본·체크섬 검증과 출처+텍스트 전용 2,267개 후보 생성 |
+| `prepare_research_cohort.py` | 검토된 JMIR 256개와 외부 221개를 출처 보존한 477개 후보로 병합 |
+| `classify_research_cohort.py` | GPT-4o-mini Batch 2단계(요청/분야 → CARES 위해도) 최종 선별 |
 | `annotate_harm_levels.py` | 요청으로 확인된 텍스트의 response-blind CARES Level 0–3 Batch 판정 |
 | `prepare_external500.py` | 완성된 9×2×500 외부 베이스라인을 공통 JSONL로 변환 |
 | `evaluate_harmbench.py` | 공식 HarmBench 13B classifier 실행, 재시작·샤딩 지원 |
@@ -107,6 +109,36 @@ python official_evaluation/evaluate_cares.py \
 
 논문 실험에서는 신규 API 판정을 전부 `--mode batch`로 실행한다. `sync` 모드는 개발
 디버깅용일 뿐 결과 생성에는 사용하지 않는다.
+
+## 최종 연구 코호트: JMIR 256 + 외부 221
+
+검토된 JMIR 256개 원문은
+`persona_redteam/data/harmful_request256/official_harmful_requests_256.jsonl`에 보존한다.
+여기에 AILuminate SSH 100개, BeaverTails-Evaluation Self-Harm 50개, mvrcii 사용자
+텍스트 71개를 더한다. 현재 자료에서는 정규화 중복이 없어 477개가 그대로 남는다.
+
+```bash
+python official_evaluation/prepare_research_cohort.py \
+  --jmir-256 persona_redteam/data/harmful_request256/official_harmful_requests_256.jsonl \
+  --external-candidates official_evaluation/work/source_cohorts/all_text_candidates_2267.jsonl \
+  --output-dir official_evaluation/work/research_cohort
+
+python official_evaluation/classify_research_cohort.py \
+  --input official_evaluation/work/research_cohort/research_candidates_477.jsonl \
+  --output-dir persona_redteam/data/research_harmful_requests \
+  --work-dir official_evaluation/work/research_cohort/batch \
+  --model gpt-4o-mini-2024-07-18
+```
+
+두 판정은 순차 실행한다. 1단계에서는 실제 assistant 요청인지와 정신건강 안전 연구
+범위인지만 판정하며 위해도를 정하지 않는다. 2단계에서는 1단계를 통과한 텍스트만
+response-blind CARES Level 0–3으로 판정한다.
+
+최종 파일 `selected_cares_level1_level2.jsonl`에는 1단계를 통과하고 새 CARES Level 1
+또는 Level 2인 텍스트만 들어간다. Level 1과 Level 2 파일도 별도로 저장한다. 원문 출처,
+원본 행 ID, 텍스트, 해시는 유지하지만 Batch 판정 입력에는 `user_text`만 전달한다.
+upstream 라벨, 이전 GPT 판정, assistant 응답은 판정기에 전달하지 않는다. 전체 작업은
+OpenAI Batch 전용이며 저장된 Batch ID를 사용해 중단 후 같은 명령으로 재개한다.
 
 Figure 4 GPT judge도 Batch 전용이다. `conversation_history`에는 각 기법이 실제 타깃에
 보낸 대화 기록을 넣고, `response`는 현재 턴에서 분리하여 중복 삽입하지 않는다.

@@ -54,7 +54,7 @@ setsid env LLAMA_SERVE_GPU="${GPU_IDS[0]}" LLAMA_SERVE_PORT=8100 \
 SERVER_PIDS+=("$!")
 
 for ((index = 0; index < 6; index++)); do
-  port=$((8201 + index))
+  port=$((8000 + index))
   log="serve_logs/qwen-luna-llama-accel-${SLURM_JOB_ID:-manual}-${index}.log"
   setsid env QWEN_SERVE_GPU="${GPU_IDS[$((index + 1))]}" QWEN_SERVE_PORT="$port" \
     bash serve_models.sh qwen >"$log" 2>&1 &

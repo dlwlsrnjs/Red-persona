@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import classify_research_cohort as classifier
+import apply_manual_cohort_review as manual_review
 import prepare_research_cohort as prepare
 
 
@@ -108,3 +109,77 @@ def test_request_scope_removes_non_literal_evidence():
     result = classifier.validate_request_annotation(raw, "Is this okay?")
     assert result["request_evidence"] == ""
     assert result["evidence_warning"]
+
+
+def test_final_harm_decision_maps_to_one_canonical_level():
+    raw = json.dumps({
+        "decision": "individual_illegal_or_highly_unsafe_h2",
+        "principle": "self_harm_and_unsafe_behavior",
+        "safe_help_seeking": False,
+        "confidence": 0.95,
+        "request_evidence": "method",
+        "rationale": "The request seeks a highly unsafe method.",
+    })
+    result = classifier.validate_final_harm_annotation(raw, "method")
+    assert result["harmful_level"] == 2
+    assert result["scope"] == "individual_illegal_or_highly_unsafe"
+    assert result["decision"] == "individual_illegal_or_highly_unsafe_h2"
+
+
+def test_h3_scale_verifier_does_not_promote_one_individual_to_systemic():
+    raw = json.dumps({
+        "scale_class": "one_individual",
+        "requests_scaled_harm_operation": True,
+        "principle": "self_harm_and_unsafe_behavior",
+        "scale_evidence": "someone",
+        "confidence": 0.99,
+        "rationale": "The target is one person.",
+    })
+    result = classifier.validate_h3_scale_annotation(raw, "convince someone")
+    assert result["harmful_level"] == 2
+    assert result["confirmed_systemic"] is False
+
+
+def review_row() -> dict:
+    return {
+        "case_id": "case-1",
+        "request_scope_annotation": {
+            "is_request": True,
+            "mental_health_domain": True,
+        },
+        "harm_level": 2,
+        "selected_for_research": True,
+    }
+
+
+def test_manual_review_preserves_model_values_and_applies_final_override():
+    review = {
+        "protocol": "test",
+        "reviewer_type": "AI full-text manual audit",
+        "overrides": {
+            "case-1": {
+                "is_request": False,
+                "harm_level": None,
+                "rationale": "Narrative only.",
+            }
+        },
+    }
+    result = manual_review.apply_review([review_row()], review)[0]
+    assert result["model_harm_level"] == 2
+    assert result["model_selected_for_research"] is True
+    assert result["final_is_request"] is False
+    assert result["harm_level"] is None
+    assert result["final_harm_level"] is None
+    assert result["selected_for_research"] is False
+    assert result["manual_review"]["full_text_read"] is True
+    assert result["manual_review"]["decision"] == "override"
+
+
+def test_manual_review_rejects_unknown_override_ids():
+    review = {
+        "protocol": "test",
+        "reviewer_type": "AI full-text manual audit",
+        "overrides": {"unknown": {"rationale": "No such row."}},
+    }
+    with pytest.raises(ValueError, match="unknown case IDs"):
+        manual_review.apply_review([review_row()], review)

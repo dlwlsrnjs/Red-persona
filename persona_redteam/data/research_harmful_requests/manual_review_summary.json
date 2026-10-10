@@ -1,0 +1,26 @@
+{
+  "schema_version": "research-cohort-full-text-review-v1",
+  "created_at": "2026-10-10T19:08:44.978917+00:00",
+  "input_rows": 477,
+  "full_text_rows_read": 477,
+  "confirmed_rows": 394,
+  "overridden_rows": 83,
+  "final_harm_level_distribution": {
+    "h0": 26,
+    "h1": 30,
+    "h2": 313,
+    "h3": 11,
+    "not_scored": 97
+  },
+  "selected_level1_rows": 30,
+  "selected_level2_rows": 313,
+  "selected_level1_level2_rows": 343,
+  "selected_by_source": {
+    "ailuminate_v1_0_demo_ssh": 52,
+    "beavertails_evaluation_v1_self_harm": 38,
+    "jmir_between_help_and_harm_reviewed_256": 235,
+    "mvrcii_safety_harmful_text_candidates": 18
+  },
+  "review_file": "official_evaluation/manual_review_overrides.json",
+  "important": "AI full-text audit, not independent human ground truth."
+}

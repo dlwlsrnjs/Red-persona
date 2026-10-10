@@ -16,6 +16,7 @@ data/**
 !data/research_harmful_requests/
 !data/research_harmful_requests/*.jsonl
 !data/research_harmful_requests/*.json
+!data/research_harmful_requests/*.md
 
 # Python caches
 __pycache__/

@@ -2,8 +2,9 @@
 """Screen the merged cohort with two sequential GPT-4o-mini Batch stages.
 
 Stage 1 labels requestness and mental-health-domain relevance.  Stage 2 assigns
-CARES request harmfulness only to Stage-1 passing texts.  The script never uses
-synchronous completions and resumes from saved Batch IDs after interruption.
+CARES request harmfulness only to Stage-1 passing texts.  Provisional H3 cases
+receive boundary and scale checks so severity alone cannot become systemic harm.
+The script never uses synchronous completions and resumes from saved Batch IDs.
 """
 from __future__ import annotations
 
@@ -24,7 +25,9 @@ from common import atomic_json, atomic_jsonl, read_jsonl
 
 ROOT = Path(__file__).resolve().parent
 REQUEST_PROMPT = ROOT / "prompts/research_request_scope_classifier.txt"
-HARM_PROMPT = ROOT / "prompts/cares_harm_level_annotator.txt"
+HARM_PROMPT = ROOT / "prompts/cares_harm_level_final_classifier.txt"
+H3_REVIEW_PROMPT = ROOT / "prompts/cares_h3_boundary_adjudicator.txt"
+H3_SCALE_PROMPT = ROOT / "prompts/cares_h3_scale_verifier.txt"
 TERMINAL = {"completed", "failed", "expired", "cancelled"}
 REQUEST_TYPES = {
     "information_or_advice",
@@ -44,6 +47,21 @@ DOMAIN_TOPICS = {
     "unsafe_clinical_advice",
     "toxic_validation",
     "other_mental_health",
+}
+HARM_DECISIONS = {
+    "safe_or_supportive_h0": (0, "safe_or_supportive"),
+    "individual_ethical_h1": (1, "individual_ethical"),
+    "individual_illegal_or_highly_unsafe_h2": (
+        2, "individual_illegal_or_highly_unsafe"
+    ),
+    "systemic_h3": (3, "systemic"),
+}
+SCALE_CLASSES = {
+    "one_individual",
+    "small_bounded_group",
+    "public_or_many",
+    "institutional_program",
+    "unclear",
 }
 
 
@@ -110,6 +128,58 @@ def validate_request_annotation(text: str, request: str) -> dict[str, Any]:
     }
 
 
+def validate_final_harm_annotation(text: str, request: str) -> dict[str, Any]:
+    """Map one mutually exclusive model decision to a CARES level."""
+    value = parse_object(text)
+    decision = value.get("decision")
+    if decision not in HARM_DECISIONS:
+        raise ValueError("invalid harm decision")
+    level, scope = HARM_DECISIONS[decision]
+    canonical = {
+        "harmful_level": level,
+        "principle": value.get("principle"),
+        "scope": scope,
+        "safe_help_seeking": value.get("safe_help_seeking"),
+        "confidence": value.get("confidence"),
+        "request_evidence": value.get("request_evidence", ""),
+        "rationale": value.get("rationale"),
+    }
+    result = validate_harm_annotation(json.dumps(canonical), request)
+    result["decision"] = decision
+    result["protocol"] = "cares_input_risk_mutually_exclusive_v2"
+    return result
+
+
+def validate_h3_scale_annotation(text: str, request: str) -> dict[str, Any]:
+    """Derive H2/H3 from scale and requested operation without exposing H3 label."""
+    value = parse_object(text)
+    scale = value.get("scale_class")
+    if scale not in SCALE_CLASSES:
+        raise ValueError("invalid scale_class")
+    operation = value.get("requests_scaled_harm_operation")
+    if not isinstance(operation, bool):
+        raise ValueError("requests_scaled_harm_operation must be boolean")
+    confirmed = operation and scale in {"public_or_many", "institutional_program"}
+    level = 3 if confirmed else 2
+    canonical = {
+        "harmful_level": level,
+        "principle": value.get("principle"),
+        "scope": "systemic" if confirmed else "individual_illegal_or_highly_unsafe",
+        "safe_help_seeking": False,
+        "confidence": value.get("confidence"),
+        "request_evidence": value.get("scale_evidence", ""),
+        "rationale": value.get("rationale"),
+    }
+    result = validate_harm_annotation(json.dumps(canonical), request)
+    result.update({
+        "scale_class": scale,
+        "requests_scaled_harm_operation": operation,
+        "confirmed_systemic": confirmed,
+        "protocol": "cares_h3_scale_verification_v1",
+    })
+    return result
+
+
 def validate_rows(rows: list[dict[str, Any]]) -> dict[str, str]:
     unique: dict[str, str] = {}
     seen_ids: set[str] = set()
@@ -138,7 +208,14 @@ def custom_id(stage: str, digest: str) -> str:
 
 def make_request(stage: str, digest: str, request: str, model: str,
                  max_tokens: int) -> dict[str, Any]:
-    prompt = REQUEST_PROMPT if stage == "request" else HARM_PROMPT
+    if stage == "request":
+        prompt = REQUEST_PROMPT
+    elif stage == "h3_review":
+        prompt = H3_REVIEW_PROMPT
+    elif stage == "h3_scale":
+        prompt = H3_SCALE_PROMPT
+    else:
+        prompt = HARM_PROMPT
     return {
         "custom_id": custom_id(stage, digest),
         "method": "POST",
@@ -331,10 +408,36 @@ def main() -> None:
         if request_annotations[digest]["passes_stage_1"]
     }
     harm_annotations = annotate_stage(
-        client, "harm", harm_inputs, args.model, args.max_tokens,
+        client, "harm_v2", harm_inputs, args.model, args.max_tokens,
         args.validation_attempts, args.work_dir, args.poll_seconds,
-        validate_harm_annotation,
+        validate_final_harm_annotation,
     ) if harm_inputs else {}
+    h3_inputs = {
+        digest: request for digest, request in harm_inputs.items()
+        if harm_annotations[digest]["harmful_level"] == 3
+    }
+    h3_reviews = annotate_stage(
+        client, "h3_review", h3_inputs, args.model, args.max_tokens,
+        args.validation_attempts, args.work_dir, args.poll_seconds,
+        validate_final_harm_annotation,
+    ) if h3_inputs else {}
+    for digest, review in h3_reviews.items():
+        review["h3_boundary_review"] = True
+        review["pre_h3_review"] = harm_annotations[digest]
+        harm_annotations[digest] = review
+    h3_scale_inputs = {
+        digest: request for digest, request in h3_inputs.items()
+        if harm_annotations[digest]["harmful_level"] == 3
+    }
+    h3_scale_reviews = annotate_stage(
+        client, "h3_scale", h3_scale_inputs, args.model, args.max_tokens,
+        args.validation_attempts, args.work_dir, args.poll_seconds,
+        validate_h3_scale_annotation,
+    ) if h3_scale_inputs else {}
+    for digest, review in h3_scale_reviews.items():
+        review["h3_scale_verification"] = True
+        review["pre_h3_scale_verification"] = harm_annotations[digest]
+        harm_annotations[digest] = review
 
     annotated: list[dict[str, Any]] = []
     for row in rows:
@@ -375,13 +478,17 @@ def main() -> None:
         )
         row["level_status"] = "not_scored" if row["harm_level"] is None else f"h{row['harm_level']}"
     summary = {
-        "schema_version": "research-cohort-screening-v1",
+        "schema_version": "research-cohort-screening-v2",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "api_mode": "openai_batch_only",
         "model": args.model,
+        "harm_label_protocol": "cares_input_risk_mutually_exclusive_v2",
+        "h3_boundary_protocol": "boundary_adjudication_then_scale_verification_v1",
         "input_rows": len(rows),
         "unique_requests": len(unique),
         "stage1_request_and_domain_rows": len(harm_inputs),
+        "h3_boundary_reviewed_rows": len(h3_inputs),
+        "h3_scale_verified_rows": len(h3_scale_inputs),
         "selected_level1_rows": sum(row["selected_for_research"] and row["harm_level"] == 1 for row in annotated),
         "selected_level2_rows": sum(row["selected_for_research"] and row["harm_level"] == 2 for row in annotated),
         "selected_level1_level2_rows": sum(row["selected_for_research"] for row in annotated),

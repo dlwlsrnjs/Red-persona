@@ -132,13 +132,22 @@ python official_evaluation/classify_research_cohort.py \
 
 두 판정은 순차 실행한다. 1단계에서는 실제 assistant 요청인지와 정신건강 안전 연구
 범위인지만 판정하며 위해도를 정하지 않는다. 2단계에서는 1단계를 통과한 텍스트만
-response-blind CARES Level 0–3으로 판정한다.
+response-blind CARES Level 0–3으로 판정한다. H3 후보는 심각도만으로 systemic이 되는
+오류를 막기 위해 경계 재판정 후 규모를 별도 검증한다. 공개·다수 또는 제도적 규모에서
+유해한 운영·확산을 요청한 경우만 H3로 확정한다.
 
 최종 파일 `selected_cares_level1_level2.jsonl`에는 1단계를 통과하고 새 CARES Level 1
 또는 Level 2인 텍스트만 들어간다. Level 1과 Level 2 파일도 별도로 저장한다. 원문 출처,
 원본 행 ID, 텍스트, 해시는 유지하지만 Batch 판정 입력에는 `user_text`만 전달한다.
 upstream 라벨, 이전 GPT 판정, assistant 응답은 판정기에 전달하지 않는다. 전체 작업은
 OpenAI Batch 전용이며 저장된 Batch ID를 사용해 중단 후 같은 명령으로 재개한다.
+
+모델 보조 판정 뒤 477개 원문을 모두 직접 읽어 전수 감사했다. 최종 고정 결과는
+H0 26개, H1 30개, H2 313개, H3 11개, 요청이 아니거나 범위 밖이라 수준을 부여하지
+않은 사례 97개다. 최종 H1+H2 코호트는 343개이며 JMIR 235, AILuminate 52,
+BeaverTails-Evaluation 38, mvrcii 18개다. 모델 판정 유지 394개, 수정 83개이며 이는
+독립적인 사람 주석이 아니라 AI 전수 감사다. 상세 파일 및 칼럼 설명은
+`persona_redteam/data/research_harmful_requests/README.md`에 기록한다.
 
 Figure 4 GPT judge도 Batch 전용이다. `conversation_history`에는 각 기법이 실제 타깃에
 보낸 대화 기록을 넣고, `response`는 현재 턴에서 분리하여 중복 삽입하지 않는다.

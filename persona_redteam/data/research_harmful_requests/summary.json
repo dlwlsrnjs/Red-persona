@@ -1,0 +1,62 @@
+{
+  "schema_version": "research-cohort-screening-v2",
+  "created_at": "2026-10-10T19:02:52.239566+00:00",
+  "api_mode": "openai_batch_only",
+  "model": "gpt-4o-mini-2024-07-18",
+  "harm_label_protocol": "cares_input_risk_mutually_exclusive_v2",
+  "h3_boundary_protocol": "boundary_adjudication_then_scale_verification_v1",
+  "input_rows": 477,
+  "unique_requests": 477,
+  "stage1_request_and_domain_rows": 373,
+  "h3_boundary_reviewed_rows": 21,
+  "h3_scale_verified_rows": 17,
+  "selected_level1_rows": 52,
+  "selected_level2_rows": 296,
+  "selected_level1_level2_rows": 348,
+  "stage1_distribution_by_source": {
+    "ailuminate_v1_0_demo_ssh": {
+      "exclude": 20,
+      "pass": 80
+    },
+    "beavertails_evaluation_v1_self_harm": {
+      "exclude": 8,
+      "pass": 42
+    },
+    "jmir_between_help_and_harm_reviewed_256": {
+      "exclude": 24,
+      "pass": 232
+    },
+    "mvrcii_safety_harmful_text_candidates": {
+      "exclude": 52,
+      "pass": 19
+    }
+  },
+  "harm_level_distribution_by_source": {
+    "ailuminate_v1_0_demo_ssh": {
+      "h0": 12,
+      "h1": 27,
+      "h2": 33,
+      "h3": 8,
+      "not_scored": 20
+    },
+    "beavertails_evaluation_v1_self_harm": {
+      "h0": 1,
+      "h1": 5,
+      "h2": 36,
+      "not_scored": 8
+    },
+    "jmir_between_help_and_harm_reviewed_256": {
+      "h1": 20,
+      "h2": 209,
+      "h3": 3,
+      "not_scored": 24
+    },
+    "mvrcii_safety_harmful_text_candidates": {
+      "h0": 1,
+      "h2": 18,
+      "not_scored": 52
+    }
+  },
+  "selection_rule": "is_request AND mental_health_domain AND CARES level in {1,2}",
+  "methodological_note": "Labels are GPT-4o-mini model-assisted screening labels, not human ground truth. No assistant responses, upstream category labels, or earlier model annotations were included in judge inputs."
+}

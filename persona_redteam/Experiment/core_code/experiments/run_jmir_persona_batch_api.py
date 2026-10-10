@@ -900,14 +900,22 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
     final_path = args.campaign_dir / "ablation_no_research_final_branches.json"
     if final_path.exists():
         final = load_json(final_path, {})
-        if initial_repaired_case_ids:
+        repair_case_ids = {
+            case_id for case_id in initial_repaired_case_ids
+            if case_id not in final or not final[case_id].get("neutral") or any(
+                branch.get("context", {}).get("shared_history_sha256") !=
+                history_digest(states[case_id]["neutral"]["history"])
+                for branch in final[case_id].get("neutral", [])
+            )
+        }
+        if repair_case_ids:
             repair_cases = {
                 case_id: cases_by_id[case_id]
-                for case_id in initial_repaired_case_ids
+                for case_id in repair_case_ids
             }
             repair_states = {
                 case_id: states[case_id]
-                for case_id in initial_repaired_case_ids
+                for case_id in repair_case_ids
             }
             specs = planner_wave(
                 wave_dir / "ablation-no-research-final-initial-repair.json",
@@ -971,38 +979,39 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
     bind_planner_audits(final, researcher)
     atomic_json(final_path, final)
 
-    manifestation_specs = planner_wave(
-        wave_dir / "ablation-no-research-manifestation.json",
-        lambda: prepare_manifestation_wave(
-            cases_by_id, states, final, researcher,
-            LEGACY_FINAL_READOUT_PROTOCOL,
-        ),
-        researcher,
-    )
-    manifestation_outputs = run_with_budget_splitting(
-        client,
-        batch_label_prefix + "generation-ablation-no-research-manifestation", [
-            chat_request(spec["custom_id"], args.target_model, spec["messages"],
-                         max_tokens=1200, json_mode=True)
-            for spec in manifestation_specs
-        ], adaptive=adaptive_budget_split,
-    )
-    manifestation_outputs = repair_length_outputs(
-        batch_label_prefix +
-        "generation-ablation-no-research-manifestation-length",
-        manifestation_specs, manifestation_outputs, client, args.target_model,
-        token_limits=(1600, 2200),
-    )
-    manifestation_outputs = repair_manifestation_schema(
-        batch_label_prefix +
-        "generation-ablation-no-research-manifestation-schema",
-        manifestation_specs, manifestation_outputs, client, args.target_model,
-    )
-    apply_manifestation(
-        manifestation_specs, manifestation_outputs, cases_by_id, states, final,
-        first_by_case,
-    )
-    atomic_json(final_path, final)
+    if not args.final_response_only:
+        manifestation_specs = planner_wave(
+            wave_dir / "ablation-no-research-manifestation.json",
+            lambda: prepare_manifestation_wave(
+                cases_by_id, states, final, researcher,
+                LEGACY_FINAL_READOUT_PROTOCOL,
+            ),
+            researcher,
+        )
+        manifestation_outputs = run_with_budget_splitting(
+            client,
+            batch_label_prefix + "generation-ablation-no-research-manifestation", [
+                chat_request(spec["custom_id"], args.target_model, spec["messages"],
+                             max_tokens=1200, json_mode=True)
+                for spec in manifestation_specs
+            ], adaptive=adaptive_budget_split,
+        )
+        manifestation_outputs = repair_length_outputs(
+            batch_label_prefix +
+            "generation-ablation-no-research-manifestation-length",
+            manifestation_specs, manifestation_outputs, client, args.target_model,
+            token_limits=(1600, 2200),
+        )
+        manifestation_outputs = repair_manifestation_schema(
+            batch_label_prefix +
+            "generation-ablation-no-research-manifestation-schema",
+            manifestation_specs, manifestation_outputs, client, args.target_model,
+        )
+        apply_manifestation(
+            manifestation_specs, manifestation_outputs, cases_by_id, states, final,
+            first_by_case,
+        )
+        atomic_json(final_path, final)
 
     spec = get_spec("no_research_dialogue")
     for index, case in selected:
@@ -1021,12 +1030,17 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
             "active_conditions": ["neutral"],
             "active_final_directions": list(FINAL_DIRECTIONS),
             "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
+            "measurement_scope": (
+                "final_analysis_response_only" if args.final_response_only
+                else "final_analysis_plus_manifestation_followup"
+            ),
             "ablation": spec.metadata(),
             "case_index": index,
             "case": transformed_case,
             "results": final_results(
                 case, states, final, args.target_model,
                 LEGACY_FINAL_READOUT_PROTOCOL,
+                manifestation_included=not args.final_response_only,
             ),
         }
         contract_errors = validate_success_at_4_run_record(record)
@@ -1043,6 +1057,11 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
         "active_conditions": ["neutral"],
         "active_final_directions": list(FINAL_DIRECTIONS),
         "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
+        "final_response_only": args.final_response_only,
+        "measurement_scope": (
+            "final_analysis_response_only" if args.final_response_only
+            else "final_analysis_plus_manifestation_followup"
+        ),
         "api_mode": (
             f"{getattr(client, 'api_mode', 'unknown')}_reusing_initial_analysis"
         ),

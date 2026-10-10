@@ -1,0 +1,655 @@
+% 마스터 persona_redteam/docs/references_redpersona.bib 전체 사본 (Related Work 용)
+% RED-Persona 참고문헌 — 게재처는 2026-10-10 웹 조사로 확인한 값이다.
+% 저자 목록은 확인된 범위만 적었고 "and others"는 조사에서 전체 명단을 확인하지 못한 경우다.
+% note 필드의 VERIFY 항목은 투고 전 원문에서 다시 확인할 것.
+
+% ---------- 직접 비교 대상 ----------
+@inproceedings{Hung26,
+  author    = {Hung, Ki Sen and Yang, Xi and Liu, Chang and Li, Haoran and Chen, Kejiang and Fan, Changxuan and Kwok, Tsun On and Zhang, Weiming and Li, Xiaomeng and Song, Yangqiu},
+  title     = {Into the Gray Zone: Domain Contexts Can Blur {LLM} Safety Boundaries},
+  booktitle = {Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2026},
+  pages     = {24830--24867}
+}
+@inproceedings{Xu26,
+  author    = {Xu, Qingyang and Shen, Yaling and Fong, Stephanie and Wang, Zimu and Jiang, Yiwen and Zhao, Xiangyu and Liu, Jiahe and Xu, Zhongxing and Lee, Vincent and Ge, Zongyuan},
+  title     = {Do No Harm: Exposing Hidden Vulnerabilities of {LLM}s via Persona-based Client Simulation Attack in Psychological Counseling},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2026},
+  year      = {2026},
+  note      = {arXiv:2604.04842; venue taken from the arXiv Comments field ("EMNLP 2026 Findings"). VERIFY pages/ACL Anthology entry.}
+}
+
+% ---------- 멀티턴 / persona / 설득 ----------
+@inproceedings{Russinovich25,
+  author    = {Russinovich, Mark and Salem, Ahmed and Eldan, Ronen},
+  title     = {Great, Now Write an Article About That: The Crescendo Multi-Turn {LLM} Jailbreak Attack},
+  booktitle = {34th USENIX Security Symposium},
+  year      = {2025},
+  note      = {arXiv:2404.01833}
+}
+@inproceedings{Rahman25,
+  author    = {Rahman, Salman and others},
+  title     = {{X-Teaming}: Multi-Turn Jailbreaks and Defenses with Adaptive Multi-Agents},
+  booktitle = {Conference on Language Modeling (COLM)},
+  year      = {2025},
+  note      = {arXiv:2504.13203; COLM listing via UCLA bibliography page. VERIFY proceedings entry.}
+}
+@inproceedings{Weng25,
+  author    = {Weng, Zixuan and Jin, Xiaolong and Jia, Jinyuan and Zhang, Xiangyu},
+  title     = {Foot-In-The-Door: A Multi-turn Jailbreak for {LLM}s},
+  booktitle = {Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
+  year      = {2025},
+  pages     = {1939--1950},
+  doi       = {10.18653/v1/2025.emnlp-main.100}
+}
+@inproceedings{Ren25,
+  author    = {Ren, Qibing and Li, Hao and Liu, Dongrui and Xie, Zhanxu and Lu, Xiaoya and Qiao, Yu and Sha, Lei and Yan, Junchi and Ma, Lizhuang and Shao, Jing},
+  title     = {{LLM}s Know Their Vulnerabilities: Uncover Safety Gaps through Natural Distribution Shifts},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (ACL 2025, main conference)},
+  year      = {2025},
+  note      = {arXiv:2410.10700. v1 title: "Derail Yourself: Multi-turn LLM Jailbreak Attack through Self-discovered Clues" (ActorAttack). Venue from the arXiv Comments field. VERIFY Anthology pages.}
+}
+@inproceedings{Yang25,
+  author    = {Yang, Xikang and others},
+  title     = {Chain of Attack: Hide Your Intention through Multi-Turn Interrogation},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2025},
+  year      = {2025}
+}
+@inproceedings{Li24,
+  author    = {Li, Nathaniel and Han, Ziwen and Steneker, Ian and Primack, Willow and Goodside, Riley and Zhang, Hugh and Wang, Zifan and Menghini, Cristina and Yue, Summer},
+  title     = {{LLM} Defenses Are Not Robust to Multi-Turn Human Jailbreaks Yet},
+  booktitle = {NeurIPS 2024 Workshop on Red Teaming GenAI},
+  year      = {2024},
+  note      = {Workshop paper; arXiv:2408.15221}
+}
+@inproceedings{Zeng24,
+  author    = {Zeng, Yi and Lin, Hongpeng and Zhang, Jingwen and Yang, Diyi and Jia, Ruoxi and Shi, Weiyan},
+  title     = {How Johnny Can Persuade {LLM}s to Jailbreak Them: Rethinking Persuasion to Challenge {AI} Safety by Humanizing {LLM}s},
+  booktitle = {Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2024},
+  pages     = {14322--14350}
+}
+@inproceedings{Shah23,
+  author    = {Shah, Rusheb and Feuillade--Montixi, Quentin and Pour, Soroush and Tagade, Arush and Casper, Stephen and Rando, Javier},
+  title     = {Scalable and Transferable Black-Box Jailbreaks for Language Models via Persona Modulation},
+  booktitle = {NeurIPS 2023 Workshop on Socially Responsible Language Modelling Research (SoLaR)},
+  year      = {2023},
+  note      = {Workshop paper; arXiv:2311.03348}
+}
+@inproceedings{Deshpande23,
+  author    = {Deshpande, Ameet and Murahari, Vishvak and Rajpurohit, Tanmay and Kalyan, Ashwin and Narasimhan, Karthik},
+  title     = {Toxicity in {ChatGPT}: Analyzing Persona-assigned Language Models},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2023},
+  year      = {2023}
+}
+@inproceedings{Laban26,
+  author    = {Laban, Philippe and Hayashi, Hiroaki and Zhou, Yingbo and Neville, Jennifer},
+  title     = {{LLM}s Get Lost In Multi-Turn Conversation},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  note      = {arXiv:2505.06120; ICLR 2026 oral listing}
+}
+@inproceedings{Anil24,
+  author    = {Anil, Cem and others},
+  title     = {Many-shot Jailbreaking},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
+  year      = {2024},
+  pages     = {129696--129742}
+}
+@inproceedings{Mazeika24,
+  author    = {Mazeika, Mantas and Phan, Long and Yin, Xuwang and Zou, Andy and Wang, Zifan and Mu, Norman and Sakhaee, Elham and Li, Nathaniel and Basart, Steven and Li, Bo and Forsyth, David and Hendrycks, Dan},
+  title     = {{HarmBench}: A Standardized Evaluation Framework for Automated Red Teaming and Robust Refusal},
+  booktitle = {Proceedings of the 41st International Conference on Machine Learning},
+  year      = {2024},
+  pages     = {35181--35224}
+}
+@inproceedings{Chao24,
+  author    = {Chao, Patrick and Debenedetti, Edoardo and Robey, Alexander and Andriushchenko, Maksym and Croce, Francesco and Sehwag, Vikash and Dobriban, Edgar and Flammarion, Nicolas and Pappas, George J. and Tram{\`e}r, Florian and others},
+  title     = {{JailbreakBench}: An Open Robustness Benchmark for Jailbreaking Large Language Models},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track},
+  year      = {2024}
+}
+
+% ---------- 메커니즘 / 트레이드오프 ----------
+@inproceedings{Wei23,
+  author    = {Wei, Alexander and Haghtalab, Nika and Steinhardt, Jacob},
+  title     = {Jailbroken: How Does {LLM} Safety Training Fail?},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023)},
+  year      = {2023},
+  note      = {arXiv:2307.02483; oral}
+}
+@inproceedings{Sharma24,
+  author    = {Sharma, Mrinank and Tong, Meg and others},
+  title     = {Towards Understanding Sycophancy in Language Models},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  note      = {arXiv:2310.13548}
+}
+@inproceedings{Cheng26,
+  author    = {Cheng, Myra and Yu, Sunny and Lee, Cinoo and Khadpe, Pranav and Ibrahim, Lujain and Jurafsky, Dan},
+  title     = {{ELEPHANT}: Measuring and Understanding Social Sycophancy in {LLM}s},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  note      = {arXiv:2505.13995; the ICLR version differs from arXiv v1 (11 vs 8 models)}
+}
+@inproceedings{Qi25,
+  author    = {Qi, Xiangyu and Panda, Ashwinee and Lyu, Kaifeng and Ma, Xiao and Roy, Subhrajit and Beirami, Ahmad and Mittal, Prateek and Henderson, Peter},
+  title     = {Safety Alignment Should Be Made More Than Just a Few Tokens Deep},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  note      = {oral; arXiv:2406.05946}
+}
+@inproceedings{Arditi24,
+  author    = {Arditi, Andy and Obeso, Oscar and Syed, Aaquib and Paleka, Daniel and Panickssery, Nina and Gurnee, Wes and Nanda, Neel},
+  title     = {Refusal in Language Models Is Mediated by a Single Direction},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
+  year      = {2024},
+  note      = {arXiv:2406.11717}
+}
+@inproceedings{Rottger24,
+  author    = {R{\"o}ttger, Paul and Kirk, Hannah and Vidgen, Bertie and Attanasio, Giuseppe and Bianchi, Federico and Hovy, Dirk},
+  title     = {{XSTest}: A Test Suite for Identifying Exaggerated Safety Behaviours in Large Language Models},
+  booktitle = {Proceedings of NAACL 2024 (Volume 1: Long Papers)},
+  year      = {2024},
+  pages     = {5377--5400},
+  doi       = {10.18653/v1/2024.naacl-long.301}
+}
+@inproceedings{Cui25,
+  author    = {Cui, Justin and Chiang, Wei-Lin and Stoica, Ion and Hsieh, Cho-Jui},
+  title     = {{OR-Bench}: An Over-Refusal Benchmark for Large Language Models},
+  booktitle = {Proceedings of the 42nd International Conference on Machine Learning},
+  year      = {2025},
+  note      = {arXiv:2405.20947}
+}
+@inproceedings{Gao25,
+  author    = {Gao, Lang and Geng, Jiahui and Zhang, Xiangliang and Nakov, Preslav and Chen, Xiuying},
+  title     = {Shaping the Safety Boundaries: Understanding and Defending Against Jailbreaks in Large Language Models},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2025},
+  pages     = {25378--25398}
+}
+@misc{Yuan25,
+  author = {Yuan, Yuan and Sriskandarajah, Tina and Brakman, Anna-Luisa and Helyar, Alec and Beutel, Alex and Vallone, Andrea and Jain, Saachi},
+  title  = {From Hard Refusals to Safe-Completions: Toward Output-Centric Safety Training},
+  year   = {2025},
+  note   = {arXiv:2508.09224; OpenAI. Not peer reviewed.}
+}
+@inproceedings{Zheng23,
+  author    = {Zheng, Lianmin and others},
+  title     = {Judging {LLM}-as-a-Judge with {MT-Bench} and Chatbot Arena},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023), Datasets and Benchmarks Track},
+  year      = {2023}
+}
+@inproceedings{Panickssery24,
+  author    = {Panickssery, Arjun and Bowman, Samuel R. and Feng, Shi},
+  title     = {{LLM} Evaluators Recognize and Favor Their Own Generations},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
+  year      = {2024}
+}
+
+% ---------- 정신건강 LLM 안전 / 평가 / 시뮬레이션 ----------
+@article{Arnaiz26,
+  author  = {Arnaiz-Rodriguez, Adrian and others},
+  title   = {Between Help and Harm: An Evaluation of Mental Health Crisis Handling by {LLM}s},
+  journal = {JMIR Mental Health},
+  year    = {2026},
+  doi     = {10.2196/88435},
+  note    = {arXiv:2509.24857}
+}
+@inproceedings{Chen25,
+  author    = {Chen, Sijia and Li, Xiaomin and Zhang, Mengxue and Jiang, Eric Hanchen and Zeng, Qingcheng and Yu, Chen-Hsiang},
+  title     = {{CARES}: Comprehensive Evaluation of Safety and Adversarial Robustness in Medical {LLM}s},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS 2025), Datasets and Benchmarks Track},
+  year      = {2025},
+  note      = {arXiv:2505.11413}
+}
+@article{McBain25,
+  author  = {McBain, Ryan K. and others},
+  title   = {Evaluation of Alignment Between Large Language Models and Expert Clinicians in Suicide Risk Assessment},
+  journal = {Psychiatric Services},
+  year    = {2025},
+  doi     = {10.1176/appi.ps.20250086}
+}
+@inproceedings{Moore25,
+  author    = {Moore, Jared and Grabb, Declan and Agnew, William and Klyman, Kevin and Chancellor, Stevie and Ong, Desmond C. and Haber, Nick},
+  title     = {Expressing Stigma and Inappropriate Responses Prevents {LLM}s from Safely Replacing Mental Health Providers},
+  booktitle = {Proceedings of the 2025 ACM Conference on Fairness, Accountability, and Transparency (FAccT)},
+  year      = {2025},
+  doi       = {10.1145/3715275.3732039}
+}
+@inproceedings{Iftikhar25,
+  author    = {Iftikhar, Zainab and Xiao, Amy and Ransom, Sean and Huang, Jeff and Suresh, Harini},
+  title     = {How {LLM} Counselors Violate Ethical Standards in Mental Health Practice: A Practitioner-Informed Framework},
+  booktitle = {Proceedings of the AAAI/ACM Conference on AI, Ethics, and Society},
+  year      = {2025},
+  volume    = {8},
+  number    = {2},
+  doi       = {10.1609/aies.v8i2.36632}
+}
+@article{Weilnhammer26,
+  author  = {Weilnhammer, Veith and Hou, Kevin Y. C. and Luettgau, Lennart and Summerfield, Christopher and Dolan, Raymond and Nour, Matthew M.},
+  title   = {A Clinically Validated Framework for Auditing {AI} Chatbot Behavior in Mental Health Interactions},
+  journal = {Nature Medicine},
+  year    = {2026},
+  doi     = {10.1038/s41591-026-04577-2},
+  note    = {arXiv:2602.01347 (SIM-VAIL)}
+}
+@article{Diel26,
+  author  = {Diel, Alexander and Torous, John and Cuijpers, Pim and others},
+  title   = {A Scoping Review on the Mental Health Harms of {LLM}-based Chatbots},
+  journal = {npj Digital Medicine},
+  year    = {2026},
+  volume  = {9},
+  pages   = {644},
+  doi     = {10.1038/s41746-026-03054-x}
+}
+@misc{Moore26,
+  author = {Moore, Jared and others},
+  title  = {Characterizing Delusional Spirals through Human-{LLM} Chat Logs},
+  year   = {2026},
+  doi    = {10.1145/3805689.3806443},
+  note   = {arXiv:2603.16567. ACM DL entry exists; FAccT '26 attribution comes from a search snippet and the ACM page was not readable. VERIFY.}
+}
+@misc{Kirgis26,
+  title = {{LLM} Spirals of Delusion: A Benchmarking Audit Study of {AI} Chatbot Interfaces},
+  year  = {2026},
+  note  = {arXiv:2604.06188; arXiv listing states acceptance at the 2nd annual conference of the International Association for Safe and Ethical AI. VERIFY.}
+}
+@inproceedings{Wang24,
+  author    = {Wang, Ruiyi and Milani, Stephanie and others},
+  title     = {{PATIENT-$\Psi$}: Using Large Language Models to Simulate Patients for Training Mental Health Professionals},
+  booktitle = {Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing},
+  year      = {2024},
+  note      = {arXiv:2405.19660; EMNLP 2024 main per proceedings author index. VERIFY Anthology ID.}
+}
+@inproceedings{Louie24,
+  author    = {Louie, Ryan and others},
+  title     = {Roleplay-doh: Enabling Domain-Experts to Create {LLM}-simulated Patients via Eliciting and Adhering to Principles},
+  booktitle = {Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing},
+  year      = {2024},
+  note      = {ACL Anthology 2024.emnlp-main.591; arXiv:2407.00870}
+}
+@inproceedings{Lee24,
+  author    = {Lee, Suyeon and others},
+  title     = {Cactus: Towards Psychological Counseling Conversations using Cognitive Behavioral Theory},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2024},
+  year      = {2024},
+  pages     = {14245--14274},
+  note      = {arXiv:2407.03103}
+}
+@inproceedings{Zhang25,
+  author    = {Zhang, Mian and Yang, Xianjun and Zhang, Xinlu and Labrum, Travis and Chiu, Jamie C. and Eack, Shaun M. and Fang, Fei and Wang, William Yang and Chen, Zhiyu},
+  title     = {{CBT-Bench}: Evaluating Large Language Models on Assisting Cognitive Behavior Therapy},
+  booktitle = {Proceedings of NAACL 2025 (Volume 1: Long Papers)},
+  year      = {2025},
+  note      = {ACL Anthology 2025.naacl-long.196}
+}
+@inproceedings{Grabb24,
+  author    = {Grabb, Declan and Lamparth, Max and Vasan, Nina},
+  title     = {Risks from Language Models for Automated Mental Healthcare: Ethics and Structure for Implementation (Extended Abstract)},
+  booktitle = {Proceedings of the AAAI/ACM Conference on AI, Ethics, and Society},
+  year      = {2024},
+  doi       = {10.1609/aies.v7i1.31654}
+}
+@article{FrontiersPH25,
+  title   = {Deductively Coding Psychosocial Autopsy Interview Data Using a Few-Shot Learning Large Language Model},
+  journal = {Frontiers in Public Health},
+  year    = {2025},
+  doi     = {10.3389/fpubh.2025.1512537},
+  note    = {Author list not retrieved. VERIFY.}
+}
+
+% ---------- arXiv 전용 (게재처 미확인) ----------
+@misc{Schoene25,
+  author = {Schoene, Annika M. and Canca, Cansu},
+  title  = {"For Argument's Sake, Show Me How to Harm Myself!": Jailbreaking {LLM}s in Suicide and Self-Harm Contexts},
+  year   = {2025},
+  note   = {arXiv:2507.02990. No venue found.}
+}
+@misc{Tang26,
+  author = {Tang, Ningjing and Qian, Alice and Wang, Qiaosi and Howe, Esther and Bullwinkel, Blake and Pedrelli, Paola and Suh, Jina and Heidari, Hoda and Shen, Hong},
+  title  = {Beyond the Single Turn: Reframing Refusals as Dynamic Experiences Embedded in the Context of Mental Health Support Interactions with {LLM}s},
+  year   = {2026},
+  note   = {arXiv:2602.01694. No venue found.}
+}
+@misc{Steenstra26,
+  author = {Steenstra, Ian and Pedrelli, Paola and Shi, Weiyan and Marsella, Stacy and Bickmore, Timothy W.},
+  title  = {Assessing Risks of Large Language Models in Mental Health Support: A Framework for Automated Clinical {AI} Red Teaming},
+  year   = {2026},
+  note   = {arXiv:2602.19948. No venue found.}
+}
+@misc{Chandra26,
+  author = {Chandra, Joydeep and Navneet, Satyam Kumar and Zhang, Yong},
+  title  = {{TherapyProbe}: Generating Design Knowledge for Relational Safety in Mental Health Chatbots Through Adversarial Simulation},
+  year   = {2026},
+  note   = {arXiv:2602.22775. No venue found.}
+}
+@misc{Vowels26,
+  author = {Vowels, Laura M. and Vowels, Matthew J. and others},
+  title  = {{K-Bench}: a clinically calibrated benchmark for evaluating large language models in high-risk mental health conversations},
+  year   = {2026},
+  note   = {arXiv:2609.15855. The arXiv page lists no venue (one search result claimed EACL 2026; unverified).}
+}
+@misc{Pombal25,
+  author = {Pombal, Jos{\'e} and others},
+  title  = {{MindEval}: Benchmarking Language Models on Multi-turn Mental Health Support},
+  year   = {2025},
+  note   = {arXiv:2511.18491. No venue found.}
+}
+@misc{Judd25,
+  author = {Judd, Nick and others},
+  title  = {Independent clinical evaluation of general-purpose {LLM} responses to signals of suicide risk},
+  year   = {2025},
+  note   = {arXiv:2510.27521. No venue found.}
+}
+
+% ---------- 추가 조사 (2026-10-10, 문서 §22) ----------
+@inproceedings{Nexus25,
+  title     = {{NEXUS}: Network Exploration for eXploiting Unsafe Sequences in Multi-Turn {LLM} Jailbreaks},
+  booktitle = {Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
+  year      = {2025},
+  pages     = {24267--24295},
+  note      = {ACL Anthology 2025.emnlp-main.1235; arXiv:2510.03417. Authors not retrieved.}
+}
+@inproceedings{M2S25,
+  title     = {{M2S}: Multi-turn to Single-turn Jailbreak in Red Teaming for {LLM}s},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2025},
+  note      = {ACL Anthology 2025.acl-long.805; arXiv:2503.04856. Authors not retrieved.}
+}
+@inproceedings{Jiang25RedQueen,
+  author    = {Jiang, Yifan and Aggarwal, Kriti and Laud, Tanmay and Munir, Kashif and Pujara, Jay and Mukherjee, Subhabrata},
+  title     = {Red Queen: Exposing Latent Multi-Turn Risks in Large Language Models},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2025},
+  year      = {2025},
+  note      = {arXiv:2409.17458 (v1 title: RED QUEEN: Safeguarding Large Language Models against Concealed Multi-Turn Jailbreaking)}
+}
+@inproceedings{Guo25MTSA,
+  author    = {Guo, Weiyang and Li, Jing and others},
+  title     = {{MTSA}: Multi-turn Safety Alignment for {LLM}s through Multi-round Red-teaming},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2025},
+  pages     = {26424--26442},
+  note      = {ACL Anthology 2025.acl-long.1282; arXiv:2505.17147}
+}
+@inproceedings{Hong25SYCON,
+  author    = {Hong, Jiseung and Byun, Grace and Kim, Seungone and Shu, Kai},
+  title     = {Measuring Sycophancy of Language Models in Multi-turn Dialogues},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2025},
+  year      = {2025},
+  pages     = {2239--2259},
+  note      = {ACL Anthology 2025.findings-emnlp.121; arXiv:2505.23840}
+}
+@inproceedings{Brahman24CoCoNot,
+  author    = {Brahman, Faeze and others},
+  title     = {The Art of Saying No: Contextual Noncompliance in Language Models},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track},
+  year      = {2024},
+  note      = {arXiv:2407.12043}
+}
+@inproceedings{Xie25SORRY,
+  author    = {Xie, Tinghao and Qi, Xiangyu and others},
+  title     = {{SORRY-Bench}: Systematically Evaluating Large Language Model Safety Refusal},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  note      = {arXiv:2406.14598}
+}
+@inproceedings{Wu25PENGUIN,
+  author    = {Wu, Yuchen and Wang, Jindong and others},
+  title     = {Personalized Safety in {LLM}s: A Benchmark and A Planning-Based Agent Approach},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS 2025)},
+  year      = {2025},
+  note      = {arXiv:2505.18882}
+}
+@inproceedings{Li26CounselBench,
+  author    = {Li, Yahan and others},
+  title     = {{CounselBench}: A Large-Scale Expert Evaluation and Adversarial Benchmarking of Large Language Models in Mental Health Question Answering},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  note      = {arXiv:2506.08584; title and sample sizes differ across versions. VERIFY.}
+}
+@inproceedings{Shen26PsychEthics,
+  author    = {Shen, Yaling and others},
+  title     = {{PsychEthicsBench}: Evaluating Large Language Models Against Australian Mental Health Ethics},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2026},
+  year      = {2026},
+  note      = {ACL Anthology 2026.findings-acl.1971; arXiv:2601.03578}
+}
+@inproceedings{Badawi26,
+  author    = {Badawi, Abeer and Rahimi, Elahe and Laskar, Md Tahmid Rahman and Grach, Sheri and Bertrand, Lindsay and Danok, Lames and Dhanesh, Prathiba and Huang, Jimmy and Rudzicz, Frank and Dolatabadi, Elham},
+  title     = {When Can We Trust {LLM}s in Mental Health? Large-Scale Benchmarks for Reliable {LLM} Evaluation},
+  booktitle = {Proceedings of EACL 2026 (Long Papers)},
+  year      = {2026},
+  pages     = {3873--3896},
+  note      = {ACL Anthology 2026.eacl-long.180; arXiv:2510.19032}
+}
+@inproceedings{LostInSim26,
+  title     = {Lost in Simulation: {LLM}-Simulated Users are Unreliable Proxies for Human Users in Agentic Evaluations},
+  booktitle = {Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics},
+  year      = {2026},
+  note      = {ACL Anthology 2026.acl-long.2192 per search result. Authors not retrieved. VERIFY.}
+}
+@inproceedings{Chen26Blueprint,
+  author    = {Chen, Siyu and Wang, Haoran and Li, Xiaojian and Huang, Yao and Dong, Yinpeng and Xu, Wei},
+  title     = {Before the Script, Set the Stage: How Worldview Simulation Amplifies Psychologically Grounded Persuasion in Multi-Turn Jailbreaking},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2026},
+  year      = {2026},
+  note      = {arXiv:2609.02414; venue from the arXiv Comments field}
+}
+@misc{Cheng26SlowDrift,
+  author = {Cheng, Youyou and Kang, Zhuangwei and Jiang, Kerry and Sun, Chenyu and Pan, Qiyang},
+  title  = {The Slow Drift of Support: Boundary Failures in Multi-Turn Mental Health {LLM} Dialogues},
+  year   = {2026},
+  note   = {arXiv:2601.14269. No venue found.}
+}
+@misc{Aquilina26,
+  author = {Aquilina, Andrew and others},
+  title  = {Lost in Delusion: Examining {LLM} Safety Under User Delusions and Distress},
+  year   = {2026},
+  note   = {arXiv:2606.00975. No venue found.}
+}
+@misc{AuYeung25,
+  author = {Au Yeung, Joshua and Dalmasso, Jacopo and Foschini, Luca and Dobson, Richard J. B. and Kraljevic, Zeljko},
+  title  = {The Psychogenic Machine: Simulating {AI} Psychosis, Delusion Reinforcement and Harm Enablement in Large Language Models},
+  year   = {2025},
+  note   = {arXiv:2509.10970 (psychosis-bench). No venue found.}
+}
+@misc{Lin26ICON,
+  author = {Lin, Xingwei and Lin, Wenhao and Cao, Sicong and Yu, Jiahao and Huang, Renke and Xue, Lei and Wu, Chunming},
+  title  = {{ICON}: Intent-Context Coupling for Efficient Multi-Turn Jailbreak Attack},
+  year   = {2026},
+  note   = {arXiv:2601.20903. No venue found.}
+}
+@misc{Lin25PSA,
+  author = {Lin, Liang and Xu, Zhihao and others},
+  title  = {Paper Summary Attack: Jailbreaking {LLM}s through {LLM} Safety Papers},
+  year   = {2025},
+  note   = {arXiv:2507.13474. No venue found.}
+}
+@misc{Li26SoK,
+  author = {Li, Siyuan and Wulianghai, Aodu and Liu, Zehao and Lin, Xi and others},
+  title  = {{SoK}: Intent-Oriented Systematization of Multi-Turn {LLM} Jailbreaks},
+  year   = {2026},
+  note   = {arXiv:2608.01117. No venue found.}
+}
+@misc{Feng26PsychJail,
+  author = {Feng, Zeyu and Wu, Qingyu and Luo, Yuzhe and Cheng, Hua},
+  title  = {{PsychJail}: Exploring Psychological Jailbreaks via Multi-Turn Persuasion of {LLM} Policies},
+  year   = {2026},
+  note   = {arXiv:2608.23028. No venue found.}
+}
+@misc{Liu25HPM,
+  author = {Liu, Zehao and Lin, Xi},
+  title  = {Breaking Minds, Breaking Systems: Jailbreaking Large Language Models via Human-like Psychological Manipulation},
+  year   = {2025},
+  note   = {arXiv:2512.18244. No venue found.}
+}
+@misc{Farinhas26MindGuard,
+  author = {Farinhas, Ant{\'o}nio and others},
+  title  = {{MindGuard}: Guardrail Classifiers for Multi-Turn Mental Health Support},
+  year   = {2026},
+  note   = {arXiv:2602.00950 (Sword Health). No venue found.}
+}
+@misc{Xiong26TrustMH,
+  author = {Xiong, Zixin and Wang, Ziteng and Fan, Haotian and Zhang, Xinjie and Wang, Wenxuan},
+  title  = {{TrustMH-Bench}: A Comprehensive Benchmark for Evaluating the Trustworthiness of Large Language Models in Mental Health},
+  year   = {2026},
+  note   = {arXiv:2603.03047. No venue found.}
+}
+@misc{Zhou26Sim2Real,
+  author = {Zhou, Xuhui and others},
+  title  = {Mind the Sim2Real Gap in User Simulation for Agentic Tasks},
+  year   = {2026},
+  note   = {arXiv:2603.11245. No venue found.}
+}
+@misc{Deng25PersonaTeaming,
+  author = {Deng, Wesley Hanwen and Kim, Sunnie and Jha, Akshita and Holstein, Ken and Eslami, Motahhare and Wilcox, Lauren and Gatys, Leon},
+  title  = {{PersonaTeaming}: Exploring How Introducing Personas Can Improve Automated {AI} Red-Teaming},
+  year   = {2025},
+  note   = {arXiv:2509.03728; NeurIPS 2025 Workshop on Regulatable ML}
+}
+@misc{CCDH25,
+  author = {{Center for Countering Digital Hate}},
+  title  = {Fake Friend},
+  year   = {2025},
+  note   = {NGO report. Exact figures VERIFY against the report.}
+}
+@book{Metaxa21,
+  author    = {Metaxa, Danaë and Park, Joon Sung and Robertson, Ronald E. and Karahalios, Karrie and Wilson, Christo and Hancock, Jeff and Sandvig, Christian},
+  title     = {Auditing Algorithms: Understanding Algorithmic Systems from the Outside In},
+  publisher = {Foundations and Trends in Human-Computer Interaction},
+  year      = {2021},
+  doi       = {10.1561/1100000083},
+  note      = {Author order VERIFY.}
+}
+
+% ---------- goal·persona 출처 계보 (문서 §23) ----------
+@inproceedings{Maddela23,
+  author    = {Maddela, Mounica and Ung, Megan and Xu, Jing and Madotto, Andrea and Foran, Heather and Boureau, Y-Lan},
+  title     = {Training Models to Generate, Recognize, and Reframe Unhelpful Thoughts},
+  booktitle = {Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2023},
+  pages     = {13641--13660},
+  doi       = {10.18653/v1/2023.acl-long.763}
+}
+@inproceedings{Xu25MentalChat,
+  author    = {Xu, Jia and Wei, Tianyi and Hou, Bojian and Orzechowski, Patryk and Yang, Shu and Jin, Ruochen and Paulbeck, Rachael and Wagenaar, Joost and Demiris, George and Shen, Li},
+  title     = {{MentalChat16K}: A Benchmark Dataset for Conversational Mental Health Assistance},
+  booktitle = {Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD '25)},
+  year      = {2025},
+  pages     = {5367--5378},
+  note      = {arXiv:2503.13509. KDD attribution from a university repository record. VERIFY.}
+}
+@inproceedings{Wang25Anna,
+  author    = {Wang, Ming and others},
+  title     = {{AnnaAgent}: Dynamic Evolution Agent System with Multi-Session Memory for Realistic Seeker Simulation},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2025},
+  year      = {2025},
+  pages     = {23221--23235},
+  note      = {arXiv:2506.00551}
+}
+@inproceedings{CARE25,
+  title     = {{CARE-Bench}: A Benchmark of Diverse Client Simulations Guided by Expert Principles for Evaluating {LLM}s in Psychological Counseling},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  year      = {2026},
+  note      = {arXiv:2511.09407. AAAI OJS record found; authors and volume not retrieved. VERIFY.}
+}
+@inproceedings{Shing18,
+  author    = {Shing, Han-Chin and Nair, Suraj and Zirikly, Ayah and Friedenberg, Meir and Daum{\'e} III, Hal and Resnik, Philip},
+  title     = {Expert, Crowdsourced, and Machine Assessment of Suicide Risk via Online Postings},
+  booktitle = {Proceedings of the Fifth Workshop on Computational Linguistics and Clinical Psychology},
+  year      = {2018},
+  pages     = {25--36}
+}
+@inproceedings{Zirikly19,
+  author    = {Zirikly, Ayah and Resnik, Philip and Uzuner, {\"O}zlem and Hollingshead, Kristy},
+  title     = {{CLPsych} 2019 Shared Task: Predicting the Degree of Suicide Risk in {Reddit} Posts},
+  booktitle = {Proceedings of the Sixth Workshop on Computational Linguistics and Clinical Psychology},
+  year      = {2019},
+  pages     = {24--33}
+}
+@inproceedings{Haque21,
+  author    = {Haque, Ayaan and others},
+  title     = {Deep Learning for Suicide and Depression Identification with Unsupervised Label Correction},
+  booktitle = {ICANN 2021},
+  year      = {2021},
+  note      = {arXiv:2102.09427. VERIFY venue details.}
+}
+@inproceedings{Li24Salad,
+  author    = {Li, Lijun and others},
+  title     = {{SALAD-Bench}: A Hierarchical and Comprehensive Safety Benchmark for Large Language Models},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2024},
+  year      = {2024},
+  pages     = {3923--3954},
+  note      = {arXiv:2402.05044; first-author name VERIFY.}
+}
+@inproceedings{Ji23Beaver,
+  author    = {Ji, Jiaming and others},
+  title     = {{BeaverTails}: Towards Improved Safety Alignment of {LLM} via a Human-Preference Dataset},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023), Datasets and Benchmarks Track},
+  year      = {2023},
+  note      = {first-author name VERIFY.}
+}
+@inproceedings{Harrigian21,
+  author    = {Harrigian, Keith and Aguirre, Carlos and Dredze, Mark},
+  title     = {On the State of Social Media Data for Mental Health Research},
+  booktitle = {Proceedings of the Seventh Workshop on Computational Linguistics and Clinical Psychology},
+  year      = {2021},
+  pages     = {15--24}
+}
+@article{Chancellor20,
+  author  = {Chancellor, Stevie and De Choudhury, Munmun},
+  title   = {Methods in Predictive Techniques for Mental Health Status on Social Media: A Critical Review},
+  journal = {npj Digital Medicine},
+  year    = {2020},
+  volume  = {3},
+  pages   = {43}
+}
+@article{Longpre24,
+  author  = {Longpre, Shayne and Mahari, Robert and Chen, Anthony and others},
+  title   = {A Large-Scale Audit of Dataset Licensing and Attribution in {AI}},
+  journal = {Nature Machine Intelligence},
+  year    = {2024},
+  volume  = {6},
+  pages   = {975--987},
+  doi     = {10.1038/s42256-024-00878-8}
+}
+@article{Gebru21,
+  author  = {Gebru, Timnit and others},
+  title   = {Datasheets for Datasets},
+  journal = {Communications of the ACM},
+  year    = {2021},
+  volume  = {64},
+  number  = {12},
+  pages   = {86--92}
+}
+@misc{Liu23Chat,
+  author = {Liu, June M. and others},
+  title  = {{ChatCounselor}: A Large Language Models for Mental Health Support},
+  year   = {2023},
+  note   = {arXiv:2309.15461. Psych8k. First-author name VERIFY.}
+}
+
+% ---------- 사회적 필요성 자료 (문서 §7, §18.4; 1차 출처 재확인 필요) ----------
+@misc{OpenAI25,
+  author = {{OpenAI}},
+  title  = {Strengthening {ChatGPT}'s responses in sensitive conversations},
+  year   = {2025},
+  note   = {Blog post, 2025-10-27. https://openai.com/index/strengthening-chatgpt-responses-in-sensitive-conversations/ . Page not directly readable in this session (HTTP 403); figures cross-checked against press coverage. VERIFY.}
+}
+@misc{APA25,
+  author = {{American Psychological Association}},
+  title  = {2025 Practitioner Pulse Survey},
+  year   = {2025},
+  note   = {Reported via NPR, 2025-12-16 (N=1,742; 56\% used AI tools in the past year; 8\% and 5\% for clinical diagnosis and client assistance). VERIFY against the APA report.}
+}
+@misc{Raine25,
+  title = {Raine v. {OpenAI}},
+  year  = {2025},
+  note  = {Complaint filed 2025-08 in California state court. Allegations only. Cite the court filing. VERIFY.}
+}
+@misc{IL25,
+  title = {Illinois {HB} 1806, Wellness and Oversight for Psychological Resources Act},
+  year  = {2025},
+  note  = {Signed 2025-08. Cite the statute text. VERIFY.}
+}

@@ -1,6 +1,6 @@
 # GPT-6 Luna · Llama 파일럿 진행 현황
 
-기록 시각: 2026-10-10 15:54 UTC  
+기록 시각: 2026-10-10 16:00 UTC
 성격: 외부 베이스라인 추가 실험, 최종 평가 전 진행 스냅샷
 
 ## 실험 구성
@@ -78,3 +78,24 @@ task-achievement score는 공격 탐색 제어용이며 최종 공격 성공률�
   `external_baselines/evaluations/gpt6_luna_llama31_pilot10_accel2/`
 
 이 대용량 산출물은 Git에 포함하지 않고, 재현 설정·핵심 코드·집계 문서만 커밋한다.
+
+## 정식 500개 실행
+
+파일럿 생성과 병행해 정식 실행을 비중복 3개 shard로 제출했다. RTX6000 shard는 즉시
+실행하고, H200 shard는 각 노드의 파일럿이 끝나는 즉시 시작한다.
+
+| Slurm job | 노드 | 공식 index 범위 | 사례 수 | 시작 조건 |
+|---|---|---:|---:|---|
+| `32431` | `rtx6000-0` | 0–199 | 200 | 실행 중 |
+| `32432` | `h200-0` | 200–349 | 150 | `32430` 종료 후 |
+| `32433` | `h200-1` | 350–499 | 150 | `32428` 종료 후 |
+| `32434` | CPU allocation | 전체 병합·평가 | 500 | 세 shard 모두 성공 후 |
+
+RTX6000 작업은 GPU 8개를 모두 사용해 Llama endpoint 1개와 Qwen endpoint 7개를 띄운다.
+각 H200 작업은 GPU 7개를 모두 사용해 Llama endpoint 1개와 Qwen endpoint 6개를 띄운다.
+두 OpenAI project는 Luna와 PCSA 요청을 Batch로만 처리한다.
+
+최종 작업은 세 shard에서 `SHARD_COMPLETE` 검증을 통과한 경우에만 실행된다. 병합기는
+18개 `target × method` 셀마다 공식 case ID 500개가 정확히 한 번씩 있는지 검사하며,
+누락이나 중복이 하나라도 있으면 평가 Batch를 제출하지 않는다. 검증 통과 후
+CARES/JMIR 평가에 최대 USD 15의 예산 guard를 적용한다.

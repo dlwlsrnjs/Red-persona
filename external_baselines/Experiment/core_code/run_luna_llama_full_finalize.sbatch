@@ -14,14 +14,14 @@ if [[ -z "${OPENAI_API_KEY:-}" ]]; then
   exit 1
 fi
 if [[ -z "${SHARD_ROOTS:-}" ]]; then
-  echo "SHARD_ROOTS must be a comma-separated list" >&2
+  echo "SHARD_ROOTS must be a colon-separated list" >&2
   exit 1
 fi
 
 FULL_ROOT="${FULL_OUTPUT_ROOT:-external_baselines/outputs/gpt6_luna_llama31_full500}"
 MERGED_ROOT="${MERGED_OUTPUT_ROOT:-$FULL_ROOT/merged}"
 EVAL_ROOT="${FULL_EVAL_ROOT:-external_baselines/evaluations/gpt6_luna_llama31_full500}"
-IFS=',' read -r -a ROOTS <<<"$SHARD_ROOTS"
+IFS=':' read -r -a ROOTS <<<"$SHARD_ROOTS"
 if (( ${#ROOTS[@]} < 2 )); then
   echo "at least two shard roots are required" >&2
   exit 1

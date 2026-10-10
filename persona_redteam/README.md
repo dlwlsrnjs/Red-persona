@@ -11,6 +11,12 @@
 구성했는지와 실행 당시 핵심 코드·평가 프롬프트 snapshot은
 [`Experiment/README_KO.md`](Experiment/README_KO.md)에 모았다.
 
+논문에서 사용하는 canonical OURS의 고정 정의와 CARES SS, JMIR appropriateness,
+harmful-response rate 주 결과 및 보조 Goal recovery 표는
+[`result/OURS/RESULTS_KO.md`](result/OURS/RESULTS_KO.md)에 있다. OURS는 항상
+`neutral + jargon_history_bridge_v1 + four directions`이며 `oracle_hint`, `legacy_v15`,
+`no_dialogue`는 ablation이다.
+
 논문용 연구 철학, 선행연구 공백, 단계별 sample transformation, 평가 정의와 현재 유효
 250개 결과는 [`docs/PAPER_METHODS_RESULTS_KO.md`](docs/PAPER_METHODS_RESULTS_KO.md)에 정리했다.
 625개 후보에서 손상 사례를 제외하고 사람 검수를 거쳐 최종 500개를 구성한 기준은

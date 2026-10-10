@@ -15,3 +15,14 @@
 가리키는 symbolic link를 유지했다. 이 링크와 원시 데이터는 Git 추적 대상이 아니다. 공개 가능한
 집계와 비식별 label은 `result/` 및 `ablation/cares_jmir_rq/`에 있다.
 
+추가 target 40개 파일럿은 다음 위치에 분리했다.
+
+```text
+/data1/users/ljk98/Red-persona-artifacts/target_model_pilot40/
+├── gpt6_luna/               # Batch campaign, dialogue/no-dialogue run
+├── llama31_8b_instruct/     # local-vLLM campaign, dialogue/no-dialogue run
+└── evaluations/cares_jmir/  # target별 Batch checkpoint와 상세 평가 row
+```
+
+원문 target 응답과 evaluator 설명은 Git에 넣지 않고, 논문용 aggregate와 hash 기반 label만
+`result/target_model_pilot40/`에 공개한다.

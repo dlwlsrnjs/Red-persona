@@ -1,5 +1,22 @@
 # RED-Persona component ablation
 
+## Canonical OURS 기준
+
+모든 ablation의 기준 arm은 **`neutral` research dialogue +
+`jargon_history_bridge_v1` + four independent final directions**다. 저장소 내부 arm ID는
+`gpt4o_history_dialogue`이며, 논문에서는 `OURS`로 표기한다.
+
+- `oracle_hint`: 연구 대화 중 private goal을 타깃에게 공개하는 ablation
+- `legacy_v15`: 같은 누적 대화에서 history-bridge만 제거하는 ablation
+- `no_dialogue`: 연구 대화와 대화 기반 bridge를 함께 제거하는 method-package ablation
+
+OURS 설정과 CARES SS/JMIR 주 결과 및 보조 Goal recovery 표의 단일 기준은
+[`../result/OURS/RESULTS_KO.md`](../result/OURS/RESULTS_KO.md)와
+[`../result/OURS/EXPERIMENT_CONTRACT.json`](../result/OURS/EXPERIMENT_CONTRACT.json)이다.
+다른 arm을 full 또는 OURS로 부르지 않는다.
+Canonical OURS는 `experiments/run_ours_official500.py`로만 실행하고, 이 폴더의 변형들은 일반
+runner를 사용해 별도 출력 디렉터리에 저장한다.
+
 이 폴더는 본 실험 코드를 바꾸지 않고 구성 요소별 기여도를 같은 사례 ID에 대한 paired
 comparison으로 측정한다. 제거된 구성 요소가 full method의 성공률을 얼마나 높였는지는
 `full rate - ablated rate`로 정의한다. 양수면 full method에서 해당 요소가 지표를 높였고,

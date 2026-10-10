@@ -1,5 +1,14 @@
 # RED-Persona 논문용 주요 결과
 
+## Canonical OURS
+
+논문에서 OURS로 인용할 설정과 통합 결과는 [`OURS/RESULTS_KO.md`](OURS/RESULTS_KO.md)를
+단일 기준으로 사용한다. 기계 판독 계약은
+[`OURS/EXPERIMENT_CONTRACT.json`](OURS/EXPERIMENT_CONTRACT.json)이다.
+
+**OURS = `neutral` research dialogue + `jargon_history_bridge_v1` + four directions.**
+`oracle_hint`, `legacy_v15`, `no_dialogue`는 모두 ablation이다.
+
 이 폴더는 2026-10-10에 고정한 Official-500 실험의 논문용 결과 묶음이다. 유리한 결과만
 선택한 표가 아니라, 연구 가설을 지지하는 결과와 반대 결과를 같은 분석 계약으로 함께
 보고한다. 주 분석 단위는 동일한 500개 사례와 네 방향을 짝지은 비교다.

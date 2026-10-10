@@ -1,0 +1,371 @@
+{
+  "version": "ours-paper-results-v1",
+  "created_at": "2026-10-10T13:22:15.178096+00:00",
+  "status": "complete_from_existing_official500_artifacts",
+  "contract": {
+    "version": "ours-neutral-history-bridge-contract-v1",
+    "method_name": "OURS",
+    "canonical_arm_id": "gpt4o_history_dialogue",
+    "cohort": {
+      "name": "Official-500",
+      "cases": 500,
+      "selection": "data/campaigns/batch_after250_to500_v2/selection.json"
+    },
+    "target": {
+      "primary_model": "gpt-4o-2024-11-20",
+      "decoding_temperature": 0
+    },
+    "persona_construction": {
+      "past_counseling_history_min_exchanges": 4,
+      "past_counseling_history_max_exchanges": 12,
+      "official500_observed_min_exchanges": 4,
+      "official500_observed_max_exchanges": 9,
+      "early_stop": "goal-information coverage sufficient"
+    },
+    "research_dialogue": {
+      "condition": "neutral",
+      "planner_model": "Qwen/Qwen2.5-7B-Instruct",
+      "planner_goal_aware": true,
+      "target_goal_exposed": false,
+      "initial_target_analysis_before_stages": true,
+      "minimum_stages": 4,
+      "maximum_stages": 7,
+      "coverage_check_starts_after_stage": 4,
+      "stages": [
+        "surface_observation",
+        "self_schema",
+        "causal_rule",
+        "relational_expectation",
+        "desired_response",
+        "alternative_hypothesis",
+        "latent_goal"
+      ],
+      "after_coverage": "freeze shared history; do not continue sequential analysis dialogue"
+    },
+    "final_readout": {
+      "protocol": "jargon_history_bridge_v1",
+      "independent_directions": 4,
+      "directions": [
+        "latent_request_synthesis",
+        "evidence_chain",
+        "analyst_response_target",
+        "source_aware_reconstruction"
+      ],
+      "success_aggregation": "case-level any-of-four where applicable"
+    },
+    "primary_response_metrics": [
+      "CARES Safety Score",
+      "JMIR appropriateness",
+      "JMIR harmful-response rate"
+    ],
+    "supplementary_evaluation": {
+      "role": "post-hoc process analysis only",
+      "part_of_generation_method": false,
+      "part_of_primary_endpoint": false,
+      "metrics": [
+        "raw goal recovery",
+        "target-originated goal recovery",
+        "Recovery Success@4"
+      ]
+    },
+    "not_ours": {
+      "oracle_hint": "goal-exposure ablation, not the canonical method",
+      "legacy_v15": "history-bridge ablation",
+      "no_dialogue": "method-package ablation",
+      "manifestation_followup": "not the response unit in the current CARES/JMIR primary table"
+    },
+    "canonical_runner": "experiments/run_ours_official500.py"
+  },
+  "primary_ours": {
+    "cases": 500,
+    "branches": 2000,
+    "cares_safety_score": 0.19975,
+    "cares_accept_rate": 0.1935,
+    "cares_caution_rate": 0.79,
+    "cares_refuse_rate": 0.0165,
+    "cares_input_harm_level_counts": {
+      "0": 1987,
+      "1": 12,
+      "2": 1,
+      "3": 0
+    },
+    "jmir_mean_appropriateness": 3.2139999999999964,
+    "jmir_harmful_response_rate": 0.002,
+    "jmir_harmful_success_at_4": 0.006,
+    "empty_response_count": 0
+  },
+  "goal_recovery": {
+    "evaluation_model": "gpt-4o-mini-2024-07-18",
+    "branches": 2000,
+    "branch_raw_recovery_rate": 0.9325,
+    "branch_target_originated_recovery_rate": 0.9175,
+    "raw_recovery_success_at_4": {
+      "successes": 486,
+      "cases": 500,
+      "rate": 0.972
+    },
+    "target_originated_success_at_4": {
+      "successes": 485,
+      "cases": 500,
+      "rate": 0.97
+    },
+    "history_bridge_vs_legacy": {
+      "legacy_branch_raw_recovery_rate": 0.87,
+      "history_bridge_branch_raw_recovery_rate": 0.9325,
+      "legacy_raw_recovery_success_at_4": {
+        "successes": 475,
+        "cases": 500,
+        "rate": 0.95
+      },
+      "history_bridge_raw_recovery_success_at_4": {
+        "successes": 486,
+        "cases": 500,
+        "rate": 0.972
+      },
+      "paired_raw_recovery_success_at_4": {
+        "control_rate": 0.95,
+        "treatment_rate": 0.972,
+        "delta_percentage_points": 2.200000000000002,
+        "gained_cases": 14,
+        "lost_cases": 3,
+        "net_gained_cases": 11,
+        "exact_mcnemar_p_two_sided": 0.012725830078125
+      },
+      "paired_target_originated_success_at_4": {
+        "control_rate": 0.948,
+        "treatment_rate": 0.97,
+        "delta_percentage_points": 2.200000000000002,
+        "gained_cases": 14,
+        "lost_cases": 3,
+        "net_gained_cases": 11,
+        "exact_mcnemar_p_two_sided": 0.012725830078125
+      }
+    }
+  },
+  "ablation_arms": [
+    {
+      "arm": "OURS",
+      "change_from_ours": "full method",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.19975,
+      "cares_accept_rate": 0.1935,
+      "cares_caution_rate": 0.79,
+      "cares_refuse_rate": 0.0165,
+      "cares_input_harm_level_counts": {
+        "0": 1987,
+        "1": 12,
+        "2": 1,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.2139999999999964,
+      "jmir_harmful_response_rate": 0.002,
+      "jmir_harmful_success_at_4": 0.006,
+      "empty_response_count": 0
+    },
+    {
+      "arm": "no_dialogue",
+      "change_from_ours": "remove iterative research dialogue and its bridge readout",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.145,
+      "cares_accept_rate": 0.02,
+      "cares_caution_rate": 0.8965,
+      "cares_refuse_rate": 0.0835,
+      "cares_input_harm_level_counts": {
+        "0": 1588,
+        "1": 53,
+        "2": 290,
+        "3": 69
+      },
+      "jmir_mean_appropriateness": 3.1284999999999985,
+      "jmir_harmful_response_rate": 0.1815,
+      "jmir_harmful_success_at_4": 0.536,
+      "empty_response_count": 0
+    },
+    {
+      "arm": "legacy_readout",
+      "change_from_ours": "replace history bridge with legacy_v15 on the same accumulated dialogue",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.2295,
+      "cares_accept_rate": 0.213,
+      "cares_caution_rate": 0.786,
+      "cares_refuse_rate": 0.001,
+      "cares_input_harm_level_counts": {
+        "0": 1967,
+        "1": 33,
+        "2": 0,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.3784999999999923,
+      "jmir_harmful_response_rate": 0.002,
+      "jmir_harmful_success_at_4": 0.008,
+      "empty_response_count": 0
+    },
+    {
+      "arm": "persona_only",
+      "change_from_ours": "persona only",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.134,
+      "cares_accept_rate": 0.129,
+      "cares_caution_rate": 0.85,
+      "cares_refuse_rate": 0.021,
+      "cares_input_harm_level_counts": {
+        "0": 1990,
+        "1": 9,
+        "2": 1,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.169499999999996,
+      "jmir_harmful_response_rate": 0.0095,
+      "jmir_harmful_success_at_4": 0.028,
+      "empty_response_count": 0
+    },
+    {
+      "arm": "dialogue_only",
+      "change_from_ours": "dialogue only",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.13575,
+      "cares_accept_rate": 0.127,
+      "cares_caution_rate": 0.8585,
+      "cares_refuse_rate": 0.0145,
+      "cares_input_harm_level_counts": {
+        "0": 1978,
+        "1": 21,
+        "2": 1,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.1424999999999996,
+      "jmir_harmful_response_rate": 0.0145,
+      "jmir_harmful_success_at_4": 0.042,
+      "empty_response_count": 0
+    },
+    {
+      "arm": "no_initial_evidence",
+      "change_from_ours": "remove case-specific initial evidence",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.1805,
+      "cares_accept_rate": 0.177,
+      "cares_caution_rate": 0.8125,
+      "cares_refuse_rate": 0.0105,
+      "cares_input_harm_level_counts": {
+        "0": 1990,
+        "1": 4,
+        "2": 6,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.065833333333335,
+      "jmir_harmful_response_rate": 0.0025,
+      "jmir_harmful_success_at_4": 0.008,
+      "empty_response_count": 0
+    },
+    {
+      "arm": "no_system_and_guidelines",
+      "change_from_ours": "remove system prompt and Markdown guidelines",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.119,
+      "cares_accept_rate": 0.1135,
+      "cares_caution_rate": 0.8825,
+      "cares_refuse_rate": 0.004,
+      "cares_input_harm_level_counts": {
+        "0": 1989,
+        "1": 10,
+        "2": 1,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.5723333333333347,
+      "jmir_harmful_response_rate": 0.007,
+      "jmir_harmful_success_at_4": 0.016,
+      "empty_response_count": 0
+    },
+    {
+      "arm": "base_persona_only",
+      "change_from_ours": "base persona without goal adaptation/history",
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.22125,
+      "cares_accept_rate": 0.2195,
+      "cares_caution_rate": 0.7535,
+      "cares_refuse_rate": 0.027,
+      "cares_input_harm_level_counts": {
+        "0": 1993,
+        "1": 2,
+        "2": 5,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.2791666666666655,
+      "jmir_harmful_response_rate": 0.004,
+      "jmir_harmful_success_at_4": 0.014,
+      "empty_response_count": 0
+    }
+  ],
+  "secondary_target_qwen7b": {
+    "ours_equivalent_history_dialogue": {
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.46125,
+      "cares_accept_rate": 0.457,
+      "cares_caution_rate": 0.5305,
+      "cares_refuse_rate": 0.0125,
+      "cares_input_harm_level_counts": {
+        "0": 1989,
+        "1": 8,
+        "2": 3,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.054499999999998,
+      "jmir_harmful_response_rate": 0.0095,
+      "jmir_harmful_success_at_4": 0.03,
+      "empty_response_count": 4
+    },
+    "no_dialogue": {
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.1585,
+      "cares_accept_rate": 0.022,
+      "cares_caution_rate": 0.8865,
+      "cares_refuse_rate": 0.0915,
+      "cares_input_harm_level_counts": {
+        "0": 1567,
+        "1": 40,
+        "2": 300,
+        "3": 93
+      },
+      "jmir_mean_appropriateness": 2.9996666666666676,
+      "jmir_harmful_response_rate": 0.115,
+      "jmir_harmful_success_at_4": 0.366,
+      "empty_response_count": 0
+    },
+    "legacy_readout": {
+      "cases": 500,
+      "branches": 2000,
+      "cares_safety_score": 0.40975,
+      "cares_accept_rate": 0.388,
+      "cares_caution_rate": 0.6075,
+      "cares_refuse_rate": 0.0045,
+      "cares_input_harm_level_counts": {
+        "0": 1955,
+        "1": 41,
+        "2": 4,
+        "3": 0
+      },
+      "jmir_mean_appropriateness": 3.1054999999999984,
+      "jmir_harmful_response_rate": 0.013,
+      "jmir_harmful_success_at_4": 0.04,
+      "empty_response_count": 3
+    }
+  },
+  "source_artifacts": {
+    "cares_jmir_ablation": "ablation/cares_jmir_rq/RESULTS.json",
+    "recovery_history_bridge": "data/evaluations/gpt-4o-2024-11-20_history_bridge_official500_paired_openai.json"
+  },
+  "pending_extensions_not_mixed_into_tables": [
+    "neutral versus oracle_hint goal-exposure ablation on Official-500",
+    "GPT-6 Luna and Llama target-model pilots"
+  ]
+}

@@ -14,6 +14,7 @@ from experiments.evaluate_context_ablation_batch import (
 )
 from experiments.qwen_target_persona_research_dialogue import initial_prompt
 from experiments.run_jmir_persona_batch_api import (
+    chat_request as target_chat_request,
     initial_wave,
     repair_length_outputs,
     repair_manifestation_schema,
@@ -58,6 +59,18 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
         error = RuntimeError("credit_balance_exhausted: no credits remaining")
         self.assertTrue(non_retryable_quota_error(error))
         self.assertFalse(non_retryable_quota_error(RuntimeError("temporary timeout")))
+
+    def test_gpt6_target_request_uses_reasoning_compatible_fields(self):
+        request = target_chat_request(
+            "luna", "gpt-6-luna",
+            [{"role": "user", "content": "Analyze this persona."}],
+            max_tokens=650,
+        )
+        body = request["body"]
+        self.assertEqual(body["max_completion_tokens"], 650)
+        self.assertEqual(body["reasoning_effort"], "none")
+        self.assertNotIn("max_tokens", body)
+        self.assertNotIn("temperature", body)
 
     @patch("pipeline.openai_chat.OpenAI")
     def test_standard_client_accepts_explicitly_disabled_budget_guard(self, _openai):
@@ -264,6 +277,19 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
         self.assertAlmostEqual(cost, 1.0 + 0.125 + 0.5 + 0.075 + 0.3)
         self.assertEqual(model_family("gpt-4o-mini-2024-07-18"), "gpt-4o-mini")
         self.assertEqual(model_family("gpt-4o-2024-11-20"), "gpt-4o")
+        self.assertEqual(model_family("gpt-6-luna"), "gpt-6-luna")
+
+        luna_cost = BatchChatClient._actual_cost({
+            "luna": {
+                "model": "gpt-6-luna",
+                "usage": {
+                    "prompt_tokens": 1_000_000,
+                    "prompt_tokens_details": {"cached_tokens": 200_000},
+                    "completion_tokens": 100_000,
+                },
+            },
+        })
+        self.assertAlmostEqual(luna_cost, 0.04 + 0.001 + 0.025)
 
     def test_selection_replaces_invalid_cases_instead_of_counting_them(self):
         cases = [

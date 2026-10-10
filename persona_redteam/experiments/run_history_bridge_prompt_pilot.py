@@ -37,6 +37,20 @@ def selected_case_ids(path: Path) -> list[str]:
         case_ids = value.get(key)
         if isinstance(case_ids, list) and case_ids:
             return [str(item) for item in case_ids]
+    case_id_directory = value.get("case_id_directory")
+    if isinstance(case_id_directory, str) and case_id_directory.strip():
+        directory = Path(case_id_directory)
+        if not directory.is_absolute():
+            directory = ROOT / directory
+        case_ids = sorted(item.stem for item in directory.glob("*.json"))
+        expected = value.get("expected_cases")
+        if expected is not None and len(case_ids) != int(expected):
+            raise ValueError(
+                f"selection expected {expected} cases in {directory}, "
+                f"found {len(case_ids)}"
+            )
+        if case_ids:
+            return case_ids
     raise ValueError(f"selection has no non-empty final_case_ids/case_ids: {path}")
 
 
@@ -219,6 +233,8 @@ def run(selection: Path, source_run_dirs: list[Path], control_out_dir: Path,
         "cases": len(case_ids),
         "directions_per_case": len(FINAL_DIRECTIONS),
         "target_requests": len(requests),
+        "source_condition": condition,
+        "research_dialogue_goal_exposed": condition == "oracle_hint",
         "target_api": client.api_mode,
         "target_cost_usd": client.actual_cost(),
         "controlled_variables": [

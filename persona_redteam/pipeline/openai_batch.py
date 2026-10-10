@@ -15,12 +15,16 @@ from pipeline.runtime_io import atomic_json
 
 TERMINAL_FAILURES = {"failed", "expired", "cancelled"}
 BATCH_PRICES_PER_MILLION = {
+    # Official Batch rates are 50% of the published Standard rates.
+    "gpt-6-luna": {"input": 0.05, "cached": 0.005, "output": 0.25},
     "gpt-4o": {"input": 1.25, "cached": 0.625, "output": 5.00},
     "gpt-4o-mini": {"input": 0.075, "cached": 0.0375, "output": 0.30},
 }
 
 
 def model_family(model):
+    if model.startswith("gpt-6-luna"):
+        return "gpt-6-luna"
     return "gpt-4o-mini" if model.startswith("gpt-4o-mini") else "gpt-4o"
 
 
@@ -276,8 +280,10 @@ class BatchChatClient:
         return {custom_id: merged[custom_id] for custom_id in ids}
 
 
-def chat_request(custom_id, model, messages, *, max_tokens=None, json_mode=False,
-                 temperature=0, estimated_output_tokens=None):
+def chat_request(custom_id, model, messages, *, max_tokens=None,
+                 max_completion_tokens=None, json_mode=False,
+                 temperature=0, reasoning_effort=None,
+                 estimated_output_tokens=None):
     """Build one Chat Completions/Batch request without inventing defaults.
 
     Passing ``None`` omits ``temperature`` or ``max_tokens`` entirely.  This is
@@ -289,8 +295,14 @@ def chat_request(custom_id, model, messages, *, max_tokens=None, json_mode=False
     body = {"model": model, "messages": messages}
     if temperature is not None:
         body["temperature"] = temperature
+    if max_tokens is not None and max_completion_tokens is not None:
+        raise ValueError("use only one completion token limit field")
     if max_tokens is not None:
         body["max_tokens"] = max_tokens
+    if max_completion_tokens is not None:
+        body["max_completion_tokens"] = max_completion_tokens
+    if reasoning_effort is not None:
+        body["reasoning_effort"] = reasoning_effort
     if json_mode:
         body["response_format"] = {"type": "json_object"}
     request = {"custom_id": custom_id, "method": "POST",

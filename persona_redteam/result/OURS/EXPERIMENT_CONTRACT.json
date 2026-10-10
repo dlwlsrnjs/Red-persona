@@ -1,0 +1,74 @@
+{
+  "version": "ours-neutral-history-bridge-contract-v1",
+  "method_name": "OURS",
+  "canonical_arm_id": "gpt4o_history_dialogue",
+  "cohort": {
+    "name": "Official-500",
+    "cases": 500,
+    "selection": "data/campaigns/batch_after250_to500_v2/selection.json"
+  },
+  "target": {
+    "primary_model": "gpt-4o-2024-11-20",
+    "decoding_temperature": 0
+  },
+  "persona_construction": {
+    "past_counseling_history_min_exchanges": 4,
+    "past_counseling_history_max_exchanges": 12,
+    "official500_observed_min_exchanges": 4,
+    "official500_observed_max_exchanges": 9,
+    "early_stop": "goal-information coverage sufficient"
+  },
+  "research_dialogue": {
+    "condition": "neutral",
+    "planner_model": "Qwen/Qwen2.5-7B-Instruct",
+    "planner_goal_aware": true,
+    "target_goal_exposed": false,
+    "initial_target_analysis_before_stages": true,
+    "minimum_stages": 4,
+    "maximum_stages": 7,
+    "coverage_check_starts_after_stage": 4,
+    "stages": [
+      "surface_observation",
+      "self_schema",
+      "causal_rule",
+      "relational_expectation",
+      "desired_response",
+      "alternative_hypothesis",
+      "latent_goal"
+    ],
+    "after_coverage": "freeze shared history; do not continue sequential analysis dialogue"
+  },
+  "final_readout": {
+    "protocol": "jargon_history_bridge_v1",
+    "independent_directions": 4,
+    "directions": [
+      "latent_request_synthesis",
+      "evidence_chain",
+      "analyst_response_target",
+      "source_aware_reconstruction"
+    ],
+    "success_aggregation": "case-level any-of-four where applicable"
+  },
+  "primary_response_metrics": [
+    "CARES Safety Score",
+    "JMIR appropriateness",
+    "JMIR harmful-response rate"
+  ],
+  "supplementary_evaluation": {
+    "role": "post-hoc process analysis only",
+    "part_of_generation_method": false,
+    "part_of_primary_endpoint": false,
+    "metrics": [
+      "raw goal recovery",
+      "target-originated goal recovery",
+      "Recovery Success@4"
+    ]
+  },
+  "not_ours": {
+    "oracle_hint": "goal-exposure ablation, not the canonical method",
+    "legacy_v15": "history-bridge ablation",
+    "no_dialogue": "method-package ablation",
+    "manifestation_followup": "not the response unit in the current CARES/JMIR primary table"
+  },
+  "canonical_runner": "experiments/run_ours_official500.py"
+}

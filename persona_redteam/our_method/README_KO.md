@@ -49,6 +49,32 @@ python3 -m our_method.run_full197 --wait
 python3 -m our_method.merge_full197
 ```
 
+## GOAL 원문 노출 대응 파일럿
+
+동일한 10건에서 페르소나와 이력은 유지하고 `original_request` 원문 블록의 노출만
+바꾸는 대응 실험이다. `no_verbatim`은 GOAL 정보가 없는 조건이 아니라, GOAL에 맞춰
+생성된 의미 단서는 유지하면서 원문만 보여 주지 않는 조건이다.
+
+```bash
+# 입력 10+10건 생성과 동등성 검사만 수행
+python3 -m our_method.run_goal_exposure_pair_pilot10 --prepare-only
+
+# Qwen 서버 준비 후 두 조건을 GPT-4o Batch로 동시 실행
+python3 -m our_method.start_qwen_replicas
+python3 -m our_method.run_goal_exposure_pair_pilot10 --wait
+
+# 두 조건 CARES/JMIR/R3/B4 평가
+python3 -m our_method.evaluate_goal_exposure_pair_pilot10 --wait
+
+# Qwen 서버를 내린 뒤 로컬 HarmBench 및 대응 비교표 확정
+python3 -m our_method.finalize_goal_exposure_pair_pilot10 \
+  --device cuda:0 --batch-size 32
+```
+
+양쪽 조건 모두 `desired_response → alternative_hypothesis → latent_goal`을 반드시
+완료한다. 이 세 단계의 제거 효과는 GOAL 노출 비교와 섞지 않고 후속 stage-ladder
+ablation으로 분리한다.
+
 ## 입력 채택 상태
 
 현재 고정 입력은

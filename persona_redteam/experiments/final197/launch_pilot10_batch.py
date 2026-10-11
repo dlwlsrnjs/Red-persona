@@ -1,4 +1,4 @@
-"""Launch the fixed GPT-4o pilot-10 through OpenAI Batch API in four lanes."""
+"""Launch one fixed GPT-4o pilot-10 exposure arm through Batch API."""
 from __future__ import annotations
 
 import argparse
@@ -20,11 +20,27 @@ DEFAULT_CASES = (
 )
 DEFAULT_CAMPAIGN = ROOT / "data/evaluations/final197_explicit_goal_pilot10_gpt4o_v1"
 DEFAULT_RESULTS = ROOT / "result/OURS/final197_explicit_goal_pilot10_gpt4o_v1"
+PAIRED_INPUT_ROOT = (
+    ROOT / "data/final_cares_strict_harmful/persona197_v1/"
+    "pilot10_goal_exposure_pair_v1"
+)
+PAIRED_CAMPAIGN_ROOT = (
+    ROOT / "data/evaluations/final197_goal_exposure_pair_pilot10_gpt4o_v18"
+)
+PAIRED_RESULT_ROOT = (
+    ROOT / "result/OURS/final197_goal_exposure_pair_pilot10_gpt4o_v18"
+)
 LANES = (
     ("lane_0", 0, 3, "http://127.0.0.1:8000/v1", "OPENAI_API_KEY"),
     ("lane_1", 3, 6, "http://127.0.0.1:8001/v1", "OPENAI_API_KEY2"),
     ("lane_2", 6, 8, "http://127.0.0.1:8012/v1", "OPENAI_API_KEY"),
     ("lane_3", 8, 10, "http://127.0.0.1:8022/v1", "OPENAI_API_KEY2"),
+)
+PAIRED_LANES = (
+    ("lane_0", 0, 3, "http://127.0.0.1:8002/v1", "OPENAI_API_KEY"),
+    ("lane_1", 3, 6, "http://127.0.0.1:8003/v1", "OPENAI_API_KEY2"),
+    ("lane_2", 6, 8, "http://127.0.0.1:8010/v1", "OPENAI_API_KEY"),
+    ("lane_3", 8, 10, "http://127.0.0.1:8020/v1", "OPENAI_API_KEY2"),
 )
 
 
@@ -51,7 +67,7 @@ def base_command(cases: Path, selection: Path) -> list[str]:
     ]
 
 
-def validate_cases(path: Path) -> None:
+def validate_cases(path: Path, goal_exposure: str = "explicit") -> None:
     rows = json.loads(path.read_text(encoding="utf-8"))
     ids = [str(row.get("case_id", "")) for row in rows]
     if len(ids) != 10 or len(set(ids)) != 10:
@@ -59,16 +75,35 @@ def validate_cases(path: Path) -> None:
     for row in rows:
         exposure = row.get("persona_goal_exposure", {})
         goal = str(row.get("original_request", "")).strip()
-        if not exposure.get("target_visible") or goal.casefold() not in str(
-                row.get("persona", "")).casefold():
-            raise ValueError(f"explicit goal is missing: {row.get('case_id')}")
+        persona = str(row.get("persona", ""))
+        if not row.get("persona_history"):
+            raise ValueError(f"persona history is missing: {row.get('case_id')}")
+        if goal_exposure == "explicit":
+            if (not exposure.get("target_visible") or
+                    goal.casefold() not in persona.casefold()):
+                raise ValueError(f"explicit goal is missing: {row.get('case_id')}")
+        elif goal_exposure == "no_verbatim":
+            if (exposure.get("target_visible") is True or
+                    (goal and goal.casefold() in persona.casefold())):
+                raise ValueError(
+                    f"verbatim goal leaked into no-verbatim arm: {row.get('case_id')}"
+                )
+        else:
+            raise ValueError(f"unsupported goal exposure arm: {goal_exposure}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cases", type=Path, default=DEFAULT_CASES)
-    parser.add_argument("--campaign-root", type=Path, default=DEFAULT_CAMPAIGN)
-    parser.add_argument("--result-root", type=Path, default=DEFAULT_RESULTS)
+    parser.add_argument(
+        "--goal-exposure", choices=("explicit", "no_verbatim"),
+        default="explicit",
+    )
+    parser.add_argument(
+        "--researcher-url-set", choices=("default", "paired"), default="default",
+    )
+    parser.add_argument("--cases", type=Path)
+    parser.add_argument("--campaign-root", type=Path)
+    parser.add_argument("--result-root", type=Path)
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument(
         "--wait", action="store_true",
@@ -80,7 +115,22 @@ def main() -> None:
         help="Launch only one lane, primarily for isolated checkpoint repair.",
     )
     args = parser.parse_args()
-    validate_cases(args.cases)
+    if args.cases is None:
+        args.cases = (
+            DEFAULT_CASES if args.goal_exposure == "explicit" else
+            PAIRED_INPUT_ROOT / "no_verbatim_goal_cases.json"
+        )
+    if args.campaign_root is None:
+        args.campaign_root = (
+            DEFAULT_CAMPAIGN if args.goal_exposure == "explicit" else
+            PAIRED_CAMPAIGN_ROOT / "no_verbatim_goal"
+        )
+    if args.result_root is None:
+        args.result_root = (
+            DEFAULT_RESULTS if args.goal_exposure == "explicit" else
+            PAIRED_RESULT_ROOT / "no_verbatim_goal"
+        )
+    validate_cases(args.cases, args.goal_exposure)
     args.campaign_root.mkdir(parents=True, exist_ok=True)
     args.result_root.mkdir(parents=True, exist_ok=True)
     selection = args.campaign_root / "selection.json"
@@ -103,7 +153,8 @@ def main() -> None:
     }
     launched = []
     processes = []
-    active_lanes = [lane for lane in LANES
+    lane_table = PAIRED_LANES if args.researcher_url_set == "paired" else LANES
+    active_lanes = [lane for lane in lane_table
                     if args.only_lane is None or lane[0] == args.only_lane]
     for name, start, stop, researcher_url, key_name in active_lanes:
         campaign_dir = args.campaign_root / name
@@ -142,7 +193,9 @@ def main() -> None:
             "log": str(log_path),
         })
     manifest = {
-        "protocol": "final197-explicit-goal-pilot10-gpt4o-batch-v1",
+        "protocol": "final197-goal-exposure-pilot10-gpt4o-batch-v18",
+        "goal_exposure": args.goal_exposure,
+        "researcher_url_set": args.researcher_url_set,
         "launched_at": datetime.now(timezone.utc).isoformat(),
         "cases": str(args.cases.resolve()),
         "selection": str(selection),

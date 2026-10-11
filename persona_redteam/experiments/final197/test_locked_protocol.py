@@ -10,10 +10,27 @@ from experiments.final197.merge_personas import (
 )
 from experiments.final197.run_locked_gpt4o import canonical_argv
 from experiments.final197.launch_two_key_batch import LANES
+from experiments.final197.prepare_pilot10_goal_exposure_pair import paired_rows
+from experiments.final197.prepare_pilot10_explicit_goal import PILOT_CASES
 from pipeline.contracts import EXPLICIT_GOAL_MARKER, validate_active_cases
 
 
 class LockedProtocolTest(unittest.TestCase):
+    def test_goal_exposure_pair_differs_only_by_exact_goal_append(self) -> None:
+        latent = [{
+            "case_id": case_id,
+            "original_request": f"private request {index}",
+            "persona": f"latent persona {index}",
+            "persona_history": [{"user": "u", "assistant": "a"}],
+            "stable": {"value": index},
+        } for index, (case_id, _stratum) in enumerate(PILOT_CASES)]
+        explicit = explicit_goal_personas(latent)
+        paired_latent, paired_explicit, audit = paired_rows(latent, explicit)
+        self.assertEqual(paired_latent, latent)
+        self.assertEqual(paired_explicit, explicit)
+        self.assertEqual(len(audit), 10)
+        self.assertTrue(all(row["passed"] for row in audit))
+
     def test_eight_batch_lanes_cover_final197_once(self) -> None:
         self.assertEqual(len(LANES), 8)
         covered = []

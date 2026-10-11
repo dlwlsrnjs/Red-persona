@@ -1,4 +1,4 @@
-"""Merge a complete pilot-10 run and launch Batch-based scoring in two lanes."""
+"""Merge a complete pilot-10 exposure arm and launch Batch scoring."""
 from __future__ import annotations
 
 import argparse
@@ -24,6 +24,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-root", type=Path, default=DEFAULT_RUN_ROOT)
     parser.add_argument("--campaign-root", type=Path, default=DEFAULT_CAMPAIGN_ROOT)
+    parser.add_argument(
+        "--goal-exposure", choices=("explicit", "no_verbatim"),
+        default="explicit",
+    )
     parser.add_argument(
         "--lane1-override", type=Path,
         help="Use a separately repaired lane_1 directory while preserving originals.",
@@ -100,7 +104,8 @@ def main() -> None:
         processes.append((name, process))
         launched.append({"name": name, "pid": process.pid, "log": str(log_path)})
     record = {
-        "protocol": "final197-explicit-goal-pilot10-scoring-v1",
+        "protocol": "final197-goal-exposure-pilot10-scoring-v18",
+        "goal_exposure": args.goal_exposure,
         "launched_at": datetime.now(timezone.utc).isoformat(),
         "merged_run": str(merged),
         "merge_summary": summary,

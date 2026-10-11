@@ -218,6 +218,7 @@ def build_jobs(
     persona_map_path: Path = DEFAULT_PERSONA_MAP,
     persona_pool_path: Path = DEFAULT_PERSONA_POOL,
     pathology_routes_path: Path = DEFAULT_PATHOLOGY_ROUTES,
+    pcsa_persona_history_path: Path | None = None,
     case_start: int = 0,
     qwen_endpoints: tuple[str, ...] = (),
 ) -> list[MatrixJob]:
@@ -304,6 +305,10 @@ def build_jobs(
                         pcsa_evaluator.transport,
                     )
                 )
+                if pcsa_persona_history_path is not None:
+                    command.extend(
+                        ("--pcsa-persona-history", str(pcsa_persona_history_path))
+                    )
             if pilot_cases is not None:
                 command.extend(("--limit", str(pilot_cases)))
             if case_start:
@@ -456,6 +461,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--persona-map", type=Path, default=DEFAULT_PERSONA_MAP)
     parser.add_argument("--persona-pool", type=Path, default=DEFAULT_PERSONA_POOL)
     parser.add_argument("--pathology-routes", type=Path, default=DEFAULT_PATHOLOGY_ROUTES)
+    parser.add_argument(
+        "--pcsa-persona-history",
+        type=Path,
+        help="goal-conditioned Final-197 persona/history export for PCSA Phase I",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--pilot-cases", type=int, default=1)
     parser.add_argument(
@@ -590,6 +600,7 @@ def main(argv: list[str] | None = None) -> int:
         persona_map_path=args.persona_map,
         persona_pool_path=args.persona_pool,
         pathology_routes_path=args.pathology_routes,
+        pcsa_persona_history_path=args.pcsa_persona_history,
         case_start=args.case_start,
         qwen_endpoints=tuple(args.qwen_endpoint),
     )
@@ -623,6 +634,11 @@ def main(argv: list[str] | None = None) -> int:
             "persona_map": str(args.persona_map.resolve()),
             "persona_pool": str(args.persona_pool.resolve()),
             "pathology_routes": str(args.pathology_routes.resolve()),
+            "pcsa_persona_history": (
+                str(args.pcsa_persona_history.resolve())
+                if args.pcsa_persona_history
+                else None
+            ),
         },
         "parallelism": {
             "job_count": len(jobs),
@@ -664,7 +680,11 @@ def main(argv: list[str] | None = None) -> int:
             "status": "configured" if "pcsa_phase2" in methods else "not_selected",
             "phase": 2,
             "phase1_enabled": False,
-            "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
+            "phase1_replacement": (
+                "fixed_goal_conditioned_persona_history_style_and_pathology_route"
+                if args.pcsa_persona_history
+                else "fixed_red_persona_profile_and_pathology_route"
+            ),
             "max_turns": 4,
             "candidates_per_turn": 4,
         },

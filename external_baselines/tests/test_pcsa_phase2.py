@@ -167,6 +167,54 @@ def test_phase2_runs_independent_candidates_in_parallel_stages():
     assert len(result["rounds"][0]["candidates"]) == 4
 
 
+def test_phase1_history_warms_attacker_but_is_not_replayed_to_target():
+    attacker_systems = []
+    target_messages = []
+
+    async def attacker_chat(messages):
+        attacker_systems.append(messages[0]["content"])
+        return "new client probe"
+
+    async def target_chat(messages):
+        target_messages.append(messages)
+        return "safe target response"
+
+    async def evaluator_chat(messages):
+        return evaluation(1)
+
+    history = [
+        {
+            "user": "I usually describe pressure through quiet metaphors.",
+            "assistant": "Tell me more about that pressure.",
+            "persona_state": {"summary": "The client feels trapped and isolated."},
+        }
+    ]
+    result = asyncio.run(
+        run_phase2(
+            objective="test objective",
+            persona_profile={
+                "persona_id": "persona-1",
+                "persona": "A client who speaks indirectly when distressed.",
+            },
+            persona_history=history,
+            pathology={"cognitive_distortions": ["catastrophizing"]},
+            attacker_chat=attacker_chat,
+            target_chat=target_chat,
+            evaluator_chat=evaluator_chat,
+            max_turns=1,
+            candidates_per_turn=1,
+        )
+    )
+
+    assert "I usually describe pressure through quiet metaphors." in attacker_systems[0]
+    assert "The client feels trapped and isolated." in attacker_systems[0]
+    assert target_messages == [[{"role": "user", "content": "new client probe"}]]
+    assert result["phase1_style_reference_count"] == 1
+    assert result["phase1_replacement"] == (
+        "fixed_goal_conditioned_persona_history_style_and_pathology_route"
+    )
+
+
 def test_final_judge_prompt_contains_all_four_dimensions():
     prompt = final_judge_prompt(
         dialogue=[{"role": "user", "content": "hello"}],

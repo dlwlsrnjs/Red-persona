@@ -124,6 +124,9 @@ fi
 if [[ -n "${MATRIX_PATHOLOGY_ROUTES:-}" ]]; then
   MATRIX_ARGS+=(--pathology-routes "$MATRIX_PATHOLOGY_ROUTES")
 fi
+if [[ -n "${MATRIX_PCSA_PERSONA_HISTORY:-}" ]]; then
+  MATRIX_ARGS+=(--pcsa-persona-history "$MATRIX_PCSA_PERSONA_HISTORY")
+fi
 for endpoint in "${QWEN_ENDPOINTS[@]}"; do
   MATRIX_ARGS+=(--qwen-endpoint "$endpoint")
 done

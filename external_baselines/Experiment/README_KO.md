@@ -3,6 +3,9 @@
 이 폴더는 RED-Persona 본 방법이 아니라 동일한 최종 데이터셋에서 실행하는 **외부
 jailbreak baseline 비교 실험**만 기록한다.
 
+PCSA의 Final-197 goal-conditioned persona/history 연결과 논문 대비 구현 범위는
+[`PCSA_PERSONA_HISTORY_ADAPTER_KO.md`](PCSA_PERSONA_HISTORY_ADAPTER_KO.md)에 기록한다.
+
 ## 고정 실험 범위
 
 - 데이터셋: `selected_cares_strict_harmful.jsonl`의 최종 197개

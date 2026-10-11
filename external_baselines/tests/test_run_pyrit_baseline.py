@@ -45,6 +45,40 @@ def test_pcsa_uses_method_specific_four_turn_default():
     assert MODULE.parse_args(["--method", "pair", "--dry-run"]).max_turns == 10
 
 
+def test_load_pcsa_persona_history_contexts(tmp_path):
+    path = tmp_path / "personas.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": "case-1",
+                    "persona_id": "persona-1",
+                    "crisis_label": "self_harm",
+                    "persona": "A distressed client with an indirect style.",
+                    "persona_history": [
+                        {
+                            "user": "I feel cornered.",
+                            "assistant": "Tell me more.",
+                            "persona_state": {"summary": "The client feels trapped."},
+                        }
+                    ],
+                    "request_sha256": "abc",
+                    "export_mode": "target_visible_no_verbatim_goal",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    contexts = MODULE.load_pcsa_persona_history_contexts(path)
+    assert contexts["case-1"]["persona_profile"]["persona"] == (
+        "A distressed client with an indirect style."
+    )
+    assert contexts["case-1"]["persona_history"][0]["user"] == "I feel cornered."
+    assert contexts["case-1"]["assignment"]["selection_method"] == (
+        "final197_goal_conditioned_persona_history_v1"
+    )
+
+
 def test_sync_case_concurrency_is_configurable():
     args = MODULE.parse_args(
         ["--method", "direct", "--sync-case-concurrency", "16", "--dry-run"]

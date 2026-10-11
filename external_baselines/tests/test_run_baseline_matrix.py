@@ -42,6 +42,31 @@ def test_default_matrix_builds_nine_methods_for_two_targets():
     assert qwen_pcsa.command[qwen_pcsa.command.index("--sync-case-concurrency") + 1] == "16"
 
 
+def test_pcsa_persona_history_is_forwarded_only_to_pcsa_jobs(tmp_path):
+    targets, adversary, pcsa_evaluator, methods = MODULE.load_matrix_config(
+        MODULE.DEFAULT_CONFIG
+    )
+    history_path = tmp_path / "final197-personas.json"
+    jobs = MODULE.build_jobs(
+        targets=targets,
+        adversary=adversary,
+        pcsa_evaluator=pcsa_evaluator,
+        methods=methods,
+        input_path=MODULE.DEFAULT_INPUT,
+        cohort_index_path=MODULE.DEFAULT_COHORT_INDEX,
+        output_root=Path("out"),
+        pilot_cases=1,
+        retry_failed=False,
+        pcsa_persona_history_path=history_path,
+    )
+    for job in jobs:
+        if job.method == "pcsa_phase2":
+            assert "--pcsa-persona-history" in job.command
+            assert str(history_path) in job.command
+        else:
+            assert "--pcsa-persona-history" not in job.command
+
+
 def test_qwen_consuming_jobs_are_round_robin_distributed_across_replicas():
     targets, adversary, pcsa_evaluator, methods = MODULE.load_matrix_config(MODULE.DEFAULT_CONFIG)
     replicas = tuple(f"http://127.0.0.1:{8000 + index}/v1" for index in range(7))

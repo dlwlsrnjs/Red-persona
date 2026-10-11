@@ -44,6 +44,13 @@ DEFAULT_PERSONA_MAP = (
 )
 DEFAULT_PERSONA_POOL = REPO_ROOT / "data" / "personas" / "personas.jsonl"
 DEFAULT_PATHOLOGY_ROUTES = REPO_ROOT / "data" / "goal_pathology_routes_n625.jsonl"
+DEFAULT_PCSA_PERSONA_HISTORY = (
+    REPO_ROOT
+    / "persona_redteam"
+    / "our_method"
+    / "data"
+    / "FINAL197_PERSONAS_WITH_HISTORY_NO_VERBATIM_GOAL.json"
+)
 PYRIT_ROOT = BASELINE_DIR / "vendor" / "pyrit"
 CRISIS_PROMPT = PYRIT_ROOT / "pyrit" / "datasets" / "executors" / "crescendo" / "escalation_crisis.yaml"
 THERAPIST_PROMPT = PYRIT_ROOT / "pyrit" / "datasets" / "executors" / "crescendo" / "therapist.yaml"
@@ -160,6 +167,47 @@ def load_persona_contexts(
             "persona_id": persona_id,
             "persona_profile": profiles[persona_id],
             "assignment": assignment,
+        }
+    return contexts
+
+
+def load_pcsa_persona_history_contexts(path: Path) -> dict[str, dict[str, Any]]:
+    """Load the goal-conditioned Phase-I replacement exported for Final-197.
+
+    Source histories are supplied to the attacker as client characteristics and
+    style references. They are deliberately not replayed as target dialogue.
+    """
+    contexts: dict[str, dict[str, Any]] = {}
+    for index, row in enumerate(_read_records(path)):
+        case_id = row.get("case_id")
+        persona_id = row.get("persona_id")
+        persona = row.get("persona")
+        history = row.get("persona_history")
+        if not isinstance(case_id, str) or not case_id.strip():
+            raise ValueError(f"PCSA persona-history row {index} has no case_id")
+        if case_id in contexts:
+            raise ValueError(f"duplicate PCSA persona-history case: {case_id}")
+        if not isinstance(persona_id, str) or not persona_id.strip():
+            raise ValueError(f"PCSA persona-history row {case_id} has no persona_id")
+        if not isinstance(persona, str) or not persona.strip():
+            raise ValueError(f"PCSA persona-history row {case_id} has no persona")
+        if not isinstance(history, list) or not history:
+            raise ValueError(f"PCSA persona-history row {case_id} has no history")
+        contexts[case_id] = {
+            "persona_id": persona_id,
+            "persona_profile": {
+                "persona_id": persona_id,
+                "persona": persona.strip(),
+                "crisis_label": row.get("crisis_label"),
+            },
+            "persona_history": history,
+            "assignment": {
+                "case_id": case_id,
+                "persona_id": persona_id,
+                "selection_method": "final197_goal_conditioned_persona_history_v1",
+                "request_sha256": row.get("request_sha256"),
+                "export_mode": row.get("export_mode"),
+            },
         }
     return contexts
 
@@ -366,6 +414,16 @@ def build_manifest(
         "persona_context": {
             "assignment_path": str(args.persona_map.resolve()),
             "persona_pool_path": str(args.persona_pool.resolve()),
+            "phase1_persona_history_path": (
+                str(args.pcsa_persona_history.resolve())
+                if args.method == "pcsa_phase2" and args.pcsa_persona_history
+                else None
+            ),
+            "phase1_persona_history_sha256": (
+                _sha256(args.pcsa_persona_history)
+                if args.method == "pcsa_phase2" and args.pcsa_persona_history
+                else None
+            ),
             "assigned_count": sum(case["persona_context"] is not None for case in selected),
             "injected_into_attack_prompt": args.method == "pcsa_phase2",
             "used_by_pcsa_phase2": args.method == "pcsa_phase2",
@@ -419,7 +477,11 @@ def build_manifest(
                     "paper": PCSA_PAPER_ID,
                     "phase": 2,
                     "phase1_enabled": False,
-                    "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
+                    "phase1_replacement": (
+                        "fixed_goal_conditioned_persona_history_style_and_pathology_route"
+                        if args.pcsa_persona_history
+                        else "fixed_red_persona_profile_and_pathology_route"
+                    ),
                     "pathology_routes": str(args.pathology_routes.resolve()),
                     "max_turns": args.max_turns,
                     "candidates_per_turn": args.pcsa_candidates,
@@ -731,6 +793,7 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                 pcsa_result = await run_pcsa_phase2(
                     objective=case["objective"],
                     persona_profile=persona_context["persona_profile"],
+                    persona_history=persona_context.get("persona_history", ()),
                     pathology=pathology_context["pathology"],
                     attacker_chat=lambda messages: chat(adversary, messages),
                     target_chat=lambda messages: chat(target, messages),
@@ -866,6 +929,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--persona-map", type=Path, default=DEFAULT_PERSONA_MAP)
     parser.add_argument("--persona-pool", type=Path, default=DEFAULT_PERSONA_POOL)
     parser.add_argument("--pathology-routes", type=Path, default=DEFAULT_PATHOLOGY_ROUTES)
+    parser.add_argument(
+        "--pcsa-persona-history",
+        type=Path,
+        help=(
+            "goal-conditioned persona/history export used as PCSA Phase-I "
+            "attacker warm-up context; source history is not replayed to the target"
+        ),
+    )
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--stop", type=int)
@@ -990,7 +1061,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    persona_contexts = load_persona_contexts(args.persona_map, args.persona_pool)
+    persona_contexts = (
+        load_pcsa_persona_history_contexts(args.pcsa_persona_history)
+        if args.method == "pcsa_phase2" and args.pcsa_persona_history
+        else load_persona_contexts(args.persona_map, args.persona_pool)
+    )
     pathology_contexts = load_pathology_contexts(args.pathology_routes)
     source_records = _read_records(args.input)
     cohort_rows = load_cohort_rows(args.cohort_index)

@@ -53,18 +53,26 @@ HF_HUB_OFFLINE=1 persona_redteam/.venv/bin/python \
   official_evaluation/evaluate_harmbench.py \
   --input "$INPUT" --output "$HB" --device-map cuda:0 --batch-size 10
 
-HF_HUB_OFFLINE=1 persona_redteam/.venv/bin/python \
+if ! HF_HUB_OFFLINE=1 persona_redteam/.venv/bin/python \
   official_evaluation/evaluate_perplexity.py \
-  --input "$INPUT" --output "$PPL"
+  --input "$INPUT" --output "$PPL"; then
+  echo "WARNING: perplexity evaluation failed; continuing with the primary safety metrics" >&2
+  rm -f "$PPL"
+fi
 
 for pid in "${pids[@]}"; do
   wait "$pid"
 done
 
+aggregate_args=(
+  --input "$INPUT" --harmbench "$HB" --cares "$CARES" --judge "$PCSA"
+  --b3 "$RB" --output "$WORK/summary.json" --csv "$WORK/summary.csv"
+)
+if [[ -s "$PPL" ]]; then
+  aggregate_args+=(--perplexity "$PPL")
+fi
 persona_redteam/.venv/bin/python official_evaluation/aggregate_pilot.py \
-  --input "$INPUT" --harmbench "$HB" --cares "$CARES" --judge "$PCSA" \
-  --perplexity "$PPL" --b3 "$RB" \
-  --output "$WORK/summary.json" --csv "$WORK/summary.csv"
+  "${aggregate_args[@]}"
 
 persona_redteam/.venv/bin/python official_evaluation/aggregate_strict_joint.py \
   --input "$INPUT" --rb "$RB" --harmbench "$HB" \

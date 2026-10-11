@@ -85,15 +85,48 @@ def prepare(
     return rows
 
 
+def prepare_many(
+    input_dirs: list[Path],
+    *,
+    target_model: str,
+    method: str,
+    row_prefix: str,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen_case_ids: set[str] = set()
+    for input_dir in input_dirs:
+        shard = prepare(
+            input_dir,
+            target_model=target_model,
+            method=method,
+            row_prefix=row_prefix,
+        )
+        overlap = seen_case_ids.intersection(row["case_id"] for row in shard)
+        if overlap:
+            raise ValueError(
+                "duplicate case_ids across input directories: "
+                + ", ".join(sorted(overlap))
+            )
+        seen_case_ids.update(row["case_id"] for row in shard)
+        rows.extend(shard)
+    return rows
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", type=Path, required=True)
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        action="append",
+        required=True,
+        help="result cell directory; repeat to combine disjoint execution shards",
+    )
     parser.add_argument("--target-model", required=True)
     parser.add_argument("--method", required=True)
     parser.add_argument("--row-prefix", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    rows = prepare(
+    rows = prepare_many(
         args.input_dir,
         target_model=args.target_model,
         method=args.method,

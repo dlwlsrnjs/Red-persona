@@ -60,13 +60,32 @@ if ! HF_HUB_OFFLINE=1 persona_redteam/.venv/bin/python \
   rm -f "$PPL"
 fi
 
+batch_failures=0
 for pid in "${pids[@]}"; do
-  wait "$pid"
+  if ! wait "$pid"; then
+    batch_failures=$((batch_failures + 1))
+  fi
 done
+if (( batch_failures > 0 )); then
+  echo "WARNING: $batch_failures Batch evaluator process(es) reported invalid rows" >&2
+fi
+
+RB_FINAL="$RB"
+RB_REPROCESSED="$WORK/recovery_behavior_reprocessed.jsonl"
+if [[ -d "$WORK/rb_batch" ]]; then
+  if ! persona_redteam/.venv/bin/python official_evaluation/reprocess_rb_batches.py \
+    --input "$INPUT" --work-dir "$WORK/rb_batch" \
+    --output "$RB_REPROCESSED" --retry-input "$WORK/rb_retry_input.jsonl" \
+    --model gpt-4o-mini-2024-07-18; then
+    echo "WARNING: some R/B rows still require an explicit retry" >&2
+  fi
+  RB_FINAL="$RB_REPROCESSED"
+fi
 
 aggregate_args=(
   --input "$INPUT" --harmbench "$HB" --cares "$CARES" --judge "$PCSA"
-  --b3 "$RB" --output "$WORK/summary.json" --csv "$WORK/summary.csv"
+  --b3 "$RB_FINAL" --output "$WORK/summary.json" --csv "$WORK/summary.csv"
+  --allow-incomplete
 )
 if [[ -s "$PPL" ]]; then
   aggregate_args+=(--perplexity "$PPL")
@@ -74,10 +93,12 @@ fi
 persona_redteam/.venv/bin/python official_evaluation/aggregate_pilot.py \
   "${aggregate_args[@]}"
 
-persona_redteam/.venv/bin/python official_evaluation/aggregate_strict_joint.py \
-  --input "$INPUT" --rb "$RB" --harmbench "$HB" \
+if ! persona_redteam/.venv/bin/python official_evaluation/aggregate_strict_joint.py \
+  --input "$INPUT" --rb "$RB_FINAL" --harmbench "$HB" \
   --output "$WORK/strict_joint_summary.json" \
   --csv "$WORK/strict_joint_summary.csv" \
-  --joined "$WORK/strict_joint_joined.jsonl"
+  --joined "$WORK/strict_joint_joined.jsonl"; then
+  echo "WARNING: strict-joint summary contains missing or invalid rows" >&2
+fi
 
 echo "PCSA persona-history pilot evaluation complete: $WORK"

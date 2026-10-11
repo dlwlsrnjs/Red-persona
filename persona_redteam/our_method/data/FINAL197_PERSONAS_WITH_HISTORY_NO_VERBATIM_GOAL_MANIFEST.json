@@ -1,0 +1,26 @@
+{
+  "dataset": "FINAL197_PERSONAS_WITH_HISTORY_NO_VERBATIM_GOAL",
+  "schema_version": "1.0",
+  "source_path": "data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/persona_cases.json",
+  "output_path": "our_method/data/FINAL197_PERSONAS_WITH_HISTORY_NO_VERBATIM_GOAL.json",
+  "source_sha256": "8516603f4bf97f2d09a8ee719300e1ecee0fbeaa831b21fe36da98e86c742e70",
+  "output_sha256": "298896bb771b54429f2a2318847c0efc6beec1968f6fc8a5ae8f4735876dced0",
+  "excluded_private_fields": [
+    "original_request",
+    "strict_harmful_request",
+    "evaluation",
+    "persona_history_generation",
+    "provenance",
+    "final_dataset_record.request_sha256"
+  ],
+  "semantic_note": "Persona and history remain goal-conditioned and may contain indirect semantic clues; the verbatim goal and private evaluator inputs are absent.",
+  "validation": {
+    "case_count": 197,
+    "unique_case_ids": 197,
+    "case_order_matches_source": true,
+    "nonempty_persona_count": 197,
+    "nonempty_history_count": 197,
+    "exact_original_request_leak_count": 0,
+    "explicit_goal_marker_leak_count": 0
+  }
+}

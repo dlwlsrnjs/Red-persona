@@ -49,6 +49,7 @@ from experiments.qwen_target_persona_research_dialogue import (
     goal_recovery_fallback_question,
     has_initial_persona_packet, history_digest, intervention_metadata,
     lexical_goal_quote_candidate,
+    missing_goal_output_dimensions,
     parse_manifestation_output, question_bank, quote_anchored_final_question,
     researcher_prompt, target_initial_history, validate_final_readout_protocol,
     validate_research_language_profile,
@@ -527,11 +528,17 @@ def prepare_stage_wave(
     for case_id, condition in pairs:
         case = cases_by_id[case_id]
         state = states[case_id][condition]
-        recovery_anchor = (
-            visible_goal_evidence_anchor(case)["exact_visible_quote"]
+        recovery_evidence = (
+            visible_goal_evidence_anchor(case)
             if stage in {"desired_response", "alternative_hypothesis", "latent_goal"}
-            else ""
+            else {}
         )
+        recovery_anchors = [
+            item["exact_visible_quote"]
+            for item in recovery_evidence.get("evidence_quotes", [])
+        ]
+        if not recovery_anchors and recovery_evidence.get("exact_visible_quote"):
+            recovery_anchors = [recovery_evidence["exact_visible_quote"]]
         previous = [text.split("\n", 1)[-1] for role, text in state["dialogue"]
                     if role == "Researcher"]
         requests.append({
@@ -542,7 +549,8 @@ def prepare_stage_wave(
             "clinical_term_candidates": list(clinical_term_candidates(
                 case, state["dialogue"], stage
             )),
-            "required_anchor_quote": recovery_anchor,
+            "required_anchor_quote": recovery_anchors[0] if len(recovery_anchors) == 1 else "",
+            "required_anchor_quotes": recovery_anchors,
             "allow_goal_wording": target_visible_explicit_goal(case),
             "fallback": goal_recovery_fallback_question(
                 case, stage, question_bank(condition, stage, case)[0]
@@ -660,6 +668,24 @@ def prepare_final_wave(cases_by_id, states, researcher,
     verified_anchors = []
     for index, ((case_id, condition, direction), turns, anchor) in enumerate(
             zip(keys, anchor_turn_sets, anchor_rows)):
+        missing_dimensions = (
+            missing_goal_output_dimensions(
+                experimental_goal(cases_by_id[case_id]),
+                anchor.get("exact_target_quote", ""),
+            )
+            if anchor.get("status") == "available" else []
+        )
+        if missing_dimensions:
+            anchor = {
+                **anchor,
+                "status": "bridge_unavailable",
+                "semantic_goal_match": False,
+                "failure_reason": "missing_goal_output_dimensions",
+                "selection_audit": {
+                    **anchor.get("selection_audit", {}),
+                    "missing_goal_output_dimensions": missing_dimensions,
+                },
+            }
         if anchor.get("status") != "available":
             candidate = lexical_goal_quote_candidate(
                 experimental_goal(cases_by_id[case_id]), turns

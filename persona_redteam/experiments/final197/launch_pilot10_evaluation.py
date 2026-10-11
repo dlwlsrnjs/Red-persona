@@ -36,7 +36,22 @@ def main() -> None:
         "--wait", action="store_true",
         help="Keep the launcher attached until both scoring jobs exit.",
     )
+    parser.add_argument(
+        "--jobs",
+        nargs="+",
+        choices=("cares_jmir", "recovery_behavior"),
+        default=("cares_jmir", "recovery_behavior"),
+        help="Scoring jobs to launch. Defaults to both jobs.",
+    )
     args = parser.parse_args()
+
+    # Downstream evaluators record source paths relative to ROOT.  Supplying a
+    # relative --run-root used to make Path.relative_to(ROOT) fail even though
+    # the file itself existed, so normalise every CLI path at this boundary.
+    args.run_root = args.run_root.resolve()
+    args.campaign_root = args.campaign_root.resolve()
+    if args.lane1_override:
+        args.lane1_override = args.lane1_override.resolve()
 
     merged = args.run_root / "merged"
     lane_dirs = [args.run_root / f"lane_{index}" for index in range(4)]
@@ -87,7 +102,10 @@ def main() -> None:
     )
     launched = []
     processes = []
+    selected_jobs = set(args.jobs)
     for name, key, command in jobs:
+        if name not in selected_jobs:
+            continue
         log_path = score_root / f"{name}.log"
         env = os.environ.copy()
         env["OPENAI_API_KEY"] = key
@@ -110,6 +128,7 @@ def main() -> None:
         "merged_run": str(merged),
         "merge_summary": summary,
         "api_mode": "openai_batch",
+        "selected_jobs": list(args.jobs),
         "credentials_persisted": False,
         "jobs": launched,
     }

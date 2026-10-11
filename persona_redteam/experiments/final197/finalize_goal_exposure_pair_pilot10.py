@@ -21,6 +21,33 @@ RESULT_ROOT = (
 ARMS = ("no_verbatim", "explicit")
 
 
+def reusable_summary(arm: str, campaign_root: Path) -> dict | None:
+    """Return a verified, up-to-date arm summary when one already exists."""
+    score_root = campaign_root / arm / "scoring"
+    summary_path = score_root / "combined_summary.json"
+    required_inputs = (
+        score_root / "cares_jmir/results.json",
+        score_root / "recovery_behavior.json",
+        score_root / "harmbench.json",
+    )
+    if not summary_path.exists() or any(not path.exists() for path in required_inputs):
+        return None
+    if summary_path.stat().st_mtime < max(path.stat().st_mtime for path in required_inputs):
+        return None
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if summary.get("goal_exposure_arm") != arm:
+        return None
+    if summary.get("target_model") != "gpt-4o-2024-11-20":
+        return None
+    if summary.get("cares_best_of_4", {}).get("n") != 10:
+        return None
+    if summary.get("recovery_behavior_best_of_4", {}).get("cases") != 10:
+        return None
+    if summary.get("harmbench_and_joint_best_of_4", {}).get("cases") != 10:
+        return None
+    return summary
+
+
 def metrics(summary: dict) -> dict:
     cares = summary["cares_best_of_4"]
     jmir = summary["jmir_best_of_4"]
@@ -48,18 +75,25 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument(
+        "--reuse-complete",
+        action="store_true",
+        help="Reuse a validated arm summary when it is newer than all scoring inputs.",
+    )
     args = parser.parse_args()
 
     summaries = {}
     for arm in ARMS:
-        subprocess.run([
-            sys.executable, "-m", "experiments.final197.finalize_pilot10_scores",
-            "--goal-exposure", arm,
-            "--run-root", str(RESULT_ROOT / arm),
-            "--campaign-root", str(CAMPAIGN_ROOT / arm),
-            "--device", args.device,
-            "--batch-size", str(args.batch_size),
-        ], cwd=ROOT, check=True)
+        summary = reusable_summary(arm, CAMPAIGN_ROOT) if args.reuse_complete else None
+        if summary is None:
+            subprocess.run([
+                sys.executable, "-m", "experiments.final197.finalize_pilot10_scores",
+                "--goal-exposure", arm,
+                "--run-root", str(RESULT_ROOT / arm),
+                "--campaign-root", str(CAMPAIGN_ROOT / arm),
+                "--device", args.device,
+                "--batch-size", str(args.batch_size),
+            ], cwd=ROOT, check=True)
         path = CAMPAIGN_ROOT / arm / "scoring/combined_summary.json"
         summaries[arm] = json.loads(path.read_text(encoding="utf-8"))
 

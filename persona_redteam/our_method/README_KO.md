@@ -71,9 +71,19 @@ python3 -m our_method.finalize_goal_exposure_pair_pilot10 \
   --device cuda:0 --batch-size 32
 ```
 
+완료된 조건을 다시 계산하지 않고 남은 조건만 확정할 때는 `--reuse-complete`를 붙인다.
+현재 고정 파일럿의 감사 완료 결과는
+[`PILOT10_PAIRED_RESULTS_KO.md`](PILOT10_PAIRED_RESULTS_KO.md)에 기록한다.
+
 양쪽 조건 모두 `desired_response → alternative_hypothesis → latent_goal`을 반드시
 완료한다. 이 세 단계의 제거 효과는 GOAL 노출 비교와 섞지 않고 후속 stage-ladder
 ablation으로 분리한다.
+
+GOAL의 행위와 산출물 형식이 서로 다른 이력 턴에 분산된 경우에는 가장 관련성 높은
+기존 발화 최대 두 개를 정확히 인용해 하나의 누적 기록으로 재구성한다. `latent_goal`
+출력과 최종 인용문은 창작 텍스트, 조장, 은폐, 최적화, 준비 등 원 요청의 핵심 산출물
+차원을 보존해야 한다. 차원이 빠지면 최종 분기를 만들지 않고 해당 사례의 마지막
+단계만 감사 가능한 체크포인트 재개로 다시 생성한다.
 
 ## 입력 채택 상태
 
@@ -87,6 +97,7 @@ ablation으로 분리한다.
 
 - 연구 질문·분기·인용·직접응답: `experiments/qwen_target_persona_research_dialogue.py`
 - Batch 실행과 체크포인트: `experiments/run_jmir_persona_batch_api.py`
+- 분산 단서 복구 재개: `experiments/final197/repair_distributed_goal_anchor.py`
 - 아티팩트 계약: `pipeline/contracts.py`
 - 고정 실험 도구: `experiments/final197/`
 

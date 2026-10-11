@@ -159,6 +159,20 @@ class PipelineContractTests(unittest.TestCase):
         self.assertTrue(any("stale research engine" in error for error in errors))
         self.assertTrue(any("missing separated candidate_response" in error for error in errors))
 
+    def test_final_response_only_does_not_require_manifestation_followup(self):
+        record = self.make_run()
+        record["measurement_scope"] = "final_analysis_response_only"
+        for result in record["results"]:
+            for item in result["final_branches"]:
+                for field in (
+                    "manifestation_question", "manifestation_target",
+                    "manifestation_candidate_response",
+                    "manifestation_research_analysis",
+                ):
+                    item.pop(field, None)
+
+        self.assertEqual(validate_run_record(record), [])
+
     def test_legacy_run_is_valid_when_four_direction_projection_is_complete(self):
         record = self.make_run()
         record["research_engine_version"] = "legacy-eight-direction-version"

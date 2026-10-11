@@ -115,7 +115,9 @@ def _target_histories(result):
     yield result["shared_history"]["full_messages"]
     for branch in result["final_branches"]:
         yield branch["context"]["full_messages"]
-        yield branch["manifestation_context"]["full_messages"]
+        manifestation_context = branch.get("manifestation_context")
+        if manifestation_context and "full_messages" in manifestation_context:
+            yield manifestation_context["full_messages"]
 
 
 def _active_conditions(record, errors, artifact):
@@ -154,6 +156,9 @@ def validate_run_record(record):
             f"{sorted(expected_conditions)}, got {sorted(map(str, conditions))}"
         )
     ablation_name = record.get("ablation", {}).get("name")
+    manifestation_required = (
+        record.get("measurement_scope") != "final_analysis_response_only"
+    )
     readout_protocol = record.get("final_readout_protocol")
     if (readout_protocol is not None and
             readout_protocol not in FINAL_READOUT_PROTOCOLS):
@@ -202,13 +207,14 @@ def validate_run_record(record):
         digests = {branch.get("context", {}).get("shared_history_sha256") for branch in branches}
         if len(digests) != 1 or None in digests:
             errors.append(f"{prefix}: branches do not share one cumulative prefix")
-        for branch in branches:
-            if not branch.get("manifestation_question") or not branch.get("manifestation_target"):
-                errors.append(f"{prefix}:{branch.get('direction')}: missing manifestation turn")
-            if "manifestation_candidate_response" not in branch:
-                errors.append(f"{prefix}:{branch.get('direction')}: missing separated candidate_response")
-            if "manifestation_research_analysis" not in branch:
-                errors.append(f"{prefix}:{branch.get('direction')}: missing separated research_analysis")
+        if manifestation_required:
+            for branch in branches:
+                if not branch.get("manifestation_question") or not branch.get("manifestation_target"):
+                    errors.append(f"{prefix}:{branch.get('direction')}: missing manifestation turn")
+                if "manifestation_candidate_response" not in branch:
+                    errors.append(f"{prefix}:{branch.get('direction')}: missing separated candidate_response")
+                if "manifestation_research_analysis" not in branch:
+                    errors.append(f"{prefix}:{branch.get('direction')}: missing separated research_analysis")
         for messages in _target_histories(result):
             systems = [message.get("content") for message in messages
                        if message.get("role") == "system"]

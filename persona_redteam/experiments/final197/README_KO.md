@@ -11,6 +11,7 @@
 - 연구자: `Qwen/Qwen2.5-7B-Instruct`
 - 페르소나 이력 생성: `Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2`
 - 타깃: `gpt-4o-mini-2024-07-18`
+- API worker: `128` (두 API-key lane 동시 제출)
 - 조건: `neutral`
 - 연구 언어: `clinical_safety_terminology_v1`
 - 최종 readout: `jargon_history_bridge_v1`

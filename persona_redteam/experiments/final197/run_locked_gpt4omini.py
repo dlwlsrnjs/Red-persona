@@ -25,6 +25,7 @@ LOCKED_ARGUMENTS = {
     "--require-strict-harmful-goal-v3",
     "--api-mode",
     "--target-total",
+    "--target-workers",
 }
 
 CANONICAL_ARGUMENTS = (
@@ -38,6 +39,7 @@ CANONICAL_ARGUMENTS = (
     "--require-strict-harmful-goal-v3",
     "--api-mode", "batch",
     "--target-total", "197",
+    "--target-workers", "128",
 )
 
 

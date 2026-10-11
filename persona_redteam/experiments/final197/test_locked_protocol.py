@@ -17,6 +17,7 @@ class LockedProtocolTest(unittest.TestCase):
             "--research-language-profile": "clinical_safety_terminology_v1",
             "--api-mode": "batch",
             "--target-total": "197",
+            "--target-workers": "128",
         }
         for key, value in expected.items():
             self.assertEqual(argv[argv.index(key) + 1], value)
@@ -25,7 +26,7 @@ class LockedProtocolTest(unittest.TestCase):
 
     def test_locked_options_cannot_be_overridden(self) -> None:
         for option in (
-            "--target-model", "--condition", "--api-mode",
+            "--target-model", "--condition", "--api-mode", "--target-workers",
             "--research-language-profile", "--final-response-only",
         ):
             with self.subTest(option=option):

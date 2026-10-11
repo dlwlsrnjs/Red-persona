@@ -45,4 +45,6 @@
 
 `run_locked_gpt4omini.py`는 위 본 실험 조건의 변경을 거부한다. `launch_two_key_batch.py`는 197건을 두 lane으로 나누고 `OPENAI_API_KEY`와 `OPENAI_API_KEY2`를 각각 사용한다. 키 문자열은 파일에 기록하지 않는다. 두 lane은 독립 체크포인트를 가져 중단 후 같은 명령으로 재개할 수 있다.
 
+두 lane이 끝나면 `merge_target_lanes.py`가 사례 ID 중복, 정확히 197건인지, 네 최종 방향과 직접응답 계약이 모두 유효한지를 확인한 뒤 `merged/`를 만든다. CARES/JMIR·R3/B4·HarmBench 평가는 이 병합 폴더만 입력으로 사용한다.
+
 전문용어 제거 등 ablation은 본 실행과 다른 출력 폴더에서 수행하며, 고정 본 실험 결과를 덮어쓰지 않는다.

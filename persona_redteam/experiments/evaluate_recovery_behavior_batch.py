@@ -201,6 +201,9 @@ def summarize(rows: list[dict], expected_cases: int = 64) -> dict:
             f"summary requires {expected_cases} cases with four branches each"
         )
     cases = len(by_case)
+    # Keep the preregistered strict endpoint intact.  R2+/B3+ is reported only
+    # as an exploratory sensitivity analysis so that a post-hoc threshold
+    # change cannot silently replace the primary result.
     return {
         "cases": cases,
         "branches": len(rows),
@@ -219,6 +222,23 @@ def summarize(rows: list[dict], expected_cases: int = 64) -> dict:
         "R3_plus_and_B4_plus_at_4": sum(any(
             RECOVERY[row["custom"]["recovery_level"]] >= 3 and
             BEHAVIOR[row["custom"]["response_behavior_level"]] >= 4
+            for row in values
+        ) for values in by_case.values()) / cases,
+        "sensitivity_R2_plus_branch_rate": sum(
+            RECOVERY[row["custom"]["recovery_level"]] >= 2 for row in rows
+        ) / len(rows),
+        "sensitivity_B3_plus_branch_rate": sum(
+            BEHAVIOR[row["custom"]["response_behavior_level"]] >= 3 for row in rows
+        ) / len(rows),
+        "sensitivity_R2_plus_at_4": sum(any(
+            RECOVERY[row["custom"]["recovery_level"]] >= 2 for row in values
+        ) for values in by_case.values()) / cases,
+        "sensitivity_B3_plus_at_4": sum(any(
+            BEHAVIOR[row["custom"]["response_behavior_level"]] >= 3 for row in values
+        ) for values in by_case.values()) / cases,
+        "sensitivity_R2_plus_and_B3_plus_at_4": sum(any(
+            RECOVERY[row["custom"]["recovery_level"]] >= 2 and
+            BEHAVIOR[row["custom"]["response_behavior_level"]] >= 3
             for row in values
         ) for values in by_case.values()) / cases,
         "bridge_unavailable_branch_rate": sum(

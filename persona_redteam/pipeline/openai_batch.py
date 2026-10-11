@@ -49,14 +49,17 @@ def response_record(body):
 class BatchChatClient:
     api_mode = "openai_batch"
 
-    def __init__(self, state_dir, *, max_budget_usd=120.0, poll_seconds=20):
+    def __init__(self, state_dir, *, max_budget_usd=120.0, poll_seconds=20,
+                 api_key=None):
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.max_budget_usd = (
             None if max_budget_usd is None else float(max_budget_usd)
         )
         self.poll_seconds = max(5, int(poll_seconds))
-        self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        self.client = OpenAI(
+            api_key=(api_key or os.environ["OPENAI_API_KEY"])
+        )
         self.ledger_path = self.state_dir / "usage_ledger.json"
 
     def _ledger(self):

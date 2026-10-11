@@ -45,7 +45,7 @@ class LockedProtocolTest(unittest.TestCase):
         expected = {
             "--target-model": "gpt-4o-2024-11-20",
             "--condition": "neutral",
-            "--final-readout-protocol": "jargon_history_bridge_v1",
+            "--final-readout-protocol": "safety_negative_examples_v1",
             "--direct-response-prompt-protocol": "counterfactual_prevention_v1",
             "--research-language-profile": "clinical_safety_terminology_v1",
             "--api-mode": "batch",

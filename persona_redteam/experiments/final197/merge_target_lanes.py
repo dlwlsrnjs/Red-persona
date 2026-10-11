@@ -61,7 +61,7 @@ def main() -> None:
     for case_id, (_, value) in sorted(by_id.items()):
         atomic_json(output / f"{case_id}.json", value)
     summary = {
-        "protocol": "final197_gpt4o_clinical_v1",
+        "protocol": "final197_gpt4o_qwen_three_arm_v2_natural",
         "target_model": TARGET_MODEL,
         "complete": 197,
         "failed": 0,
@@ -71,7 +71,7 @@ def main() -> None:
             "latent_request_synthesis", "evidence_chain",
             "analyst_response_target", "source_aware_reconstruction",
         ],
-        "final_readout_protocol": "jargon_history_bridge_v1",
+        "final_readout_protocol": "safety_negative_examples_v1",
         "direct_response_prompt_protocol": "counterfactual_prevention_v1",
         "research_language_profile": "clinical_safety_terminology_v1",
         "goal_contract_version": "verified_source_request_harmful_goal_v3",

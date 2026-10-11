@@ -25,10 +25,16 @@ def reusable_summary(arm: str, campaign_root: Path) -> dict | None:
     """Return a verified, up-to-date arm summary when one already exists."""
     score_root = campaign_root / arm / "scoring"
     summary_path = score_root / "combined_summary.json"
-    required_inputs = (
+    required_inputs = [
         score_root / "cares_jmir/results.json",
         score_root / "recovery_behavior.json",
         score_root / "harmbench.json",
+    ]
+    required_inputs.extend(
+        path for path in (
+            score_root / "qwen3guard.json",
+            score_root / "nemotron3_content_safety.json",
+        ) if path.exists()
     )
     if not summary_path.exists() or any(not path.exists() for path in required_inputs):
         return None
@@ -53,7 +59,7 @@ def metrics(summary: dict) -> dict:
     jmir = summary["jmir_best_of_4"]
     recovery = summary["recovery_behavior_best_of_4"]
     joint = summary["harmbench_and_joint_best_of_4"]
-    return {
+    values = {
         "cares_accept_rate": cares["accept_rate"],
         "cares_asr": cares["cares_asr"],
         "cares_ss_level2": cares["cares_ss_level2"],
@@ -64,7 +70,33 @@ def metrics(summary: dict) -> dict:
         "R3_plus_and_B4_plus_at_4": recovery["R3_plus_and_B4_plus_at_4"],
         "harmbench_plus_at_4": joint["harmbench_unconditional_ASR_at_4"],
         "joint_R3_B4_harmbench_at_4": joint["joint_success_at_4"],
+        "sensitivity_joint_R2_B3_harmbench_at_4": joint[
+            "sensitivity_joint_R2_B3_harmbench_at_4"
+        ],
     }
+    qwen = summary.get("qwen3guard_best_of_4")
+    if qwen:
+        values.update({
+            "qwen_unsafe_at_4": qwen["qwen_unsafe_at_4"],
+            "qwen_risk_at_4": qwen["qwen_risk_at_4"],
+            "joint_R3_B4_qwen_unsafe_at_4": qwen[
+                "strict_joint_R3_B4_qwen_unsafe_at_4"
+            ],
+        })
+    nemo = summary.get("nemotron3_content_safety_best_of_4")
+    if nemo:
+        values.update({
+            "nemo_response_unsafe_at_4": nemo["response_unsafe_at_4"],
+            "nemo_ssh_positive_at_4": nemo["ssh_positive_at_4"],
+            "nemo_domain_risk_at_4": nemo["domain_risk_at_4"],
+            "joint_R3_B4_nemo_domain_at_4": nemo[
+                "strict_joint_R3_B4_nemo_domain_at_4"
+            ],
+            "sensitivity_joint_R2_B3_nemo_domain_at_4": nemo[
+                "sensitivity_joint_R2_B3_nemo_domain_at_4"
+            ],
+        })
+    return values
 
 
 def pct(value: float) -> str:
@@ -80,20 +112,27 @@ def main() -> None:
         action="store_true",
         help="Reuse a validated arm summary when it is newer than all scoring inputs.",
     )
+    parser.add_argument(
+        "--reuse-harmbench-classifications", action="store_true",
+        help="Reuse stored HarmBench labels while refreshing summaries.",
+    )
     args = parser.parse_args()
 
     summaries = {}
     for arm in ARMS:
         summary = reusable_summary(arm, CAMPAIGN_ROOT) if args.reuse_complete else None
         if summary is None:
-            subprocess.run([
+            command = [
                 sys.executable, "-m", "experiments.final197.finalize_pilot10_scores",
                 "--goal-exposure", arm,
                 "--run-root", str(RESULT_ROOT / arm),
                 "--campaign-root", str(CAMPAIGN_ROOT / arm),
                 "--device", args.device,
                 "--batch-size", str(args.batch_size),
-            ], cwd=ROOT, check=True)
+            ]
+            if args.reuse_harmbench_classifications:
+                command.append("--reuse-harmbench-classifications")
+            subprocess.run(command, cwd=ROOT, check=True)
         path = CAMPAIGN_ROOT / arm / "scoring/combined_summary.json"
         summaries[arm] = json.loads(path.read_text(encoding="utf-8"))
 
@@ -120,7 +159,7 @@ def main() -> None:
     }
     atomic_json(CAMPAIGN_ROOT / "paired_comparison.json", record)
 
-    labels = (
+    labels = [
         ("CARES Accept", "cares_accept_rate", "pct"),
         ("CARES ASR", "cares_asr", "pct"),
         ("CARES SS", "cares_ss_level2", "float"),
@@ -131,7 +170,26 @@ def main() -> None:
         ("R3+∧B4+@4", "R3_plus_and_B4_plus_at_4", "pct"),
         ("HarmBench+@4", "harmbench_plus_at_4", "pct"),
         ("R3+∧B4+∧HarmBench+@4", "joint_R3_B4_harmbench_at_4", "pct"),
-    )
+        ("보조 R2+∧B3+∧HarmBench+@4",
+         "sensitivity_joint_R2_B3_harmbench_at_4", "pct"),
+    ]
+    if "qwen_unsafe_at_4" in arm_metrics["no_verbatim"]:
+        labels.extend((
+            ("QwenGuard Unsafe@4", "qwen_unsafe_at_4", "pct"),
+            ("QwenGuard Unsafe-or-Controversial@4", "qwen_risk_at_4", "pct"),
+            ("R3+∧B4+∧QwenGuard Unsafe@4",
+             "joint_R3_B4_qwen_unsafe_at_4", "pct"),
+        ))
+    if "nemo_response_unsafe_at_4" in arm_metrics["no_verbatim"]:
+        labels.extend((
+            ("Nemotron Response Unsafe@4", "nemo_response_unsafe_at_4", "pct"),
+            ("Nemotron SSH-positive@4", "nemo_ssh_positive_at_4", "pct"),
+            ("Nemotron domain-risk@4", "nemo_domain_risk_at_4", "pct"),
+            ("R3+∧B4+∧Nemotron domain-risk@4",
+             "joint_R3_B4_nemo_domain_at_4", "pct"),
+            ("보조 R2+∧B3+∧Nemotron domain-risk@4",
+             "sensitivity_joint_R2_B3_nemo_domain_at_4", "pct"),
+        ))
     lines = [
         "# GPT-4o GOAL 원문 노출 대응 파일럿", "",
         "동일한 10건, 페르소나 이력, 연구 단계, 네 최종 분기와 평가기를 사용했다. "
@@ -153,6 +211,7 @@ def main() -> None:
         "", "`원문 비공개` 조건도 GOAL에 맞춰 생성된 페르소나와 대화 이력을 "
         "유지한다. 따라서 이 비교는 GOAL 정보 전체의 유무가 아니라 원문 직접 노출의 "
         "효과를 측정한다.", "",
+        "R2+/B3+ 결합은 사후 탐색적 민감도 분석이며 엄격 주 지표를 대체하지 않는다.", "",
     ))
     RESULT_ROOT.mkdir(parents=True, exist_ok=True)
     (RESULT_ROOT / "PAIRED_RESULTS_KO.md").write_text(

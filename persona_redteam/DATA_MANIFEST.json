@@ -1,8 +1,46 @@
 {
-  "version": "jmir-persona-active-v3",
-  "updated": "2026-10-10",
-  "scope": "Active 625-case source inputs, official 500-case cohort, external-baseline assignments, pipeline, and validated category sidecar; transient model outputs are excluded from Git.",
+  "version": "jmir-persona-active-v6-final197-natural-persona",
+  "updated": "2026-10-12",
+  "scope": "Canonical final 197-case strict harmful-request cohort, its natural abstract persona experiment arms, retained predecessor cohorts, legacy source inputs, official 500-case cohort, external-baseline assignments, pipeline, and validated category sidecar; transient model outputs are excluded from Git.",
   "inputs": {
+    "final_attack_cohort": {
+      "path": "data/final_cares_strict_harmful/selected_cares_strict_harmful.jsonl",
+      "manifest": "data/final_cares_strict_harmful/MANIFEST.json",
+      "status": "canonical_final_attack_experiment_dataset",
+      "rows": 197,
+      "harm_level_counts": {"1": 7, "2": 190},
+      "sha256": "62938cba8f80c8be5941f28318ae3666580a0eb56852351046d14e9a34d7bf18",
+      "selection_method": "LLM 기반 전체 문맥 검토, 요청 명확성 및 원문 단독 과업 평가 가능성 재검토를 통한 보수적 선별",
+      "selection_documentation": "https://chatgpt.com/space/page_0207e0615b1c8191821fb168db774dd8",
+      "selection_contract": "request exists AND requested text output is identifiable and evaluable from the item AND compliance explicitly supports harmful conduct AND ambiguity/safe-help interpretations are conservatively excluded",
+      "review_type": "LLM full-context review plus request-clarity recheck; no independent human or clinical consensus"
+    },
+    "final197_persona_experiment_arms": {
+      "root": "data/final_cares_strict_harmful/persona197_v1/abstract_goal_v2_natural",
+      "primary_with_history": "data/final_cares_strict_harmful/persona197_v1/abstract_goal_v2_natural/persona_cases_NATURAL_ABSTRACT_GOAL_WITH_HISTORY.json",
+      "explicit_goal_ablation": "data/final_cares_strict_harmful/persona197_v1/abstract_goal_v2_natural/persona_cases_NATURAL_ABSTRACT_PLUS_EXPLICIT_GOAL.json",
+      "no_history_ablation": "data/final_cares_strict_harmful/persona197_v1/abstract_goal_v2_natural/persona_cases_NATURAL_ABSTRACT_GOAL_NO_HISTORY_ABLATION.json",
+      "target_packet_audit": "data/final_cares_strict_harmful/persona197_v1/abstract_goal_v2_natural/TARGET_VISIBLE_PACKET_AUDIT.json",
+      "matrix_manifest": "data/final_cares_strict_harmful/persona197_v1/full197_experiment_matrix_v2_natural/manifest.json",
+      "rows_per_arm": 197,
+      "primary_exact_goal_visible_rows": 0,
+      "explicit_exact_goal_visible_rows": 197,
+      "no_history_exact_goal_visible_rows": 0
+    },
+    "superseded_239_cohort": {
+      "path": "data/final_cares_strict_harmful/archive/selected_cares_strict_harmful_239_superseded.jsonl",
+      "status": "archived_not_for_new_experiments",
+      "rows": 239
+    },
+    "candidate_predecessor_cohort": {
+      "path": "data/final_cares_h1_h2/selected_cares_level1_level2.jsonl",
+      "data_dictionary": "data/final_cares_h1_h2/DATA_DICTIONARY_KO.md",
+      "manifest": "data/final_cares_h1_h2/MANIFEST.json",
+      "status": "retained_candidate_predecessor_not_for_new_experiments",
+      "rows": 343,
+      "harm_level_counts": {"1": 30, "2": 313},
+      "sha256": "19a83f5aca336b597de2140feab0ed9ec00febc1cd467691c0616dd817c5ce03"
+    },
     "goals": {
       "path": "../data/crisis_goals_jmir_persona_min10.jsonl",
       "rows": 625,

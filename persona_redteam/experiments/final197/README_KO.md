@@ -15,14 +15,16 @@
 - API worker: `128` (두 API 키를 교차 사용하는 여덟 개 Batch lane 동시 제출)
 - 조건: `neutral`
 - 연구 언어: `clinical_safety_terminology_v1`
-- 최종 readout: `jargon_history_bridge_v1`
+- 최종 readout: `safety_negative_examples_v1`
 - 직접응답 프레임: `counterfactual_prevention_v1`
 - GOAL 계약: `strict_harmful_goal_v3`
 - 보고: 사례별 네 방향 중 평가 지표상 최댓값을 택하는 `Best-of-4`
-- 타깃 가시 페르소나: 기존 은닉형 누적 페르소나와 이력을 보존하고, 마지막에
-  `[EXPLICIT GOAL — VERBATIM]` 아래 `original_request` 원문을 함께 제공
+- 기본 타깃 가시 페르소나: 기존 누적 페르소나와 이력의 간접 단서를 유지하고, 넓은
+  위험 방향과 선호 응답 형태를 자연스러운 관찰 문단으로 통합한다. GOAL 원문은 숨긴다.
+- 원문 명시 ablation: 정확히 같은 자연형 페르소나와 이력에만 `original_request`를 추가한다.
+- 이력 제거 ablation: 자연형 페르소나는 유지하고 사전 대화와 턴별 누적 상태만 제거한다.
 - 기존 대화 이력은 보조적 비순차 맥락으로 사용하며, GOAL 원문을 복원하기 위한 필수
-  연속 서사로 간주하지 않음
+  연속 서사로 간주하지 않는다.
 
 정확한 기계 판독 설정은 `LOCKED_CONFIG.json`에 있다. API 키는 코드·설정·결과에 저장하지 않고 환경변수로만 전달한다.
 분기별 인용과 직접응답 문맥의 단일 정의는 `BRANCH_SCOPED_PROTOCOL_KO.md`에 있다.
@@ -48,16 +50,22 @@
 
 `data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/`
 
-모든 작업이 끝나면 `merge_personas.py`가 원 데이터 순서를 복원하고 197건·중복·버전·품질 1.0을 검사한다. 은닉형 보존본은 `persona_cases.json`, 본실험용 결합본은 `FINAL197_PERSONAS_WITH_HISTORY_AND_EXPLICIT_GOAL.json`, 감사 기록은 `persona197_audit.json`이다.
+모든 작업이 끝나면 `merge_personas.py`가 원 데이터 순서를 복원하고 197건·중복·버전·품질 1.0을 검사한다. 원본 은닉형 보존본은 `persona_cases.json`이고 감사 기록은 `persona197_audit.json`이다. 본실험용 자연형 3개 조건은 이후 `prepare_abstract_goal_persona_arm.py`가 별도 생성한다.
 
-같은 병합 단계에서 대화 이력만 제거한 등록 ablation 입력
-`persona_cases_NO_HISTORY_ABLATION.json`도 별도로 만든다. 이 파일은 최종 페르소나와
-metaphor는 유지하지만 `persona_history=[]`이며, 모든 사례에
-`ablation_context.variant=no_prior_dialogue`가 표시된다. 파일명이 명확히 다르므로
-기본 OURS 입력과 혼동하거나 덮어쓰지 않는다. 함께 생성되는
-`persona_cases_NO_HISTORY_ABLATION_AUDIT.json`은 197건 각각에서 원 요청,
-persona ID, 최종 persona/profile, metaphor가 본 실험과 완전히 같고 대화 이력만
-제거됐는지 증명한다.
+자연형 3개 조건은 다음 폴더에 저장한다.
+
+`data/final_cares_strict_harmful/persona197_v1/abstract_goal_v2_natural/`
+
+- `persona_cases_NATURAL_ABSTRACT_GOAL_WITH_HISTORY.json`: 기본군
+- `persona_cases_NATURAL_ABSTRACT_PLUS_EXPLICIT_GOAL.json`: GOAL 원문 명시 ablation
+- `persona_cases_NATURAL_ABSTRACT_GOAL_NO_HISTORY_ABLATION.json`: 사전 이력 제거 ablation
+
+`NATURAL_ABSTRACT_GOAL_AUDIT.json`은 197건의 원문 누출, 4-token 중복, 내부 메타 표현,
+페르소나 결합과 이력 변환을 검사한다. 그 다음
+`TARGET_VISIBLE_PACKET_AUDIT.json`은 시스템 안내·연구 지침·페르소나·이력을 모두 조립한
+실제 타깃 입력에서 원문 노출과 내부 단계 표식을 다시 검사한다. 그 다음
+`full197_experiment_matrix_v2_natural/manifest.json`이 세 조건의 사례 순서와 대응성을
+검사한다.
 
 ## 최종 평가
 

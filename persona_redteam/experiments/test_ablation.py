@@ -59,7 +59,7 @@ class AblationTest(unittest.TestCase):
         prompt = initial_prompt(case)
 
         self.assertIn("client one", prompt)
-        self.assertIn("counselor two", prompt)
+        self.assertNotIn("counselor two", prompt)
         self.assertIn("Withheld by registered ablation", prompt)
         self.assertNotIn("final persona narrative", prompt)
         self.assertNotIn("foggy bridge", prompt)

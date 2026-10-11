@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 
-from experiments.evaluate_harmbench_direct_response import run_directory
+from experiments.evaluate_harmbench_direct_response import rejoin_existing, run_directory
 from pipeline.runtime_io import atomic_json
 
 
@@ -41,6 +41,10 @@ def main() -> None:
     parser.add_argument("--classifier-model", type=Path, default=DEFAULT_HARMBENCH)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument(
+        "--reuse-harmbench-classifications", action="store_true",
+        help="Reuse stored HarmBench labels and refresh only their R/B joins.",
+    )
     args = parser.parse_args()
 
     score_root = args.campaign_root / "scoring"
@@ -51,15 +55,18 @@ def main() -> None:
     if missing:
         raise FileNotFoundError("Batch scoring is not complete: " + ", ".join(missing))
     harmbench_path = score_root / "harmbench.json"
-    harmbench = run_directory(
-        merged,
-        recovery_path,
-        harmbench_path,
-        model_name=str(args.classifier_model),
-        batch_size=args.batch_size,
-        device=args.device,
-        expected_cases=10,
-    )
+    if args.reuse_harmbench_classifications and harmbench_path.exists():
+        harmbench = rejoin_existing(harmbench_path, recovery_path, harmbench_path)
+    else:
+        harmbench = run_directory(
+            merged,
+            recovery_path,
+            harmbench_path,
+            model_name=str(args.classifier_model),
+            batch_size=args.batch_size,
+            device=args.device,
+            expected_cases=10,
+        )
     cares = json.loads(cares_path.read_text(encoding="utf-8"))
     recovery = json.loads(recovery_path.read_text(encoding="utf-8"))
     selection = json.loads((args.campaign_root / "selection.json").read_text(
@@ -68,6 +75,16 @@ def main() -> None:
     best = cares["summary"]["best_of_4"]
     rb = recovery["summary"]
     hb = harmbench["summary"]
+    qwen_path = score_root / "qwen3guard.json"
+    qwen = (
+        json.loads(qwen_path.read_text(encoding="utf-8"))["summary"]
+        if qwen_path.exists() else None
+    )
+    nemo_path = score_root / "nemotron3_content_safety.json"
+    nemo = (
+        json.loads(nemo_path.read_text(encoding="utf-8"))["summary"]
+        if nemo_path.exists() else None
+    )
     generation_cost = 0.0
     for index in range(4):
         lane_dir = (
@@ -102,6 +119,8 @@ def main() -> None:
         "jmir_best_of_4": best["jmir"],
         "recovery_behavior_best_of_4": rb,
         "harmbench_and_joint_best_of_4": hb,
+        "qwen3guard_best_of_4": qwen,
+        "nemotron3_content_safety_best_of_4": nemo,
         "branch_distributions": {
             "cares": dict(Counter(
                 row["cares"]["response_label"] if row.get("cares") else "NoResponse"
@@ -132,6 +151,21 @@ def main() -> None:
     atomic_json(score_root / "combined_summary.json", record)
 
     c, j = best["cares"], best["jmir"]
+    qwen_lines = [] if qwen is None else [
+        f"| Qwen3Guard Unsafe@4 | {pct(qwen['qwen_unsafe_at_4'])} |",
+        f"| Qwen3Guard Unsafe-or-Controversial@4 | {pct(qwen['qwen_risk_at_4'])} |",
+        f"| 같은 branch R3+ ∧ B4+ ∧ QwenGuard Unsafe@4 | "
+        f"{pct(qwen['strict_joint_R3_B4_qwen_unsafe_at_4'])} |",
+    ]
+    nemo_lines = [] if nemo is None else [
+        f"| Nemotron Response Unsafe@4 | {pct(nemo['response_unsafe_at_4'])} |",
+        f"| Nemotron SSH-positive@4 | {pct(nemo['ssh_positive_at_4'])} |",
+        f"| Nemotron domain-risk@4 | {pct(nemo['domain_risk_at_4'])} |",
+        f"| 같은 branch R3+ ∧ B4+ ∧ Nemotron domain-risk@4 | "
+        f"{pct(nemo['strict_joint_R3_B4_nemo_domain_at_4'])} |",
+        f"| 보조 민감도: 같은 branch R2+ ∧ B3+ ∧ Nemotron domain-risk@4 | "
+        f"{pct(nemo['sensitivity_joint_R2_B3_nemo_domain_at_4'])} |",
+    ]
     lines = [
         ("# GPT-4o 명시적 GOAL 10건 파일럿" if explicit else
          "# GPT-4o GOAL 원문 비공개 10건 파일럿"), "",
@@ -153,9 +187,15 @@ def main() -> None:
         f"| 같은 branch R3+ ∧ B4+@4 | {pct(rb['R3_plus_and_B4_plus_at_4'])} |",
         f"| HarmBench+@4 | {pct(hb['harmbench_unconditional_ASR_at_4'])} |",
         f"| 같은 branch R3+ ∧ B4+ ∧ HarmBench+@4 | {pct(hb['joint_success_at_4'])} |",
+        f"| 보조 민감도: 같은 branch R2+ ∧ B3+ ∧ HarmBench+@4 | "
+        f"{pct(hb['sensitivity_joint_R2_B3_harmbench_at_4'])} |",
+        *qwen_lines,
+        *nemo_lines,
         "",
         f"외부 Batch API 비용 합계: `${costs['external_total']:.4f}`. "
         "HarmBench는 로컬 GPU에서 평가했다.", "",
+        "R2+/B3+ 결합은 사후 탐색적 민감도 분석이며, 등록된 엄격 주 지표를 "
+        "대체하지 않는다.", "",
         "이 수치는 10건 대응 진단 결과이며 최종 197건 성능으로 해석하지 않는다.", "",
     ]
     (args.run_root / "RESULTS_KO.md").write_text("\n".join(lines), encoding="utf-8")

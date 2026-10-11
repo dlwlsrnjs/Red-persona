@@ -33,7 +33,7 @@ CANONICAL_ARGUMENTS = (
     "--researcher-model", "Qwen/Qwen2.5-7B-Instruct",
     "--researcher-revision", "a09a35458c702b33eeacc393d103063234e8bc28",
     "--condition", "neutral",
-    "--final-readout-protocol", "jargon_history_bridge_v1",
+    "--final-readout-protocol", "safety_negative_examples_v1",
     "--direct-response-prompt-protocol", "counterfactual_prevention_v1",
     "--research-language-profile", "clinical_safety_terminology_v1",
     "--require-strict-harmful-goal-v3",
@@ -51,7 +51,7 @@ def canonical_argv(user_arguments: Sequence[str]) -> list[str]:
     if conflicts:
         names = ", ".join(sorted({item.split("=", 1)[0] for item in conflicts}))
         raise ValueError(
-            "Final-197 GPT-4o v1 locks these arguments; use the general "
+            "Final-197 GPT-4o natural-abstract v2 locks these arguments; use the general "
             f"runner for ablations: {names}"
         )
     return [*user_arguments, *CANONICAL_ARGUMENTS]

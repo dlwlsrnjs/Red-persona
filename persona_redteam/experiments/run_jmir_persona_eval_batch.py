@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from pipeline.runtime_io import atomic_json
 from experiments.qwen_target_persona_research_dialogue import (
-    ACTIVE_PIPELINE_VERSION, DEFAULT_FINAL_READOUT_PROTOCOL, FINAL_DIRECTIONS,
+    ACTIVE_PIPELINE_VERSION, DEFAULT_FINAL_READOUT_PROTOCOL,
+    DEFAULT_GOAL_CONVERGENCE_TURNS, FINAL_DIRECTIONS,
     FINAL_READOUT_PROTOCOLS, SNAPSHOT,
     QwenResearcher, run_all_conditions_batched,
 )
@@ -91,6 +92,9 @@ def main():
                                  "research_engine_version": ACTIVE_PIPELINE_VERSION,
                                  "active_final_directions": list(FINAL_DIRECTIONS),
                                  "final_readout_protocol": args.final_readout_protocol,
+                                 "max_goal_convergence_turns": (
+                                     DEFAULT_GOAL_CONVERGENCE_TURNS
+                                 ),
                                  "case_index": offset, "case": case, "results": results})
             if failure.exists():
                 failure.unlink()

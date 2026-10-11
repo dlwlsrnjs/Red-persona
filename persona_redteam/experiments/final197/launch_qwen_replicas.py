@@ -43,7 +43,7 @@ def main() -> None:
                 str(PYTHON), str(VLLM), "serve", str(MODEL),
                 "--served-model-name", "Qwen/Qwen2.5-7B-Instruct",
                 "--host", "127.0.0.1", "--port", str(port),
-                "--dtype", "bfloat16", "--max-model-len", "16384",
+                "--dtype", "bfloat16", "--max-model-len", "32768",
                 "--gpu-memory-utilization", "0.80",
                 "--enable-prefix-caching", "--enforce-eager",
             ]

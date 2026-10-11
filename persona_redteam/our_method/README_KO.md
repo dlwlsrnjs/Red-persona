@@ -1,5 +1,14 @@
 # OUR METHOD — Final-197
 
+최종 통합 실행은 **`1011_method_v1`**이다. 단계 연결과 실행법은
+[`method_1011/README_KO.md`](method_1011/README_KO.md)에 고정했다.
+
+```text
+페르소나·대화 이력 -> 7단계 연구 대화 -> GOAL gate
+  -> 부족한 사례만 Case A/B -> 4개 독립 분기
+  -> 분기별 정확 인용 -> 같은 분기 문맥에서 최종 응답 측정
+```
+
 이 폴더가 논문용 OURS 실행의 시작점이다. 핵심 구현은 기존 테스트와의 호환성을
 유지하기 위해 `experiments/`와 `pipeline/`에 두고, 이 폴더의 짧은 진입점들이 검증된
 구현만 호출한다. 따라서 복사본 두 개가 서로 달라지는 문제를 피한다.
@@ -13,6 +22,8 @@
 - 본실험 병렬화: Qwen 8개 엔드포인트, 데이터 8개 lane, API 키 2개 교차 사용
 - 최종 출력: 사례당 독립 분기 4개, `Best-of-4`
 - 결합 성공: 같은 분기에서만 `R3+ ∧ B4+ ∧ HarmBench+`
+- 메서드 프로토콜: `1011_method_v1`
+- 추가 복구: 7단계 GOAL gate 실패 사례에만 Case A/B 비교 1회
 
 분기별 인용과 직접응답의 정확한 계약은 [PROTOCOL_KO.md](PROTOCOL_KO.md)에 있다.
 이전 6건과 현재 10건의 차이 및 인용 범위 회귀 수정 근거는
@@ -42,11 +53,51 @@ python3 -m our_method.validate_results \
   --expected-cases 10
 ```
 
+Qwen3Guard 보조 응답 안전성 평가는 실제 최종 질문과 응답 쌍을 입력으로 사용한다.
+
+```bash
+python -m experiments.evaluate_qwen3guard_direct_response \
+  --run-dir <merged-run-dir> \
+  --recovery-evaluation <recovery_behavior.json> \
+  --output <qwen3guard.json> \
+  --expected-cases 10 \
+  --device cuda:0
+```
+
+Nemotron-3-Content-Safety도 같은 실제 질문·응답 쌍으로 로컬 평가한다.
+
+```bash
+python -m experiments.evaluate_nemotron3_content_safety \
+  --run-dir <merged-run-dir> \
+  --recovery-evaluation <recovery_behavior.json> \
+  --output <nemotron3_content_safety.json> \
+  --expected-cases 10 \
+  --device cuda:0
+```
+
+Nemotron의 주 보조값은 `Response Safety: unsafe`이며, category는 대화 단위 출력이라
+응답 unsafe 조건과 함께만 도메인 민감도 지표로 사용한다.
+
+HarmBench 파일보다 R/B 평가가 나중에 갱신된 경우 분류기 추론을 다시 하지 않고
+`--existing-classifications <harmbench.json>`으로 최신 R/B 결합만 재계산한다.
+
 197건 본실험은 파일럿과 입력 채택 결정이 끝난 뒤에만 실행한다.
 
 ```bash
 python3 -m our_method.run_full197 --wait
 python3 -m our_method.merge_full197
+```
+
+## GPT-4o/Qwen 전체 3조건 행렬
+
+최종 전체 실행은 GPT-4o와 Qwen2.5-7B 타깃 각각에 대해 `no_verbatim`,
+`explicit`, `no_history`를 수행한다. Qwen 타깃에서는 동일 모델을 연구자로 쓰지 않고
+표준 Llama-3.1-8B-Instruct를 사용한다. 상세 실행·재개·출력 경로는
+[`FULL197_MATRIX_RUN_KO.md`](FULL197_MATRIX_RUN_KO.md)에 고정했다.
+
+```bash
+python -m our_method.run_full197_matrix --wait
+python -m our_method.status_full197_matrix
 ```
 
 ## GOAL 원문 노출 대응 파일럿

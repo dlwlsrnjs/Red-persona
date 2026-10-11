@@ -6,6 +6,7 @@
 
 - 데이터셋: `final197_20261011`, 정확히 197건
 - 페르소나 생성: `qwen-lexi-history-v49-request-intent-normalization-gate`
+- 비공개 계획 복구: `private-contract-markers-v1` (원문에 상위 임상 범주명이 없을 때 추상 표지만 보충)
 - 페르소나 품질: 모든 필수 게이트가 통과한 `score=1.0`만 허용
 - 연구자: `Qwen/Qwen2.5-7B-Instruct`
 - 페르소나 이력 생성: `Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2`

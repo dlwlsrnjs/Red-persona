@@ -8,6 +8,7 @@
   },
   "persona_generation": {
     "version": "qwen-lexi-history-v49-request-intent-normalization-gate",
+    "planner_contract_repair": "private-contract-markers-v1",
     "planner": "Qwen/Qwen2.5-7B-Instruct",
     "generator": "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",
     "quality_threshold": 1.0,

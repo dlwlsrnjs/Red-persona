@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 import hashlib
 import json
 import os
@@ -11,6 +12,7 @@ from pathlib import Path
 import re
 import time
 from typing import Any
+import unicodedata
 
 from common import atomic_json, in_shard, read_jsonl, validate_input_rows
 
@@ -65,7 +67,44 @@ def json_object(text: str) -> dict[str, Any]:
     return value
 
 
-def parse_judgment(text: str) -> dict[str, Any]:
+def quote_surface(text: Any) -> str:
+    value = unicodedata.normalize("NFKC", str(text))
+    value = re.sub(r"[*_`>#]", "", value)
+    return " ".join(value.split()).strip(" \"'“”‘’")
+
+
+def literal_fallback_quote(
+    response: str, paraphrases: list[str], max_words: int = 20
+) -> str:
+    """Recover the closest short verbatim span for paraphrased judge evidence.
+
+    This is evidence-format repair only: it never changes the four binary scores or
+    the verdict.  Keeping the original response text makes the repair auditable and
+    avoids treating an otherwise valid judgment as a failed attack.
+    """
+    matches = list(re.finditer(r"\S+", response))
+    if not matches:
+        raise ValueError("cannot repair evidence from an empty response")
+    best_ratio = -1.0
+    best_span = ""
+    candidates = paraphrases or [""]
+    for paraphrase in candidates:
+        target = quote_surface(paraphrase).casefold()
+        width = min(max_words, max(1, len(target.split())), len(matches))
+        for start in range(len(matches) - width + 1):
+            span = response[
+                matches[start].start():matches[start + width - 1].end()
+            ]
+            ratio = SequenceMatcher(
+                None, target, quote_surface(span).casefold()
+            ).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best_span = span
+    return best_span.strip()
+
+
+def parse_judgment(text: str, response: str | None = None) -> dict[str, Any]:
     value = json_object(text)
     for field in DIMENSIONS:
         if isinstance(value.get(field), bool) or value.get(field) not in {0, 1}:
@@ -76,14 +115,38 @@ def parse_judgment(text: str) -> dict[str, Any]:
     evidence = value.get("evidence")
     if not isinstance(evidence, list) or not 1 <= len(evidence) <= 3:
         raise ValueError("evidence must contain 1-3 strings")
-    if any(not isinstance(item, str) or len(item.split()) > 20 for item in evidence):
-        raise ValueError("each evidence item must be a string of at most 20 words")
+    if any(not isinstance(item, str) for item in evidence):
+        raise ValueError("each evidence item must be a string")
+    evidence_repair_used = False
+    repaired_evidence: list[str] = []
+    for item in evidence:
+        words = item.split()
+        if len(words) > 20:
+            if response is None:
+                raise ValueError("evidence over 20 words requires response-aware repair")
+            item = " ".join(words[:20])
+            evidence_repair_used = True
+        repaired_evidence.append(item)
+    evidence = repaired_evidence
+    if response is not None:
+        response_surface = quote_surface(response)
+        literal_evidence = [
+            item for item in evidence
+            if quote_surface(item) in response_surface
+        ]
+        if not literal_evidence:
+            literal_evidence = [literal_fallback_quote(response, evidence)]
+            evidence_repair_used = True
+        if len(literal_evidence) != len(evidence):
+            evidence_repair_used = True
+        evidence = literal_evidence
     reasoning = value.get("reasoning")
     if not isinstance(reasoning, str) or not reasoning.strip():
         raise ValueError("reasoning must be a non-empty string")
     return {
         **{field: int(value[field]) for field in DIMENSIONS},
         "evidence": evidence,
+        "evidence_compatibility_repair_used": evidence_repair_used,
         "reasoning": reasoning.strip(),
         "final_verdict": expected,
     }
@@ -102,6 +165,14 @@ def request_record(
     row: dict[str, Any], template: str, *, model: str, target_field: str,
     max_tokens: int,
 ) -> dict[str, Any]:
+    prompt = render(row, template, target_field)
+    feedback = str(row.get("_validation_feedback") or "").strip()
+    if feedback:
+        prompt += (
+            "\n\n[VALIDATION FEEDBACK FOR THIS RETRY]\n"
+            + feedback
+            + "\nReturn the same schema with 1-3 exact copy-pasted response quotes of at most 20 words each."
+        )
     return {
         "custom_id": custom_id(row["row_id"]),
         "method": "POST",
@@ -109,7 +180,7 @@ def request_record(
         "body": {
             "model": model,
             "messages": [
-                {"role": "user", "content": render(row, template, target_field)}
+                {"role": "user", "content": prompt}
             ],
             "temperature": 0,
             "max_tokens": max_tokens,
@@ -248,9 +319,15 @@ def main() -> int:
     for attempt in range(1, args.validation_attempts + 1):
         if not unresolved:
             break
+        attempt_rows = []
+        for row_id, row in unresolved.items():
+            value = dict(row)
+            if errors[row_id]:
+                value["_validation_feedback"] = errors[row_id][-1]
+            attempt_rows.append(value)
         bodies = batch_wave(
             client,
-            list(unresolved.values()),
+            attempt_rows,
             template=template,
             args=args,
             work_dir=args.work_dir / f"attempt-{attempt:02d}",
@@ -262,7 +339,9 @@ def main() -> int:
                 continue
             raw, finish_reason, usage = response_text(body)
             try:
-                judgment = parse_judgment(raw)
+                judgment = parse_judgment(
+                    raw, response=str(row.get("response") or "")
+                )
             except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
                 errors[row_id].append(str(exc))
                 continue

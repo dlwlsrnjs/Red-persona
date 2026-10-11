@@ -1,0 +1,220 @@
+{
+  "schema_version": "final197-reuse43-map-v1",
+  "mapping": [
+    {
+      "case_id": "jmir-source-1193",
+      "reuse_source_case_id": "jmir-full-0265",
+      "request_sha256": "658be04ee66026a095663cf12b4d78a87e155e9830f5b94798096b37fdb10b99"
+    },
+    {
+      "case_id": "jmir-source-1195",
+      "reuse_source_case_id": "jmir-full-0267",
+      "request_sha256": "8f6a612ec4b836982e4ecfe91df270e6808f1821e40f43e6382a111479e1d424"
+    },
+    {
+      "case_id": "jmir-source-1359",
+      "reuse_source_case_id": "jmir-full-0402",
+      "request_sha256": "3cb6f409727ef4281e6d4fca727786e0cde49d3e5bacf9bbc4e5e1aa3ca360ce"
+    },
+    {
+      "case_id": "jmir-source-1371",
+      "reuse_source_case_id": "jmir-full-0404",
+      "request_sha256": "4325c6772f68b92c2f6d9f23e532837bc9b703c443b879439cf562871351e499"
+    },
+    {
+      "case_id": "jmir-source-1375",
+      "reuse_source_case_id": "jmir-full-0407",
+      "request_sha256": "3e262ff8f2a8c201be3e59324db9138353506f131b690b54367cd9200d531327"
+    },
+    {
+      "case_id": "jmir-source-1383",
+      "reuse_source_case_id": "jmir-full-0409",
+      "request_sha256": "2e00117dffc0b8931732fcdf2616fd4dc2958588cf0850c31295c971fb595a60"
+    },
+    {
+      "case_id": "jmir-source-1398",
+      "reuse_source_case_id": "jmir-full-0411",
+      "request_sha256": "001e6f55ba21fbb34aa7231045d53e1fdf57621717404da4de2f53cbd827da49"
+    },
+    {
+      "case_id": "jmir-source-1403",
+      "reuse_source_case_id": "jmir-full-0412",
+      "request_sha256": "69d26aa109a22a5fcbaeb5b84744f0f4dcc02685bab783c9606c1947debb430d"
+    },
+    {
+      "case_id": "jmir-source-1421",
+      "reuse_source_case_id": "jmir-full-0415",
+      "request_sha256": "8a6745b8a55854707b53d6ed74695e67b4672d6d28eb7f1a21ef37c6679bc500"
+    },
+    {
+      "case_id": "jmir-source-1424",
+      "reuse_source_case_id": "jmir-full-0416",
+      "request_sha256": "9760bcbd3b74d1e1b6f72a883c7ea56e1dc119bdecebd15b4771a1341bb6dc7b"
+    },
+    {
+      "case_id": "jmir-source-1430",
+      "reuse_source_case_id": "jmir-full-0417",
+      "request_sha256": "60e94a52dc468d812a0d031070e22987c1136b7e301c482fe0dfe33b2c3875a9"
+    },
+    {
+      "case_id": "jmir-source-1440",
+      "reuse_source_case_id": "jmir-full-0421",
+      "request_sha256": "59eb8c5721a92db5cca75fd16e8157383f54828f0bc58589c11086196b4b74ec"
+    },
+    {
+      "case_id": "jmir-source-1445",
+      "reuse_source_case_id": "jmir-full-0422",
+      "request_sha256": "ea342dedbf9ba06157e4d43a99ef6f9f1af666bd7ea785bed3dd8ab39e812c69"
+    },
+    {
+      "case_id": "jmir-source-1446",
+      "reuse_source_case_id": "jmir-full-0423",
+      "request_sha256": "f020d07c41dfd7a423e470f8f4cad61d9bfdbbd6b5ad1093bf6b0a94fdf77a08"
+    },
+    {
+      "case_id": "jmir-source-1456",
+      "reuse_source_case_id": "jmir-full-0424",
+      "request_sha256": "72bb3a0fd28585fd187329a3cfaff06db98a8653e71a708bc7647be477c77a8f"
+    },
+    {
+      "case_id": "jmir-source-1474",
+      "reuse_source_case_id": "jmir-full-0425",
+      "request_sha256": "d59578bc9a1e141d6663b26d42000ee68ddff8de93614cfee633b781350715b0"
+    },
+    {
+      "case_id": "jmir-source-1488",
+      "reuse_source_case_id": "jmir-full-0426",
+      "request_sha256": "29de37f8b7ceb3e44fb01d91813c4b3a842a50beb95ef07b2b815cd1d6d7fa04"
+    },
+    {
+      "case_id": "jmir-source-1491",
+      "reuse_source_case_id": "jmir-full-0427",
+      "request_sha256": "2f7a916480767e5f6b9e1d048de0b2dfd111b30aa1ad601a017a15006838b415"
+    },
+    {
+      "case_id": "jmir-source-1501",
+      "reuse_source_case_id": "jmir-full-0428",
+      "request_sha256": "128d06213d71e95fcb2bcb7040eff80b7df7bce3216f5cf482ac59ededf07bf2"
+    },
+    {
+      "case_id": "jmir-source-1507",
+      "reuse_source_case_id": "jmir-full-0429",
+      "request_sha256": "9983c95e6e2a97a549dcf983605990660ed68d9f0257e44fa8138a9c4f396dbb"
+    },
+    {
+      "case_id": "jmir-source-1537",
+      "reuse_source_case_id": "jmir-full-0441",
+      "request_sha256": "7ab2ffee7aedbeca04da9e449342e30efed9f9259d86c98f5885852575bfb25d"
+    },
+    {
+      "case_id": "jmir-source-1551",
+      "reuse_source_case_id": "jmir-full-0448",
+      "request_sha256": "d927f6778aa1008afbe3e884262986d19892a5f0197d84d1a02c0560106d43db"
+    },
+    {
+      "case_id": "jmir-source-1559",
+      "reuse_source_case_id": "jmir-full-0451",
+      "request_sha256": "25b01129f73e206712e40ceb31a1816a69fe174cff9d57c096f1c1a855d6e865"
+    },
+    {
+      "case_id": "jmir-source-1566",
+      "reuse_source_case_id": "jmir-full-0453",
+      "request_sha256": "fbc1b5de0ac6a98de307fccc8a219343177ac4167508d29c4d16ec9be9583571"
+    },
+    {
+      "case_id": "jmir-source-1574",
+      "reuse_source_case_id": "jmir-full-0457",
+      "request_sha256": "aaec57bd8ed4455a30c8e8c00cd554df3bc10de0aa58459549fad0b8776a90b1"
+    },
+    {
+      "case_id": "jmir-source-1575",
+      "reuse_source_case_id": "jmir-full-0458",
+      "request_sha256": "00663bc3fa554e76a6ffa93901e21bd4212e27795f5e8eb02e301006701c4fc4"
+    },
+    {
+      "case_id": "jmir-source-1576",
+      "reuse_source_case_id": "jmir-full-0459",
+      "request_sha256": "edc5a8ba560fb20efe91901d9db37152ba32146e728fe6f7a6f8d649e7e95396"
+    },
+    {
+      "case_id": "jmir-source-1590",
+      "reuse_source_case_id": "jmir-full-0469",
+      "request_sha256": "6bd17e1de2edcb0af5d3b1f3ebdb004c5e44b7fcb941c6b03c518abda4e78d4d"
+    },
+    {
+      "case_id": "jmir-source-1593",
+      "reuse_source_case_id": "jmir-full-0471",
+      "request_sha256": "79aefbfa76524f79b9cdf47758ea6cd75e965521abc8890df3f1740b719acf2d"
+    },
+    {
+      "case_id": "jmir-source-1594",
+      "reuse_source_case_id": "jmir-full-0472",
+      "request_sha256": "a4252456553278d0c9fa4e4e6dd329182d38fe5830689b8de8fafb4a733e0a25"
+    },
+    {
+      "case_id": "jmir-source-1605",
+      "reuse_source_case_id": "jmir-full-0475",
+      "request_sha256": "06abf2e85262fc37191ec14f0c2380364eeff09cd5d0b5e81c5c312d27a69764"
+    },
+    {
+      "case_id": "jmir-source-1620",
+      "reuse_source_case_id": "jmir-full-0483",
+      "request_sha256": "eaceedbdd83f75989f27906130554e131b6c6a09509f796f6a794d84755fa8ba"
+    },
+    {
+      "case_id": "jmir-source-1632",
+      "reuse_source_case_id": "jmir-full-0489",
+      "request_sha256": "1f2bf40d5cf9c9ca35e3c29865ada7894be42855ff0bcca1cbe890c5a2880f19"
+    },
+    {
+      "case_id": "jmir-source-1634",
+      "reuse_source_case_id": "jmir-full-0490",
+      "request_sha256": "b373f18f14b5ef51f8e8d25a568ab82fbe6633696fc6b8e770a5c82b2a48af69"
+    },
+    {
+      "case_id": "jmir-source-1647",
+      "reuse_source_case_id": "jmir-full-0496",
+      "request_sha256": "ff7379a752e768c6ba4773982e0af30444af9f0846df89c6301ab961865a3a3c"
+    },
+    {
+      "case_id": "jmir-source-1650",
+      "reuse_source_case_id": "jmir-full-0497",
+      "request_sha256": "4725818115b126de085d44c13219ad166c3385f6a6c049116059cba907bf05d6"
+    },
+    {
+      "case_id": "jmir-source-1651",
+      "reuse_source_case_id": "jmir-full-0498",
+      "request_sha256": "ae8679b9e9d8a728ea6ff70a162853255f5ebe08596a137df31182d3894d6db8"
+    },
+    {
+      "case_id": "jmir-source-1656",
+      "reuse_source_case_id": "jmir-full-0502",
+      "request_sha256": "3096656033669e331966ec44d179a41cf0db9987c0e889ec48dbcffe82e0d837"
+    },
+    {
+      "case_id": "jmir-source-1661",
+      "reuse_source_case_id": "jmir-full-0506",
+      "request_sha256": "8960fa27202042615cb326ece2771a8c757e5ed90590fbb3eed9458e2e55a158"
+    },
+    {
+      "case_id": "jmir-source-1663",
+      "reuse_source_case_id": "jmir-full-0507",
+      "request_sha256": "3c851ec325503177a15d4355103506315462d568c95ad0486084174f5b07a97e"
+    },
+    {
+      "case_id": "jmir-source-1670",
+      "reuse_source_case_id": "jmir-full-0511",
+      "request_sha256": "bf19a1379979264ec413fa3180fee087ba563e6a02280d9b18de513fb1a965e9"
+    },
+    {
+      "case_id": "jmir-source-1671",
+      "reuse_source_case_id": "jmir-full-0512",
+      "request_sha256": "185bbf293cdd5062ba587f58f01c60b011d948fa8015cb1e264c1767fc54ce4a"
+    },
+    {
+      "case_id": "jmir-source-1673",
+      "reuse_source_case_id": "jmir-full-0513",
+      "request_sha256": "ca00706f18c21fd312a576643f16a7d4e327bbb2ae8c2cd5f3a00d38263cfe01"
+    }
+  ]
+}

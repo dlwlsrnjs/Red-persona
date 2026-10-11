@@ -73,18 +73,42 @@ def build_assignments(
     goals: list[dict[str, Any]],
     routes: list[dict[str, Any]],
     personas: list[dict[str, Any]],
+    *,
+    fixed_assignments: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
+    fixed_assignments = fixed_assignments or {}
     route_by_id = {str(row["goal_id"]): row for row in routes}
+    persona_index_by_id = {
+        str(profile.get("id") or profile.get("persona_id")): index
+        for index, profile in enumerate(personas)
+    }
+    unknown_fixed = sorted(
+        {
+            str(row["persona_id"])
+            for row in fixed_assignments.values()
+            if str(row["persona_id"]) not in persona_index_by_id
+        }
+    )
+    if unknown_fixed:
+        raise ValueError(f"fixed persona IDs are missing from the pool: {unknown_fixed}")
+    fixed_persona_ids = [str(row["persona_id"]) for row in fixed_assignments.values()]
+    if len(fixed_persona_ids) != len(set(fixed_persona_ids)):
+        raise ValueError("fixed persona assignments must be one-to-one")
     persona_tokens = [tokens(persona_text(profile)) for profile in personas]
     postings: dict[str, list[int]] = defaultdict(list)
     for index, profile_tokens in enumerate(persona_tokens):
         for token in profile_tokens:
             postings[token].append(index)
     document_count = len(personas)
-    used: set[int] = set()
+    reserved = {persona_index_by_id[value] for value in fixed_persona_ids}
+    used: set[int] = set(reserved)
     assignments: list[dict[str, Any]] = []
     for goal_index, goal in enumerate(goals):
         case_id = str(goal["goal_id"])
+        fixed = fixed_assignments.get(case_id)
+        if fixed is not None:
+            assignments.append({**fixed, "case_id": case_id})
+            continue
         route = route_by_id.get(case_id, {})
         query_tokens = tokens(
             " ".join(

@@ -5,7 +5,10 @@
 - 원문 후보만 필요하면 `research_candidates_477.jsonl`을 사용한다.
 - 모델의 최초 판정을 재현·감사하려면 `annotations_all.jsonl`을 사용한다.
 - 전수 검토를 포함한 전체 최종 판정은 `manual_review_all.jsonl`을 사용한다.
-- 실제 공격 실험 입력은 `selected_cares_level1_level2.jsonl`을 사용한다.
+- 논문 및 모든 신규 공격 실험 입력은 최종 고정본
+  `selected_cares_strict_harmful.jsonl` 197개를 사용한다.
+- `selected_cares_level1_level2.jsonl`은 엄격한 요청 명확성 재검토 전 343개 후보로만
+  보존하며 신규 성능 분모로 사용하지 않는다.
 - H1과 H2를 분리한 실험에는 각각 `selected_cares_level1.jsonl`,
   `selected_cares_level2.jsonl`을 사용한다.
 
@@ -33,7 +36,7 @@ JSONL은 한 줄이 한 사례다. 아래의 `null`은 판정 실패가 아니�
 | `final_mental_health_domain` | 불리언 | 전수 감사 후 자살·자해·섭식장애·물질 오남용·유해 대처·정신과적 위기·위험한 임상 조언·toxic validation 범위인지의 최종값. |
 | `final_harm_level` | 정수 또는 `null` | 전수 감사 후 최종 CARES 입력 위험 수준. 요청이 아니거나 분야 밖이면 `null`. |
 | `harm_level` | 정수 또는 `null` | downstream 코드가 읽는 표준 수준 칼럼. 전수 감사 파일과 최종 산출물에서는 `final_harm_level`과 동일하다. |
-| `selected_for_research` | 불리언 | 최종 실험 포함 여부. 정확히 `final_is_request AND final_mental_health_domain AND final_harm_level in {1,2}`다. |
+| `selected_for_research` | 불리언 | 모델 보조·전수 감사 단계에서 H1/H2 연구 후보였는지 나타낸다. 최종 197개는 여기에 요청 과업의 명확성과 원문만으로 수행 여부를 채점할 수 있다는 추가 조건을 적용했다. |
 | `manual_review` | 객체 | 477개 전수 원문 검토의 상태와 수정 근거. 세부 필드는 아래 표 참조. |
 
 `model_*`, `final_*`, `manual_review`는 `manual_review_all.jsonl` 및 그 파일에서 파생된

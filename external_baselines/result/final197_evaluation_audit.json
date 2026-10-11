@@ -1,0 +1,29 @@
+{
+  "schema_version": "final197-evaluation-audit-summary-v1",
+  "dataset_size": 197,
+  "methods": 9,
+  "targets": 2,
+  "expected_rows": 3546,
+  "no_response_rows": 4,
+  "result_rows": {
+    "harmbench": 3546,
+    "cares": 3546,
+    "pcsa_figure4": 3546,
+    "goal_recovery_behavior_v3": 3546
+  },
+  "issue_counts": {
+    "harmbench": 0,
+    "cares": 0,
+    "pcsa_figure4": 0,
+    "goal_recovery_behavior_v3": 0
+  },
+  "compatibility_repairs": {
+    "pcsa_evidence_only": 1187,
+    "rb_evidence_only": 126,
+    "rb_explicit_recovery_downgrade": 22,
+    "rb_explicit_behavior_downgrade": 3
+  },
+  "rb_evaluator": "gpt-4o-mini-2024-07-18 for all 3542 non-empty responses",
+  "tests_passed": 98,
+  "openai_evaluation_transport": "Batch API"
+}

@@ -21,6 +21,9 @@ if str(BASELINE_DIR) not in sys.path:
 from run_pyrit_baseline import (
     DEFAULT_COHORT_INDEX,
     DEFAULT_INPUT,
+    DEFAULT_PATHOLOGY_ROUTES,
+    DEFAULT_PERSONA_MAP,
+    DEFAULT_PERSONA_POOL,
     EXPECTED_FULL_CASE_COUNT,
     METHODS,
     MULTI_TURN_METHODS,
@@ -212,6 +215,9 @@ def build_jobs(
     output_root: Path,
     pilot_cases: int | None,
     retry_failed: bool,
+    persona_map_path: Path = DEFAULT_PERSONA_MAP,
+    persona_pool_path: Path = DEFAULT_PERSONA_POOL,
+    pathology_routes_path: Path = DEFAULT_PATHOLOGY_ROUTES,
     case_start: int = 0,
     qwen_endpoints: tuple[str, ...] = (),
 ) -> list[MatrixJob]:
@@ -242,6 +248,12 @@ def build_jobs(
                 str(input_path),
                 "--cohort-index",
                 str(cohort_index_path),
+                "--persona-map",
+                str(persona_map_path),
+                "--persona-pool",
+                str(persona_pool_path),
+                "--pathology-routes",
+                str(pathology_routes_path),
                 "--output-dir",
                 str(output_dir),
                 "--target-endpoint",
@@ -441,6 +453,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--cohort-index", type=Path, default=DEFAULT_COHORT_INDEX)
+    parser.add_argument("--persona-map", type=Path, default=DEFAULT_PERSONA_MAP)
+    parser.add_argument("--persona-pool", type=Path, default=DEFAULT_PERSONA_POOL)
+    parser.add_argument("--pathology-routes", type=Path, default=DEFAULT_PATHOLOGY_ROUTES)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--pilot-cases", type=int, default=1)
     parser.add_argument(
@@ -465,6 +480,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=METHODS,
         default=[],
         help="run only this baseline method; repeat for multiple methods",
+    )
+    parser.add_argument(
+        "--exclude-job",
+        action="append",
+        default=[],
+        metavar="TARGET:METHOD",
+        help=(
+            "exclude one configured target/method pair; repeat as needed. "
+            "Useful when a pair is already running in a separate resumable batch."
+        ),
     )
     parser.add_argument(
         "--qwen-endpoint",
@@ -496,6 +521,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--job-retries must be between 0 and 5")
     if args.run_label and not re.fullmatch(r"[A-Za-z0-9_.-]+", args.run_label):
         parser.error("--run-label may contain only letters, digits, dot, dash, underscore")
+    normalized_exclusions: set[tuple[str, str]] = set()
+    for value in args.exclude_job:
+        if value.count(":") != 1:
+            parser.error("--exclude-job must use TARGET:METHOD")
+        target_name, method = value.split(":", 1)
+        if not target_name or method not in METHODS:
+            parser.error(f"invalid --exclude-job value: {value}")
+        normalized_exclusions.add((target_name, method))
+    args.exclude_job = normalized_exclusions
     normalized_endpoints: list[str] = []
     for endpoint in args.qwen_endpoint:
         endpoint = endpoint.rstrip("/")
@@ -524,6 +558,13 @@ def main(argv: list[str] | None = None) -> int:
         requested_methods = set(args.selected_methods)
         methods = [method for method in methods if method in requested_methods]
     cohort_count = len(load_cohort_rows(args.cohort_index))
+    declared_full_count = (
+        197
+        if args.cohort_index.name.startswith("final197_")
+        else 239
+        if args.cohort_index.name.startswith("final239_")
+        else EXPECTED_FULL_CASE_COUNT
+    )
     if args.full_500 and cohort_count != EXPECTED_FULL_CASE_COUNT:
         raise ValueError(
             f"--full-500 requires {EXPECTED_FULL_CASE_COUNT} official cases; "
@@ -546,9 +587,24 @@ def main(argv: list[str] | None = None) -> int:
         output_root=args.output_dir,
         pilot_cases=pilot_cases,
         retry_failed=args.retry_failed,
+        persona_map_path=args.persona_map,
+        persona_pool_path=args.persona_pool,
+        pathology_routes_path=args.pathology_routes,
         case_start=args.case_start,
         qwen_endpoints=tuple(args.qwen_endpoint),
     )
+    configured_pairs = {(job.target_name, job.method) for job in jobs}
+    unknown_exclusions = args.exclude_job - configured_pairs
+    if unknown_exclusions:
+        formatted = ", ".join(
+            f"{target}:{method}" for target, method in sorted(unknown_exclusions)
+        )
+        raise ValueError(f"excluded job pair(s) are not configured: {formatted}")
+    jobs = [
+        job
+        for job in jobs
+        if (job.target_name, job.method) not in args.exclude_job
+    ]
     manifest = {
         "schema_version": MATRIX_SCHEMA_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -556,14 +612,17 @@ def main(argv: list[str] | None = None) -> int:
             "input": str(args.input.resolve()),
             "cohort_index": str(args.cohort_index.resolve()),
             "cohort_available_count": cohort_count,
-            "expected_full_count": EXPECTED_FULL_CASE_COUNT,
-            "cases_per_job": EXPECTED_FULL_CASE_COUNT if pilot_cases is None else pilot_cases,
+            "expected_full_count": declared_full_count,
+            "cases_per_job": declared_full_count if pilot_cases is None else pilot_cases,
             "case_start": args.case_start,
             "case_stop_exclusive": (
-                EXPECTED_FULL_CASE_COUNT
+                declared_full_count
                 if pilot_cases is None
                 else args.case_start + pilot_cases
             ),
+            "persona_map": str(args.persona_map.resolve()),
+            "persona_pool": str(args.persona_pool.resolve()),
+            "pathology_routes": str(args.pathology_routes.resolve()),
         },
         "parallelism": {
             "job_count": len(jobs),
@@ -573,6 +632,10 @@ def main(argv: list[str] | None = None) -> int:
             "qwen_replica_count": len(args.qwen_endpoint) or 1,
             "job_retries": args.job_retries,
         },
+        "excluded_jobs": [
+            {"target": target, "method": method}
+            for target, method in sorted(args.exclude_job)
+        ],
         "recovery": {
             "retry_failed_case_checkpoints": args.retry_failed,
             "successful_case_checkpoints_are_reused": True,

@@ -1,0 +1,23 @@
+{
+  "schema_version": "final197-baseline-assets-v1",
+  "input": "persona_redteam/data/research_harmful_requests/selected_cares_strict_harmful.jsonl",
+  "input_sha256": "62938cba8f80c8be5941f28318ae3666580a0eb56852351046d14e9a34d7bf18",
+  "persona_pool": "data/personas/personas.jsonl",
+  "persona_pool_sha256": "1942e4982b1775f39f6be49adb34af9e3b6c75fd155edb59ad3dfc8be0425928",
+  "cases": 197,
+  "reuse_cases": 43,
+  "remaining_cases": 154,
+  "source_distribution": {
+    "jmir_between_help_and_harm_reviewed_256": 136,
+    "ailuminate_v1_0_demo_ssh": 22,
+    "beavertails_evaluation_v1_self_harm": 22,
+    "mvrcii_safety_harmful_text_candidates": 17
+  },
+  "harm_level_distribution": {
+    "1": 7,
+    "2": 190
+  },
+  "unique_personas": 197,
+  "reuse_contract": "exact request plus original persona and pathology context; all 18 target-method checkpoints are projected to final197 IDs",
+  "resume_policy": "seed 43 exact-overlap cases and the completed GPT-4o single-turn remaining154 checkpoints; generate only unresolved cells"
+}

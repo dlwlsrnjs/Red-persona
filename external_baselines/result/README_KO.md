@@ -1,9 +1,20 @@
-# GPT-6 Luna · Llama 외부 베이스라인 결과
+# 외부 베이스라인 결과
 
-이 폴더는 현재 추가 실험인 GPT-6 Luna/Llama 외부 베이스라인의 상태와 확정 결과만
-보관한다. RED-Persona 본 방법의 결과와 합치거나 OURS로 표기하지 않는다.
+이 폴더는 외부 공격 기법의 확정 결과와 추가 타깃 실험 상태를 보관한다.
+RED-Persona 본 방법의 결과와 합치거나 외부 기법을 OURS로 표기하지 않는다.
 
-## 현재 상태
+## Final-197 본 실험
+
+- [`FINAL197_MAIN_RESULTS_KO.md`](FINAL197_MAIN_RESULTS_KO.md): 197개 × 9기법 × 2타깃
+  결과표. 주표는 HarmBench + CARES이고 PCSA Figure-4와 R/B v3는 보조표다.
+- [`final197_main_results.csv`](final197_main_results.csv): 논문 표·통계 처리용 평탄화 결과
+- [`final197_main_results.json`](final197_main_results.json): 모든 원시 개수와 소수 비율
+- [`final197_evaluation_audit.json`](final197_evaluation_audit.json): 3,546행 coverage와
+  누락·무효 0건 감사 요약
+- [`EVALUATION_CODE_CHANGES_KO.md`](EVALUATION_CODE_CHANGES_KO.md): 평가 코드 변경점과
+  재판정·인용 교정 내역
+
+## GPT-6 Luna · Llama 추가 실험
 
 - `GPT6_LUNA_LLAMA_PILOT10_PROGRESS_KO.md`: 파일럿 180개 생성 진행 현황, 실행 설정,
   완료 수, 평가 상태

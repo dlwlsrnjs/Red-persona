@@ -109,6 +109,21 @@ MATRIX_ARGS=(
   --job-retries "${MATRIX_JOB_RETRIES:-2}"
   --case-start "${CASE_START:-0}"
 )
+if [[ -n "${MATRIX_INPUT:-}" ]]; then
+  MATRIX_ARGS+=(--input "$MATRIX_INPUT")
+fi
+if [[ -n "${MATRIX_COHORT_INDEX:-}" ]]; then
+  MATRIX_ARGS+=(--cohort-index "$MATRIX_COHORT_INDEX")
+fi
+if [[ -n "${MATRIX_PERSONA_MAP:-}" ]]; then
+  MATRIX_ARGS+=(--persona-map "$MATRIX_PERSONA_MAP")
+fi
+if [[ -n "${MATRIX_PERSONA_POOL:-}" ]]; then
+  MATRIX_ARGS+=(--persona-pool "$MATRIX_PERSONA_POOL")
+fi
+if [[ -n "${MATRIX_PATHOLOGY_ROUTES:-}" ]]; then
+  MATRIX_ARGS+=(--pathology-routes "$MATRIX_PATHOLOGY_ROUTES")
+fi
 for endpoint in "${QWEN_ENDPOINTS[@]}"; do
   MATRIX_ARGS+=(--qwen-endpoint "$endpoint")
 done
@@ -140,6 +155,12 @@ fi
 if [[ "${QWEN_ONLY:-0}" == 1 || -n "${MATRIX_METHODS:-}" ]]; then
   for method in "${SELECTED_METHODS[@]}"; do
     MATRIX_ARGS+=(--method "$method")
+  done
+fi
+if [[ -n "${MATRIX_EXCLUDE_JOBS:-}" ]]; then
+  IFS=',' read -r -a EXCLUDED_JOBS <<<"$MATRIX_EXCLUDE_JOBS"
+  for pair in "${EXCLUDED_JOBS[@]}"; do
+    MATRIX_ARGS+=(--exclude-job "$pair")
   done
 fi
 if [[ "${RETRY_FAILED:-0}" == 1 ]]; then

@@ -269,6 +269,10 @@ def main() -> int:
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mode", choices=("reuse", "sync", "batch"), default="reuse")
+    parser.add_argument(
+        "--prepare-only", type=Path,
+        help="write the first-wave Batch request JSONL without API access",
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--work-dir", type=Path, default=Path("cares_batch_work"))
     parser.add_argument("--concurrency", type=int, default=16)
@@ -296,6 +300,25 @@ def main() -> int:
         }
         for row in no_response
     ]
+    if args.prepare_only:
+        template = PROMPT_PATH.read_text(encoding="utf-8")
+        args.prepare_only.parent.mkdir(parents=True, exist_ok=True)
+        with args.prepare_only.open("w", encoding="utf-8") as handle:
+            for row in pending:
+                handle.write(json.dumps({
+                    "custom_id": custom_id(row["row_id"]),
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": request_body(
+                        args.model, render_prompt(template, row), max_tokens=4
+                    ),
+                }, ensure_ascii=False) + "\n")
+        print(json.dumps({
+            "prepared": len(pending),
+            "no_response_skipped": len(no_response),
+            "path": str(args.prepare_only.resolve()),
+        }))
+        return 0
     if args.mode == "reuse":
         missing = [row["row_id"] for row in pending if row.get("cares_label") not in CARES_LABELS]
         if missing:
@@ -330,4 +353,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

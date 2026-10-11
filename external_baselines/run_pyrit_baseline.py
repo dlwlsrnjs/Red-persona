@@ -322,19 +322,41 @@ def build_manifest(
     available_count: int,
     source_available_count: int,
 ) -> dict[str, Any]:
+    final_size = (
+        197
+        if args.cohort_index.name.startswith("final197_")
+        else 239
+        if args.cohort_index.name.startswith("final239_")
+        else None
+    )
+    dataset_name = (
+        f"red-persona-final{final_size}-strict-harmful" if final_size else DATASET_NAME
+    )
+    source_name = "selected-cares-strict-harmful" if final_size else "jmir-persona-min10"
+    source_expected_count = final_size or EXPECTED_SOURCE_CASE_COUNT
+    expected_full_count = final_size or EXPECTED_FULL_CASE_COUNT
+    run_scope = (
+        f"final{final_size}"
+        if final_size and available_count == final_size
+        else f"final{final_size}-remainder"
+        if final_size
+        else "official-500"
+        if _is_canonical_full_run(args)
+        else "subset"
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "method": args.method,
         "attack_family": "multi-turn" if args.method in MULTI_TURN_METHODS else "single-turn",
         "input": str(args.input.resolve()),
         "dataset": {
-            "name": DATASET_NAME,
-            "source_name": "jmir-persona-min10",
-            "source_expected_count": EXPECTED_SOURCE_CASE_COUNT,
+            "name": dataset_name,
+            "source_name": source_name,
+            "source_expected_count": source_expected_count,
             "source_available_count": source_available_count,
-            "expected_full_count": EXPECTED_FULL_CASE_COUNT,
+            "expected_full_count": expected_full_count,
             "available_count": available_count,
-            "run_scope": "official-500" if _is_canonical_full_run(args) else "subset",
+            "run_scope": run_scope,
             "cohort_index": str(args.cohort_index.resolve()),
             "cohort_index_sha256": _sha256(args.cohort_index),
         },

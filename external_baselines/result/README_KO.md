@@ -1,5 +1,8 @@
 # 외부 베이스라인 결과
 
+- `PCSA_PERSONA_HISTORY_PILOT10_KO.md`: PCSA 논문의 Phase I/II 연결 방식으로
+  Final-197 persona history를 적용한 동일-case 파일럿 비교와 전체 실행 판정
+
 이 폴더는 외부 공격 기법의 확정 결과와 추가 타깃 실험 상태를 보관한다.
 RED-Persona 본 방법의 결과와 합치거나 외부 기법을 OURS로 표기하지 않는다.
 

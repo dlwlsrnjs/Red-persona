@@ -15,6 +15,8 @@
 - 결합 성공: 같은 분기에서만 `R3+ ∧ B4+ ∧ HarmBench+`
 
 분기별 인용과 직접응답의 정확한 계약은 [PROTOCOL_KO.md](PROTOCOL_KO.md)에 있다.
+이전 6건과 현재 10건의 차이 및 인용 범위 회귀 수정 근거는
+[CHANGE_ANALYSIS_KO.md](CHANGE_ANALYSIS_KO.md)에 정리했다.
 기계 판독 설정은 `experiments/final197/LOCKED_CONFIG.json`이 원본이다.
 
 ## 실행 순서

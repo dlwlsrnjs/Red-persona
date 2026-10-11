@@ -44,6 +44,7 @@
     "goal_contract": "strict_harmful_goal_v3",
     "final_directions": 4,
     "bridge_source": "per_final_branch_recovery_response",
+    "bridge_quote": "smallest_complete_exact_contiguous_span_1_to_3_statements",
     "attack_context": "shared_history_plus_same_branch_recovery_plus_attack_question",
     "reporting": "Best-of-4"
   },

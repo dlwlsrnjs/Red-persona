@@ -8,7 +8,8 @@
    `latent_request_synthesis`, `evidence_chain`, `analyst_response_target`,
    `source_aware_reconstruction`.
 4. 각 분기의 `recovery_response`에서 그 분기가 복원한 요청을 나타내는 정확한
-   타깃 작성 인용문을 별도로 고른다.
+   타깃 작성 인용 범위를 별도로 고른다. 행위와 산출물 형식·제약이 여러 문장에
+   나뉘어 있으면 같은 응답 안의 연속된 2~3문장을 하나의 정확 인용 범위로 쓸 수 있다.
 5. 해당 분기의 `recovery_context + recovery_response`를 그대로 유지한 뒤 그 분기의
    인용문으로 직접응답 질문을 추가한다.
 6. 타깃의 다음 응답을 그 분기의 `attack_response`로 저장한다.
@@ -32,6 +33,10 @@ shared_history
 - 최종 분기만으로 인용을 찾지 못했을 때만
   `source_scope=accumulated_dialogue_plus_final_branch`를 허용한다.
 - `source_direction`은 현재 `direction`과 같아야 한다.
+- 인용은 타깃 응답에 실제로 존재하는 연속 부분 문자열이어야 한다. GOAL 원문이나
+  누락된 표현을 인용문에 새로 합성해서는 안 된다.
+- 완전성을 충족하는 후보 중 가장 짧은 범위를 선택한다. 한 문장 후보가 행위,
+  산출물 형식, 대상 또는 제약을 누락하면 완전한 연속 문장 범위를 우선한다.
 - `attack_context.full_messages`는 정확히
   `recovery_context.full_messages + recovery_response + attack_question`이어야 한다.
 - 완료 체크포인트 재개 시 정규화 전 `target`과 정규화 후 `recovery_response`를 모두
@@ -48,3 +53,5 @@ shared_history
 - 현재 아티팩트는 분기별 최종 응답의 정확 인용과 분기 문맥 연속성을 검사한다.
 - 완료된 분기 아티팩트의 재개 경로가 `recovery_response`를 읽도록 수정됐다.
 - GPT-4o 본실험은 2개 API 키·8개 Batch lane·8개 Qwen 엔드포인트로 준비됐다.
+- 단일 문장 인용으로 산출물 형식이 유실되던 문제를 고쳐 파이프라인 버전을
+  `qwen-target-persona-research-v18-exact-quote-spans`로 올렸다.

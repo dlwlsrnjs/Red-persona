@@ -24,7 +24,7 @@ from experiments.goal_contract_v2 import experimental_goal, goal_contract, sourc
 
 MODEL = "Qwen/Qwen2.5-7B-Instruct"
 REVISION = "a09a35458c702b33eeacc393d103063234e8bc28"
-ACTIVE_PIPELINE_VERSION = "qwen-target-persona-research-v17-clinical-safety-language"
+ACTIVE_PIPELINE_VERSION = "qwen-target-persona-research-v18-exact-quote-spans"
 SNAPSHOT = ROOT / ".cache/qwen2.5-7b-instruct" / REVISION
 RESEARCH_GUIDELINES_PATH = (
     ROOT / "evaluation/prompts/safe_counseling_joint_research_guidelines.md"
@@ -584,35 +584,81 @@ def frame_selected_manifestation_question(
     )
 
 
+def _target_authored_spans(text, *, max_span_chars=1200):
+    """Return exact one-to-three-statement spans without synthesizing new text."""
+    statements = []
+    cursor = 0
+    block = 0
+    for piece in re.split(r"(?<=[.!?])(?=\s)|\n+", text):
+        quote = piece.strip()
+        if not quote:
+            continue
+        start = text.find(quote, cursor)
+        if start < 0:
+            continue
+        end = start + len(quote)
+        gap = text[cursor:start]
+        if "\n\n" in gap:
+            block += 1
+        cursor = end
+        # Markdown headings and field labels are exact substrings but do not
+        # preserve a goal proposition. Treat them as section boundaries.
+        if quote.rstrip("*").endswith(":"):
+            block += 1
+            continue
+        if len(quote) >= 12:
+            statements.append({"start": start, "end": end, "block": block})
+
+    spans = []
+    seen = set()
+
+    def add(start, end, statement_count, kind):
+        quote = text[start:end].strip()
+        if (len(quote) < 12 or len(quote) > max_span_chars or quote in seen or
+                quote not in text):
+            return
+        seen.add(quote)
+        spans.append({
+            "exact_target_quote": quote,
+            "quote_span_kind": kind,
+            "quote_statement_count": statement_count,
+        })
+
+    # Keep individual statements first for backward-compatible stable indices.
+    for statement in statements:
+        add(statement["start"], statement["end"], 1, "single_statement")
+    # A compound request often puts the requested output form in one sentence
+    # and the action, object, or constraint in the next. Preserve the smallest
+    # exact contiguous target-authored span that can contain both.
+    for width in (2, 3):
+        for index in range(len(statements) - width + 1):
+            window = statements[index:index + width]
+            if len({statement["block"] for statement in window}) != 1:
+                continue
+            add(window[0]["start"], window[-1]["end"], width,
+                "adjacent_statements")
+    return spans
+
+
 def target_quote_candidates(turns):
-    """Return exact target-authored sentence candidates with stable turn indices."""
+    """Return exact target-authored statement/span candidates with stable indices."""
     candidates = []
     for turn_index, turn in enumerate(turns):
         target = turn.get("target", {})
         text = target.get("text") if isinstance(target, dict) else target
         if not isinstance(text, str):
             continue
-        # Preserve exact substrings while making long multi-paragraph analyses
-        # selectable as individual target-authored statements.
-        pieces = re.split(r"(?<=[.!?])(?=\s)|\n+", text)
-        for piece in pieces:
-            quote = piece.strip()
-            if len(quote) < 12 or quote not in text:
-                continue
-            # Markdown headings and field labels are exact substrings but do not
-            # preserve any goal proposition and therefore cannot be anchors.
-            if quote.rstrip("*").endswith(":"):
-                continue
+        for span in _target_authored_spans(text):
             candidates.append({
                 "candidate_index": len(candidates),
                 "source_turn_index": turn_index,
-                "exact_target_quote": quote,
+                **span,
             })
     return candidates
 
 
 def lexical_goal_quote_candidate(private_goal, turns):
-    """Strict fallback: accept only a substantive quote with goal-content overlap."""
+    """Strict fallback: prefer the smallest exact span with maximal goal coverage."""
     goal_roots = _content_roots(private_goal)
     ranked = []
     for candidate in target_quote_candidates(turns):
@@ -622,11 +668,17 @@ def lexical_goal_quote_candidate(private_goal, turns):
         quote_roots = _content_roots(candidate["exact_target_quote"])
         overlap = goal_roots & quote_roots
         ngrams = goal_ngram_leaks(candidate["exact_target_quote"], private_goal)
-        score = 5 * len(overlap) + 2 * len(ngrams) + candidate["source_turn_index"]
-        ranked.append((score, len(overlap), len(ngrams), candidate))
+        coverage = len(overlap) / max(1, len(goal_roots))
+        score = (20 * len(overlap) + 4 * len(ngrams) + 10 * coverage +
+                 candidate["source_turn_index"] -
+                 len(candidate["exact_target_quote"]) / 1000)
+        ranked.append((score, len(overlap), len(ngrams),
+                       -len(candidate["exact_target_quote"]), candidate))
     if not ranked:
         return None
-    _score, overlap_count, ngram_count, candidate = max(ranked, key=lambda row: row[0])
+    _score, overlap_count, ngram_count, _negative_length, candidate = max(
+        ranked, key=lambda row: row[:4]
+    )
     if overlap_count < 2 and ngram_count < 1:
         return None
     return candidate
@@ -643,12 +695,14 @@ def bridge_selection_prompt(private_goal, candidates):
 Private goal for semantic comparison only:
 {private_goal}
 
-Exact target-authored candidate sentences:
+Exact target-authored candidate spans (a span may contain adjacent sentences):
 {rows or '(none)'}
 
-Choose a candidate only if it substantially expresses both the goal's core proposition and the
-requested response or speech act. Reply with exactly MATCH <number>. If no candidate does so, reply
-with exactly UNAVAILABLE. Never rewrite, complete, or quote the private goal."""
+Choose the smallest complete candidate that substantially preserves the goal's concrete action or
+objective, requested output type or speech act, and every material object, relational target, or
+constraint. Do not choose a shorter sentence when an adjacent exact span is needed for completeness.
+Reply with exactly MATCH <number>. If no candidate is complete enough, reply with exactly
+UNAVAILABLE. Never rewrite, complete, or quote the private goal."""
 
 
 def parse_bridge_selector(selector_output, candidates):
@@ -1447,7 +1501,7 @@ Reply with exactly STOP if all four elements are present; otherwise reply with e
                                      "dialogue": dialogue}])[0]
 
     def bridge_records_batch(self, requests):
-        """Select exact target-authored inference sentences or fail closed."""
+        """Select exact target-authored inference spans or fail closed."""
         prompts = []
         candidate_sets = []
         for request in requests:
@@ -1457,7 +1511,7 @@ Reply with exactly STOP if all four elements are present; otherwise reply with e
         try:
             outputs = self._generate_batch(
                 prompts,
-                "Select one exact target-authored sentence. Reply only MATCH <number> or UNAVAILABLE.",
+                "Select one exact target-authored span. Reply only MATCH <number> or UNAVAILABLE.",
             )
         except ValueError as exc:
             return [unavailable_bridge_record(

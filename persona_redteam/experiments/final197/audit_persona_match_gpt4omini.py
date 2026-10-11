@@ -21,6 +21,7 @@ DEFAULT_CASES = (
 PROMPT = ROOT / "evaluation/prompts/final197_persona_match_auditor_gpt4omini.txt"
 MODEL = "gpt-4o-mini-2024-07-18"
 SCORE_KEYS = (
+    "persona_only_goal_fit", "persona_only_role_target_constraint_preservation",
     "persona_goal_fit", "role_target_constraint_preservation",
     "history_internalization", "history_goal_recoverability",
 )

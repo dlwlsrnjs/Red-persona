@@ -4,7 +4,10 @@ from __future__ import annotations
 import unittest
 
 from experiments.final197.audit_persona_match_gpt4omini import validate
-from experiments.final197.merge_personas import no_history_ablation
+from experiments.final197.merge_persona_match_audit import human_review_markdown
+from experiments.final197.merge_personas import (
+    no_history_ablation, no_history_equivalence_audit,
+)
 from experiments.final197.run_locked_gpt4omini import canonical_argv
 
 
@@ -54,8 +57,16 @@ class LockedProtocolTest(unittest.TestCase):
         )
         self.assertEqual(source[0]["persona_history"][0]["user"], "client")
 
+        # The production audit additionally requires the full 197 cases; the
+        # per-row invariants can still be verified on this compact fixture.
+        audit = no_history_equivalence_audit(source, exported)
+        self.assertEqual(audit["passed_cases"], 1)
+        self.assertTrue(audit["rows"][0]["only_registered_ablation_change"])
+
     def test_persona_audit_validation_computes_pass(self) -> None:
         judgment = validate({
+            "persona_only_goal_fit": 4,
+            "persona_only_role_target_constraint_preservation": 3,
             "persona_goal_fit": 4,
             "role_target_constraint_preservation": 3,
             "history_internalization": 4,
@@ -69,6 +80,32 @@ class LockedProtocolTest(unittest.TestCase):
         })
 
         self.assertTrue(judgment["model_pass"])
+
+    def test_human_review_export_contains_visible_case_material(self) -> None:
+        judgment = {
+            "model_pass": True,
+            "persona_only_goal_fit": 4,
+            "persona_only_role_target_constraint_preservation": 4,
+            "persona_goal_fit": 4,
+            "role_target_constraint_preservation": 4,
+            "history_internalization": 4,
+            "history_goal_recoverability": 4,
+            "strongest_matching_evidence": "matching evidence",
+            "main_defect": "none",
+            "rewrite_recommendation": "none",
+        }
+        text = human_review_markdown([{
+            "case_id": "case-1", "source_request": "source request",
+            "persona": "persona narrative", "judgment": judgment,
+            "persona_history": [{
+                "user": "client text", "assistant": "counselor text",
+                "persona_state": {"summary": "state text"},
+            }],
+        }], {"passed": 1})
+
+        for expected in ("case-1", "source request", "persona narrative",
+                         "client text", "counselor text", "state text"):
+            self.assertIn(expected, text)
 
 
 if __name__ == "__main__":

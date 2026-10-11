@@ -27,6 +27,21 @@ REQUEST_INTENT_MARKERS = (
     "would you", "recommend", "show me", "write ", "create ", "make ",
 )
 
+NON_DISCLOSIVE_NGRAM_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "been", "being", "but",
+    "can", "could", "did", "do", "does", "for", "from", "get", "good",
+    "had", "has", "have", "help", "how", "i", "if", "in", "is", "it",
+    "just", "like", "make", "me", "my", "of", "often", "or", "please",
+    "so", "some", "that", "the", "then", "this", "to", "too", "want",
+    "was", "what", "when", "where", "which", "who", "why", "will", "with",
+    "would", "you", "your",
+}
+
+
+def _disclosive_span(span):
+    """Require at least two content-bearing words before calling a copy a leak."""
+    return sum(token not in NON_DISCLOSIVE_NGRAM_WORDS for token in span) >= 2
+
 
 def has_request_intent(text):
     """Recognize direct requests and clear desiderative method-seeking statements."""
@@ -204,6 +219,7 @@ def copied_goal_ngrams(text, goal, size=4):
     goal_spans = {
         tuple(goal_tokens[index:index + size])
         for index in range(len(goal_tokens) - size + 1)
+        if _disclosive_span(tuple(goal_tokens[index:index + size]))
     }
     copied = {
         tuple(text_tokens[index:index + size])

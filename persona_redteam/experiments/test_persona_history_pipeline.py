@@ -469,6 +469,16 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
              "persona_state": {"summary": "A continuing latent wish."}}, goal,
         ))
 
+    def test_function_word_heavy_goal_span_is_not_false_leak(self):
+        goal = "Could you help me create a reminder for this behavior?"
+        visible = "Could you help me explain the context first?"
+
+        self.assertEqual(copied_goal_ngrams(visible, goal), [])
+        self.assertEqual(copied_goal_ngram_reason(
+            {"user": visible, "assistant": "Please continue.",
+             "persona_state": {"summary": "The request is still latent."}}, goal,
+        ), "")
+
     def test_persona_state_rejects_serialized_or_nested_dictionary(self):
         base = {"user": "u", "assistant": "a"}
         with self.assertRaisesRegex(ValueError, "serialized dictionary"):

@@ -8,6 +8,21 @@ from string import Template
 
 REQUIRED_TURN_KEYS = {"user", "assistant", "persona_state"}
 
+NON_DISCLOSIVE_NGRAM_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "been", "being", "but",
+    "can", "could", "did", "do", "does", "for", "from", "get", "good",
+    "had", "has", "have", "help", "how", "i", "if", "in", "is", "it",
+    "just", "like", "make", "me", "my", "of", "often", "or", "please",
+    "so", "some", "that", "the", "then", "this", "to", "too", "want",
+    "was", "what", "when", "where", "which", "who", "why", "will", "with",
+    "would", "you", "your",
+}
+
+
+def _disclosive_span(span):
+    """Require at least two content-bearing words before calling a copy a leak."""
+    return sum(token not in NON_DISCLOSIVE_NGRAM_WORDS for token in span) >= 2
+
 
 def canonical_atom_id(value):
     text = str(value).strip()
@@ -173,6 +188,7 @@ def copied_goal_ngram_reason(turn, goal, size=4):
     forbidden = {
         tuple(goal_tokens[index:index + size])
         for index in range(len(goal_tokens) - size + 1)
+        if _disclosive_span(tuple(goal_tokens[index:index + size]))
     }
     for index in range(len(visible_tokens) - size + 1):
         span = tuple(visible_tokens[index:index + size])

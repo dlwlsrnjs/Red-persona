@@ -45,7 +45,10 @@
 `persona_cases_NO_HISTORY_ABLATION.json`도 별도로 만든다. 이 파일은 최종 페르소나와
 metaphor는 유지하지만 `persona_history=[]`이며, 모든 사례에
 `ablation_context.variant=no_prior_dialogue`가 표시된다. 파일명이 명확히 다르므로
-기본 OURS 입력과 혼동하거나 덮어쓰지 않는다.
+기본 OURS 입력과 혼동하거나 덮어쓰지 않는다. 함께 생성되는
+`persona_cases_NO_HISTORY_ABLATION_AUDIT.json`은 197건 각각에서 원 요청,
+persona ID, 최종 persona/profile, metaphor가 본 실험과 완전히 같고 대화 이력만
+제거됐는지 증명한다.
 
 ## 최종 평가
 
@@ -57,6 +60,6 @@ metaphor는 유지하지만 `persona_history=[]`이며, 모든 사례에
 
 ## 최종 페르소나 매칭 감사
 
-페르소나 병합 직후 `launch_two_key_persona_audit.py`를 실행한다. GPT-4o-mini가 두 키·총 128 worker로 197건의 GOAL 적합성, 역할·대상·제약 보존, 이력 내재화, 복원 가능성, 무관 서사 혼입과 GOAL 방향 반전을 검사한다. 자동 감사 결과와 함께 사람이 전체를 읽을 수 있는 `human_review_all197.jsonl`, 우선 재검수 대상만 모은 `review_queue.jsonl`, 요약 `HUMAN_REVIEW_KO.md`를 생성한다. 자동 실패 사례는 타깃 실험에 넣기 전에 재작성한다.
+페르소나 병합 직후 `launch_two_key_persona_audit.py`를 실행한다. GPT-4o-mini가 두 키·총 128 worker로 197건의 GOAL 적합성, 역할·대상·제약 보존, 이력 내재화, 복원 가능성, 무관 서사 혼입과 GOAL 방향 반전을 검사한다. 같은 호출에서 대화 이력을 무시한 `persona_only` 점수도 별도로 매겨 `NO_HISTORY_PERSONA_FIT_GPT4OMINI.json`에 저장한다. 자동 감사 결과와 함께 사람이 읽기 쉬운 전체 문서 `HUMAN_REVIEW_ALL197.md`, 기계 판독용 `human_review_all197.jsonl`, 우선 재검수 대상만 모은 `review_queue.jsonl`, 요약 `HUMAN_REVIEW_KO.md`를 생성한다. 자동 실패 사례는 타깃 실험에 넣기 전에 재작성한다.
 
 전문용어 제거 등 ablation은 본 실행과 다른 출력 폴더에서 수행하며, 고정 본 실험 결과를 덮어쓰지 않는다.

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -35,6 +36,52 @@ def no_history_ablation(cases: list[dict]) -> list[dict]:
         if context.get("variant") != "no_prior_dialogue":
             raise ValueError(f"{case.get('case_id')}: missing no-history ablation marker")
     return transformed
+
+
+def no_history_equivalence_audit(
+        canonical: list[dict], ablated: list[dict]) -> dict:
+    """Prove that the registered arm removes history and changes nothing else."""
+    rows = []
+    for source, variant in zip(canonical, ablated):
+        expected = copy.deepcopy(source)
+        expected["persona_history"] = []
+        expected["ablation_context"] = variant.get("ablation_context")
+        row = {
+            "case_id": source.get("case_id"),
+            "same_case_id": source.get("case_id") == variant.get("case_id"),
+            "same_original_request": (
+                source.get("original_request") == variant.get("original_request")
+            ),
+            "same_persona_id": (
+                source.get("persona_profile", {}).get("persona_id") ==
+                variant.get("persona_profile", {}).get("persona_id")
+            ),
+            "same_persona": source.get("persona") == variant.get("persona"),
+            "same_persona_profile": (
+                source.get("persona_profile") == variant.get("persona_profile")
+            ),
+            "same_metaphor": source.get("metaphor") == variant.get("metaphor"),
+            "history_removed": variant.get("persona_history") == [],
+            "only_registered_ablation_change": variant == expected,
+            "source_history_turns": len(source.get("persona_history", [])),
+            "persona_sha256": hashlib.sha256(
+                str(source.get("persona", "")).encode("utf-8")
+            ).hexdigest(),
+        }
+        row["passed"] = all(
+            value for key, value in row.items()
+            if key.startswith("same_") or key in {
+                "history_removed", "only_registered_ablation_change"
+            }
+        )
+        rows.append(row)
+    return {
+        "version": "final197-no-history-equivalence-v1",
+        "cases": len(rows),
+        "passed_cases": sum(row["passed"] for row in rows),
+        "passed": len(rows) == 197 and all(row["passed"] for row in rows),
+        "rows": rows,
+    }
 
 
 def main() -> None:
@@ -106,9 +153,11 @@ def main() -> None:
         write_json(run_dir / "persona_cases.json", merged)
         # This is deliberately a separate, conspicuously named input.  The
         # canonical OURS file above is never modified by the ablation export.
+        no_history = no_history_ablation(merged)
+        write_json(run_dir / "persona_cases_NO_HISTORY_ABLATION.json", no_history)
         write_json(
-            run_dir / "persona_cases_NO_HISTORY_ABLATION.json",
-            no_history_ablation(merged),
+            run_dir / "persona_cases_NO_HISTORY_ABLATION_AUDIT.json",
+            no_history_equivalence_audit(merged, no_history),
         )
     print(json.dumps(audit, ensure_ascii=False, indent=2))
     if not args.allow_partial and not audit["passed"]:

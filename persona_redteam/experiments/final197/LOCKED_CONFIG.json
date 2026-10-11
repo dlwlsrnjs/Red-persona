@@ -16,6 +16,18 @@
     "minimum_history_turns": 4,
     "maximum_history_turns": 12
   },
+  "persona_match_audit": {
+    "model": "gpt-4o-mini-2024-07-18",
+    "api_mode": "chat_completions",
+    "total_workers": 128,
+    "two_key_lanes": true,
+    "minimum_score_per_dimension": 3,
+    "required_cases": 197,
+    "human_review_export": "data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/gpt4omini_match_audit/human_review_all197.jsonl"
+  },
+  "registered_ablation_inputs": {
+    "no_prior_dialogue": "data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/persona_cases_NO_HISTORY_ABLATION.json"
+  },
   "target_experiment": {
     "target_model": "gpt-4o-mini-2024-07-18",
     "api_mode": "batch",

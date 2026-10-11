@@ -3,8 +3,12 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import copy
 import json
 from pathlib import Path
+
+from ablation.context import transform_case
+from ablation.specs import get_spec
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,6 +22,19 @@ def write_json(path: Path, value: object) -> None:
         json.dumps(value, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def no_history_ablation(cases: list[dict]) -> list[dict]:
+    """Return the registered no-prior-dialogue arm without mutating OURS."""
+    spec = get_spec("no_prior_dialogue")
+    transformed = [transform_case(copy.deepcopy(case), spec) for case in cases]
+    for case in transformed:
+        if case.get("persona_history") != []:
+            raise ValueError(f"{case.get('case_id')}: no-history export retained dialogue")
+        context = case.get("ablation_context", {})
+        if context.get("variant") != "no_prior_dialogue":
+            raise ValueError(f"{case.get('case_id')}: missing no-history ablation marker")
+    return transformed
 
 
 def main() -> None:
@@ -87,6 +104,12 @@ def main() -> None:
     write_json(run_dir / "persona197_audit.json", audit)
     if args.allow_partial or audit["passed"]:
         write_json(run_dir / "persona_cases.json", merged)
+        # This is deliberately a separate, conspicuously named input.  The
+        # canonical OURS file above is never modified by the ablation export.
+        write_json(
+            run_dir / "persona_cases_NO_HISTORY_ABLATION.json",
+            no_history_ablation(merged),
+        )
     print(json.dumps(audit, ensure_ascii=False, indent=2))
     if not args.allow_partial and not audit["passed"]:
         raise SystemExit("Final-197 merge is incomplete or failed a mandatory gate")

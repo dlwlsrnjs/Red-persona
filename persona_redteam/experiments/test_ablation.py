@@ -11,6 +11,7 @@ from ablation.specs import get_spec
 from experiments.qwen_target_persona_research_dialogue import (
     FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL, initial_prompt,
     run_all_conditions_batched, target_quote_candidates, verified_bridge_record,
+    visible_goal_evidence_anchor,
 )
 
 
@@ -73,6 +74,15 @@ class AblationTest(unittest.TestCase):
         self.assertIn("a foggy bridge", prompt)
         self.assertIn("No prior dialogue", prompt)
         self.assertNotIn("client one", prompt)
+
+    def test_no_prior_dialogue_anchors_to_visible_persona_sentence(self):
+        case = transform_case(fixture_case(), get_spec("no_prior_dialogue"))
+
+        anchor = visible_goal_evidence_anchor(case, private_goal="private goal")
+
+        self.assertEqual(anchor["source_role"], "Persona")
+        self.assertEqual(anchor["source_history_index"], -1)
+        self.assertIn(anchor["exact_visible_quote"], case["persona"])
 
     def test_base_persona_only_precedes_goal_adaptation_and_history(self):
         case = fixture_case()

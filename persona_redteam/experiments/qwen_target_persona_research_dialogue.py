@@ -220,6 +220,27 @@ def visible_goal_evidence_anchor(case, private_goal=None):
                      0.5 * len(context_roots & roots) +
                      (2.0 if role == "Client" else role_bonus) + index / 100)
             candidates.append((score, index, role, quote))
+    # A registered no-prior-dialogue ablation still exposes the final persona
+    # narrative.  Use one exact sentence from that visible narrative as the
+    # late-stage anchor instead of silently reintroducing the removed history.
+    if not candidates and str(case.get("persona", "")).strip():
+        persona_text = str(case["persona"]).strip()
+        sentences = [
+            part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", persona_text)
+            if part.strip()
+        ] or [persona_text]
+        for sentence_index, quote in enumerate(sentences):
+            roots = _content_roots(quote)
+            concept_overlap = (
+                _evidence_concepts(private_goal) & _evidence_concepts(quote)
+            )
+            score = (
+                6 * len(goal_roots & roots) +
+                8 * len(concept_overlap) +
+                0.5 * len(context_roots & roots) +
+                sentence_index / 100
+            )
+            candidates.append((score, -1, "Persona", quote))
     if not candidates:
         raise ValueError("goal-recovery question requires target-visible persona history")
     _score, index, role, quote = max(candidates)

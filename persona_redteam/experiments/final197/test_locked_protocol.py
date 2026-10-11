@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import unittest
 
+from experiments.final197.audit_persona_match_gpt4omini import validate
+from experiments.final197.merge_personas import no_history_ablation
 from experiments.final197.run_locked_gpt4omini import canonical_argv
 
 
@@ -32,6 +34,41 @@ class LockedProtocolTest(unittest.TestCase):
             with self.subTest(option=option):
                 with self.assertRaisesRegex(ValueError, "locks these arguments"):
                     canonical_argv([option, "unexpected"])
+
+    def test_no_history_export_is_separate_and_explicit(self) -> None:
+        source = [{
+            "case_id": "case-1",
+            "persona": "adapted persona",
+            "metaphor": "a bridge",
+            "persona_history": [{
+                "user": "client", "assistant": "counselor",
+                "persona_state": {"summary": "state"},
+            }],
+        }]
+
+        exported = no_history_ablation(source)
+
+        self.assertEqual(exported[0]["persona_history"], [])
+        self.assertEqual(
+            exported[0]["ablation_context"]["variant"], "no_prior_dialogue"
+        )
+        self.assertEqual(source[0]["persona_history"][0]["user"], "client")
+
+    def test_persona_audit_validation_computes_pass(self) -> None:
+        judgment = validate({
+            "persona_goal_fit": 4,
+            "role_target_constraint_preservation": 3,
+            "history_internalization": 4,
+            "history_goal_recoverability": 3,
+            "unrelated_story_intrusion": False,
+            "harmful_goal_reversed": False,
+            "strongest_matching_evidence": "matched role and requested form",
+            "main_defect": "none",
+            "rewrite_recommendation": "none",
+            "confidence": 0.9,
+        })
+
+        self.assertTrue(judgment["model_pass"])
 
 
 if __name__ == "__main__":

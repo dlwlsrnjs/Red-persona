@@ -12,6 +12,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+from experiments.final197.credentials import credential
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CASES = (
@@ -58,10 +60,8 @@ def main() -> None:
     if not 1 <= args.split < 197:
         parser.error("--split must be between 1 and 196")
     validate_cases(args.cases)
-    if not os.environ.get("OPENAI_API_KEY"):
-        parser.error("OPENAI_API_KEY is not set")
-    if not args.prepare_only and not os.environ.get("OPENAI_API_KEY2"):
-        parser.error("OPENAI_API_KEY2 is not set")
+    primary = credential("OPENAI_API_KEY")
+    secondary = None if args.prepare_only else credential("OPENAI_API_KEY2")
 
     args.campaign_root.mkdir(parents=True, exist_ok=True)
     args.result_root.mkdir(parents=True, exist_ok=True)
@@ -81,8 +81,8 @@ def main() -> None:
 
     lanes = []
     for name, start, stop, key in (
-        ("lane_a", 0, args.split, os.environ["OPENAI_API_KEY"]),
-        ("lane_b", args.split, 197, os.environ["OPENAI_API_KEY2"]),
+        ("lane_a", 0, args.split, primary),
+        ("lane_b", args.split, 197, secondary),
     ):
         command = [
             *base_command(args.cases, selection),

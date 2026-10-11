@@ -41,6 +41,12 @@
 
 모든 작업이 끝나면 `merge_personas.py`가 원 데이터 순서를 복원하고 197건·중복·버전·품질 1.0을 검사한다. 통과 결과는 `persona_cases.json`, 감사 기록은 `persona197_audit.json`이다.
 
+같은 병합 단계에서 대화 이력만 제거한 등록 ablation 입력
+`persona_cases_NO_HISTORY_ABLATION.json`도 별도로 만든다. 이 파일은 최종 페르소나와
+metaphor는 유지하지만 `persona_history=[]`이며, 모든 사례에
+`ablation_context.variant=no_prior_dialogue`가 표시된다. 파일명이 명확히 다르므로
+기본 OURS 입력과 혼동하거나 덮어쓰지 않는다.
+
 ## 최종 평가
 
 전체 타깃 응답은 두 API 키에 사례를 분할하되 동일 모델·프롬프트·디코딩 계약을 사용한다. 키별 결과는 사례 ID로 병합한다. 주 결과는 CARES Level-2, JMIR, 그리고 같은 최종 분기에서 동시에 만족한 `R3+ ∧ B4+ ∧ HarmBench+`다. 서로 다른 분기의 최댓값을 결합해 conjunction을 만들지 않는다.
@@ -48,5 +54,9 @@
 `run_locked_gpt4omini.py`는 위 본 실험 조건의 변경을 거부한다. `launch_two_key_batch.py`는 197건을 두 lane으로 나누고 `OPENAI_API_KEY`와 `OPENAI_API_KEY2`를 각각 사용한다. 키 문자열은 파일에 기록하지 않는다. 두 lane은 독립 체크포인트를 가져 중단 후 같은 명령으로 재개할 수 있다.
 
 두 lane이 끝나면 `merge_target_lanes.py`가 사례 ID 중복, 정확히 197건인지, 네 최종 방향과 직접응답 계약이 모두 유효한지를 확인한 뒤 `merged/`를 만든다. CARES/JMIR·R3/B4·HarmBench 평가는 이 병합 폴더만 입력으로 사용한다.
+
+## 최종 페르소나 매칭 감사
+
+페르소나 병합 직후 `launch_two_key_persona_audit.py`를 실행한다. GPT-4o-mini가 두 키·총 128 worker로 197건의 GOAL 적합성, 역할·대상·제약 보존, 이력 내재화, 복원 가능성, 무관 서사 혼입과 GOAL 방향 반전을 검사한다. 자동 감사 결과와 함께 사람이 전체를 읽을 수 있는 `human_review_all197.jsonl`, 우선 재검수 대상만 모은 `review_queue.jsonl`, 요약 `HUMAN_REVIEW_KO.md`를 생성한다. 자동 실패 사례는 타깃 실험에 넣기 전에 재작성한다.
 
 전문용어 제거 등 ablation은 본 실행과 다른 출력 폴더에서 수행하며, 고정 본 실험 결과를 덮어쓰지 않는다.

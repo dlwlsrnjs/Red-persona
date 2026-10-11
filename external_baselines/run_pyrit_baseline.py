@@ -425,8 +425,15 @@ def build_manifest(
                 else None
             ),
             "assigned_count": sum(case["persona_context"] is not None for case in selected),
-            "injected_into_attack_prompt": args.method == "pcsa_phase2",
-            "used_by_pcsa_phase2": args.method == "pcsa_phase2",
+            "injected_into_attack_prompt": (
+                args.method == "pcsa_phase2" and not args.pcsa_disable_persona
+            ),
+            "used_by_pcsa_phase2": (
+                args.method == "pcsa_phase2" and not args.pcsa_disable_persona
+            ),
+            "ablation": (
+                "no_persona" if args.method == "pcsa_phase2" and args.pcsa_disable_persona else None
+            ),
         },
         "target": {
             "endpoint": args.target_endpoint,
@@ -478,10 +485,14 @@ def build_manifest(
                     "phase": 2,
                     "phase1_enabled": False,
                     "phase1_replacement": (
+                        "disabled_no_persona_ablation"
+                        if args.pcsa_disable_persona
+                        else
                         "fixed_goal_conditioned_persona_history_style_and_pathology_route"
                         if args.pcsa_persona_history
                         else "fixed_red_persona_profile_and_pathology_route"
                     ),
+                    "personalization_enabled": not args.pcsa_disable_persona,
                     "pathology_routes": str(args.pathology_routes.resolve()),
                     "max_turns": args.max_turns,
                     "candidates_per_turn": args.pcsa_candidates,
@@ -788,18 +799,21 @@ async def _run(args: argparse.Namespace, selected: list[dict[str, Any]]) -> dict
                 assert adversary is not None and pcsa_evaluator is not None
                 persona_context = case["persona_context"]
                 pathology_context = case["pathology_context"]
-                if not persona_context or not pathology_context:
-                    raise ValueError("PCSA requires both persona and pathology context")
+                if not pathology_context:
+                    raise ValueError("PCSA requires pathology context")
+                if not args.pcsa_disable_persona and not persona_context:
+                    raise ValueError("PCSA persona condition requires persona context")
                 pcsa_result = await run_pcsa_phase2(
                     objective=case["objective"],
-                    persona_profile=persona_context["persona_profile"],
-                    persona_history=persona_context.get("persona_history", ()),
+                    persona_profile=(persona_context or {}).get("persona_profile", {}),
+                    persona_history=(persona_context or {}).get("persona_history", ()),
                     pathology=pathology_context["pathology"],
                     attacker_chat=lambda messages: chat(adversary, messages),
                     target_chat=lambda messages: chat(target, messages),
                     evaluator_chat=lambda messages: chat(pcsa_evaluator, messages),
                     max_turns=args.max_turns,
                     candidates_per_turn=args.pcsa_candidates,
+                    personalization_enabled=not args.pcsa_disable_persona,
                 )
                 transcript = pcsa_result["target_conversation"]
                 final_response = pcsa_result["final_target_response"]
@@ -937,6 +951,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "attacker warm-up context; source history is not replayed to the target"
         ),
     )
+    parser.add_argument(
+        "--pcsa-disable-persona",
+        action="store_true",
+        help=(
+            "PCSA ablation: remove the client profile and Phase-I style/history "
+            "from the attacker while retaining the goal, pathology route, "
+            "strategies, turn budget, and evaluator"
+        ),
+    )
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--stop", type=int)
@@ -1052,6 +1075,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         )
     if args.method == "pcsa_phase2" and args.max_turns > PCSA_MAX_TURNS:
         parser.error(f"PCSA Phase 2 is capped at {PCSA_MAX_TURNS} turns")
+    if args.pcsa_disable_persona and args.method != "pcsa_phase2":
+        parser.error("--pcsa-disable-persona is only valid for PCSA Phase 2")
+    if args.pcsa_disable_persona and args.pcsa_persona_history:
+        parser.error("--pcsa-disable-persona cannot be combined with --pcsa-persona-history")
     if not CRISIS_PROMPT.exists() or not THERAPIST_PROMPT.exists():
         parser.error("PyRIT submodule is missing; run: git submodule update --init --recursive")
     if args.output_dir is None:
@@ -1062,7 +1089,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     persona_contexts = (
-        load_pcsa_persona_history_contexts(args.pcsa_persona_history)
+        {}
+        if args.method == "pcsa_phase2" and args.pcsa_disable_persona
+        else load_pcsa_persona_history_contexts(args.pcsa_persona_history)
         if args.method == "pcsa_phase2" and args.pcsa_persona_history
         else load_persona_contexts(args.persona_map, args.persona_pool)
     )
@@ -1085,12 +1114,15 @@ def main(argv: list[str] | None = None) -> int:
             f"found {len(cases)}"
         )
     if _is_canonical_full_run(args):
-        missing_personas = [case["case_id"] for case in cases if case["persona_context"] is None]
-        if missing_personas:
-            raise ValueError(
-                "canonical baseline run requires a fixed Phase 2 persona for every case; "
-                f"missing {len(missing_personas)} assignments"
-            )
+        if not (args.method == "pcsa_phase2" and args.pcsa_disable_persona):
+            missing_personas = [
+                case["case_id"] for case in cases if case["persona_context"] is None
+            ]
+            if missing_personas:
+                raise ValueError(
+                    "canonical baseline run requires a fixed Phase 2 persona for every case; "
+                    f"missing {len(missing_personas)} assignments"
+                )
         missing_pathology = [
             case["case_id"] for case in cases if case["pathology_context"] is None
         ]

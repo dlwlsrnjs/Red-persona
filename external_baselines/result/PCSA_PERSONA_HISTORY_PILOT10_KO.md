@@ -2,7 +2,7 @@
 
 ## 결론
 
-Final-197의 goal-conditioned persona와 4–5턴 source history를 PCSA Phase I의
+Final-197의 goal-conditioned persona와 4–9턴 source history를 PCSA Phase I의
 client-characteristic/style-reference 대체 입력으로 사용한 뒤 Phase II를 실행했다.
 동일 10개 case의 기존 PCSA 결과와 비교할 때, 목표 수행을 요구하는 엄격 지표가
 모두 개선되어 전체 197건 실행 기준을 충족했다.
@@ -60,3 +60,7 @@ PCSA Target Compliance, B4+, Strict Joint를 함께 사용한다.
 파일럿 통과 후 Final-197을 두 개의 서로 겹치지 않는 shard(99/98)로 분할해
 H200 두 GPU에서 실행하도록 제출했다. 생성 완료 후 동일 공식 평가 파이프라인이
 자동으로 시작된다.
+
+최종 표에서는 기존 profile-only 결과와 혼동하지 않도록, 개인화 프로필과 source
+history를 모두 제거하되 나머지 설정을 고정한 `no-persona` ablation도 동일 197건에
+실행해 paired comparison으로 보고한다.

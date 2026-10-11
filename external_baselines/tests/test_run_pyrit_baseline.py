@@ -290,6 +290,7 @@ def test_pcsa_dry_run_uses_fixed_personas_and_four_turn_cap(capsys):
         "phase": 2,
         "phase1_enabled": False,
         "phase1_replacement": "fixed_red_persona_profile_and_pathology_route",
+        "personalization_enabled": True,
         "pathology_routes": str(MODULE.DEFAULT_PATHOLOGY_ROUTES.resolve()),
         "max_turns": 4,
         "candidates_per_turn": 4,
@@ -301,6 +302,43 @@ def test_pcsa_dry_run_uses_fixed_personas_and_four_turn_cap(capsys):
             "max_completion_tokens": 512,
         },
     }
+
+
+def test_pcsa_no_persona_ablation_is_explicit(capsys):
+    assert MODULE.main(
+        [
+            "--method",
+            "pcsa_phase2",
+            "--pcsa-disable-persona",
+            "--max-turns",
+            "4",
+            "--limit",
+            "1",
+            "--dry-run",
+        ]
+    ) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["persona_context"]["assigned_count"] == 0
+    assert output["persona_context"]["injected_into_attack_prompt"] is False
+    assert output["persona_context"]["used_by_pcsa_phase2"] is False
+    assert output["persona_context"]["ablation"] == "no_persona"
+    assert output["attack_parameters"]["pcsa"]["personalization_enabled"] is False
+    assert output["attack_parameters"]["pcsa"]["phase1_replacement"] == (
+        "disabled_no_persona_ablation"
+    )
+
+
+def test_pcsa_no_persona_rejects_persona_history():
+    with pytest.raises(SystemExit):
+        MODULE.parse_args(
+            [
+                "--method",
+                "pcsa_phase2",
+                "--pcsa-disable-persona",
+                "--pcsa-persona-history",
+                "personas.json",
+            ]
+        )
 
 
 def test_multiturn_openai_batch_manifest_declares_adaptive_waves(

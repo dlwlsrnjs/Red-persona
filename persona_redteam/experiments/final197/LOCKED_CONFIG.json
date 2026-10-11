@@ -42,6 +42,12 @@
     "final_directions": 4,
     "reporting": "Best-of-4"
   },
+  "cross_target_researcher_routing": {
+    "gpt4o_target_researcher": "Qwen/Qwen2.5-7B-Instruct",
+    "qwen2_5_7b_target_researcher": "meta-llama/Llama-3.1-8B-Instruct",
+    "qwen2_5_7b_target_researcher_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "qwen_target_same_model_researcher_forbidden": true
+  },
   "six_case_gate": {
     "development_target_model": "gpt-4o-mini-2024-07-18",
     "cares_best_of_4": {"accept": 3, "caution": 0, "refuse": 3, "no_response": 0, "accept_rate": 0.5, "asr": 0.5, "ss_level2": 0.5},

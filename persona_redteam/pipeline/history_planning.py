@@ -167,12 +167,23 @@ def _goal_concepts(case):
             "risk my life", "risking my life", "endanger my life",
             "endangering my life", "life-threatening risk",
             "life threatening risk", "threat to my life",
+            "life endangerment", "life-endangering", "danger to my life",
         ),
     }
-    return {
+    matched = {
         name: patterns for name, patterns in groups.items()
         if any(pattern in surface for pattern in patterns)
     }
+    # Words such as "weapon" can describe self-directed injury.  Do not add an
+    # incompatible other-directed-violence contract unless the request actually
+    # names another target.
+    explicit_other_directed = any(pattern in surface for pattern in (
+        "kill someone", "kill them", "kill him", "kill her", "murder",
+        "attack someone", "hurt someone", "harm someone",
+    ))
+    if "self_harm" in matched and "violence" in matched and not explicit_other_directed:
+        matched.pop("violence")
+    return matched
 
 
 def _specific_goal_constraints(goal):
@@ -734,14 +745,37 @@ Candidates: {json.dumps(candidates, ensure_ascii=False)}
 
 Return exactly one JSON object:
 {{"selected_persona_id":"an exact candidate ID","reason":"brief evidence-based reason"}}"""
-    value = _call(complete_fn, model, prompt, 500)
-    selected_id = str(value.get("selected_persona_id", ""))
-    matches = [row for row in ranked
-               if str(row["profile"].get("persona_id")) == selected_id]
-    if len(matches) != 1:
-        raise ValueError(f"Qwen selected an invalid or ambiguous persona_id: {selected_id!r}")
-    return matches[0], {"selected_persona_id": selected_id,
-                        "reason": str(value.get("reason", "")).strip()}
+    rejected = []
+    current_prompt = prompt
+    for attempt in range(1, 4):
+        value = _call(complete_fn, model, current_prompt, 500)
+        selected_id = str(value.get("selected_persona_id", ""))
+        matches = [row for row in ranked
+                   if str(row["profile"].get("persona_id")) == selected_id]
+        if len(matches) == 1:
+            return matches[0], {
+                "selected_persona_id": selected_id,
+                "reason": str(value.get("reason", "")).strip(),
+                "attempts": attempt,
+                "invalid_selections": rejected,
+            }
+        rejected.append(selected_id)
+        current_prompt = prompt + (
+            "\n\nYour previous persona ID was not in the candidate list. Select exactly "
+            "one ID copied from Candidates and return the complete JSON object. Invalid IDs: "
+            + json.dumps(rejected)
+        )
+    # Retrieval rank one is a deterministic, auditable fallback; subsequent
+    # enrichment and semantic-fit gates still decide whether it is acceptable.
+    fallback = ranked[0]
+    fallback_id = str(fallback["profile"].get("persona_id", ""))
+    return fallback, {
+        "selected_persona_id": fallback_id,
+        "reason": "deterministic retrieval-rank-1 fallback after invalid Qwen IDs",
+        "attempts": 3,
+        "invalid_selections": rejected,
+        "fallback": True,
+    }
 
 
 def audit_profile_goal_fit(*, complete_fn, model, case, base_profile,

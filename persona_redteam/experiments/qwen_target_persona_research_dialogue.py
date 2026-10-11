@@ -1075,7 +1075,9 @@ class QwenResearcher:
             "qwen_goal_coverage_sufficient"
             if model_name == MODEL else "goal_aware_planner_coverage_sufficient"
         )
-        self.device = os.environ.get("QWEN_DEVICE", "cuda:0")
+        self.device = os.environ.get(
+            "RESEARCHER_DEVICE", os.environ.get("QWEN_DEVICE", "cuda:0")
+        )
         if not re.fullmatch(r"cuda:\d+", self.device):
             raise ValueError("QWEN_DEVICE must use the form cuda:<index>")
         snapshot = Path(snapshot)
@@ -1096,7 +1098,10 @@ class QwenResearcher:
 
         free_bytes, _ = torch.cuda.mem_get_info(self.device)
         automatic_batch_size = 24 if free_bytes >= 40 * 1024**3 else 4
-        self.batch_size = int(os.environ.get("QWEN_BATCH_SIZE", automatic_batch_size))
+        self.batch_size = int(os.environ.get(
+            "RESEARCHER_BATCH_SIZE",
+            os.environ.get("QWEN_BATCH_SIZE", automatic_batch_size),
+        ))
         if self.batch_size < 1:
             raise ValueError("QWEN_BATCH_SIZE must be at least 1")
 

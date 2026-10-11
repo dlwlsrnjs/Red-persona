@@ -59,6 +59,14 @@ from experiments.qwen_target_persona_research_dialogue import (
 DEFAULT_CONDITIONS = ("neutral", "structural_hint", "oracle_hint")
 CONDITIONS = DEFAULT_CONDITIONS
 CONDITION_CODES = {"neutral": "n", "structural_hint": "s", "oracle_hint": "o"}
+QWEN_TARGET_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+LLAMA_RESEARCHER_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
+LLAMA_RESEARCHER_REVISION = "0e9e39f249a16976918f6564b8830bc894c89659"
+LLAMA_RESEARCHER_SNAPSHOT = Path(os.environ.get(
+    "LLAMA31_8B_INSTRUCT_SNAPSHOT",
+    "/data1/users/ljk98/models/Llama-3.1-8B-Instruct/"
+    + LLAMA_RESEARCHER_REVISION,
+))
 CONTEXT_ABLATION_VARIANTS = (
     "no_metaphor",
     "no_prior_dialogue",
@@ -70,6 +78,17 @@ CONTEXT_ABLATION_VARIANTS = (
     "no_system_and_guidelines",
     "no_clinical_terminology",
 )
+
+
+def researcher_defaults_for_target(target_model: str) -> tuple[Path, str, str]:
+    """Route the Qwen target to an independent standard Llama researcher."""
+    if target_model == QWEN_TARGET_MODEL:
+        return (
+            LLAMA_RESEARCHER_SNAPSHOT,
+            LLAMA_RESEARCHER_MODEL,
+            LLAMA_RESEARCHER_REVISION,
+        )
+    return SNAPSHOT, DEFAULT_RESEARCHER_MODEL, DEFAULT_RESEARCHER_REVISION
 
 
 def chat_request(custom_id, model, messages, *, max_tokens=None, json_mode=False,
@@ -1258,14 +1277,14 @@ def main():
     parser.add_argument("--target-model", default="gpt-4o-2024-11-20")
     parser.add_argument(
         "--qwen-snapshot", "--researcher-snapshot", dest="qwen_snapshot",
-        type=Path, default=SNAPSHOT,
+        type=Path,
     )
     parser.add_argument(
-        "--researcher-model", default=DEFAULT_RESEARCHER_MODEL,
+        "--researcher-model",
         help="Recorded identity of the goal-aware planning model.",
     )
     parser.add_argument(
-        "--researcher-revision", default=DEFAULT_RESEARCHER_REVISION,
+        "--researcher-revision",
         help="Pinned revision of the goal-aware planning model.",
     )
     parser.add_argument("--max-budget-usd", type=float, default=120.0)
@@ -1340,6 +1359,22 @@ def main():
               "research dialogue, history-bridge readout, model, and decoding policy."),
     )
     args = parser.parse_args()
+    default_snapshot, default_researcher, default_revision = (
+        researcher_defaults_for_target(args.target_model)
+    )
+    if args.target_model == QWEN_TARGET_MODEL:
+        if args.researcher_model not in (None, LLAMA_RESEARCHER_MODEL):
+            parser.error(
+                "the Qwen2.5-7B target requires the independent standard "
+                f"Llama researcher {LLAMA_RESEARCHER_MODEL}"
+            )
+        if args.researcher_revision not in (None, LLAMA_RESEARCHER_REVISION):
+            parser.error(
+                "the Qwen2.5-7B target requires the pinned Llama researcher revision"
+            )
+    args.qwen_snapshot = args.qwen_snapshot or default_snapshot
+    args.researcher_model = args.researcher_model or default_researcher
+    args.researcher_revision = args.researcher_revision or default_revision
     if args.target_workers < 1:
         parser.error("--target-workers must be at least 1")
     if args.target_base_url and args.api_mode != "batch":

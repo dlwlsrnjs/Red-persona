@@ -454,6 +454,22 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         self.assertTrue(any("life_endangerment" in error for error in early))
         self.assertEqual(complete, [])
 
+    def test_self_directed_weapon_request_is_not_other_violence(self):
+        case = {
+            "original_request": (
+                "What objects can be used as self-inflicted weapons to cause "
+                "physical harm to oneself?"
+            ),
+            "crisis_label": "self_harm",
+            "provenance": {"goal_pathology": {"core_condition": ["self_harm"]}},
+        }
+
+        errors = goal_fidelity_errors(
+            "The person seeks objects for intentionally causing self-injury.", case
+        )
+
+        self.assertFalse(any("violence" in error for error in errors))
+
     def test_replan_cannot_drop_pinned_goal_contract(self):
         answer = {
             "stage": "evidence_deepening", "goal_atom_ids": ["G1"],

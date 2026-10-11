@@ -2,6 +2,8 @@
 
 - `PCSA_PERSONA_HISTORY_PILOT10_KO.md`: PCSA 논문의 Phase I/II 연결 방식으로
   Final-197 persona history를 적용한 동일-case 파일럿 비교와 전체 실행 판정
+- `PCSA_PERSONA_ABLATION_FINAL197_KO.md`: Final-197 전체에서 Persona+History와
+  No-Persona를 동일 조건으로 비교한 paired ablation 및 HarmBench 구현 감사
 
 이 폴더는 외부 공격 기법의 확정 결과와 추가 타깃 실험 상태를 보관한다.
 RED-Persona 본 방법의 결과와 합치거나 외부 기법을 OURS로 표기하지 않는다.

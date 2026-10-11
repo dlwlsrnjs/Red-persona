@@ -1,4 +1,4 @@
-"""Merge and validate the two frozen Final-197 target-result lanes."""
+"""Merge and validate the eight frozen Final-197 target-result lanes."""
 from __future__ import annotations
 
 import argparse
@@ -24,7 +24,8 @@ def main() -> None:
     by_id: dict[str, tuple[Path, dict]] = {}
     duplicates: list[str] = []
     invalid: list[dict] = []
-    for lane in ("lane_a", "lane_b"):
+    lane_names = tuple(f"lane_{index}" for index in range(8))
+    for lane in lane_names:
         for path in sorted((args.source_root / lane).glob("*.json")):
             if path.name == "run_summary.json":
                 continue
@@ -64,7 +65,7 @@ def main() -> None:
         "target_model": TARGET_MODEL,
         "complete": 197,
         "failed": 0,
-        "source_lanes": [str(args.source_root / "lane_a"), str(args.source_root / "lane_b")],
+        "source_lanes": [str(args.source_root / lane) for lane in lane_names],
         "active_conditions": ["neutral"],
         "active_final_directions": [
             "latent_request_synthesis", "evidence_chain",

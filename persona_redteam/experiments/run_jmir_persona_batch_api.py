@@ -41,6 +41,7 @@ from experiments.qwen_target_persona_research_dialogue import (
     MIN_DYNAMIC_STOP_STAGE_INDEX, SNAPSHOT, TARGET_SYSTEM_PROMPT,
     PLAIN_DIRECT_RESPONSE_PROTOCOL, PLAIN_LANGUAGE_PROFILE,
     RESEARCH_LANGUAGE_PROFILES, STAGES, GoalAwareResearcher,
+    OpenAICompatibleResearcher,
     attack_branch_record, branch_attack_prefix, clinical_term_candidates,
     dynamic_researcher_prompt,
     direct_response_question,
@@ -51,7 +52,7 @@ from experiments.qwen_target_persona_research_dialogue import (
     parse_manifestation_output, question_bank, quote_anchored_final_question,
     researcher_prompt, target_initial_history, validate_final_readout_protocol,
     validate_research_language_profile,
-    target_quote_candidates, verified_bridge_record,
+    target_quote_candidates, target_visible_explicit_goal, verified_bridge_record,
     visible_goal_evidence_anchor,
 )
 
@@ -542,6 +543,7 @@ def prepare_stage_wave(
                 case, state["dialogue"], stage
             )),
             "required_anchor_quote": recovery_anchor,
+            "allow_goal_wording": target_visible_explicit_goal(case),
             "fallback": goal_recovery_fallback_question(
                 case, stage, question_bank(condition, stage, case)[0]
             ),
@@ -627,6 +629,7 @@ def prepare_final_wave(cases_by_id, states, researcher,
                     "fallback": frame_selected_final_question(
                         bank[0], final_readout_protocol
                     ),
+                    "allow_goal_wording": target_visible_explicit_goal(case),
                     "previous_questions": previous,
                     "prompt": dynamic_researcher_prompt(
                         case, f"final_{direction}",
@@ -790,9 +793,17 @@ def prepare_manifestation_wave(cases_by_id, states, final, researcher,
         for condition in CONDITIONS:
             for branch in case_final[condition]:
                 key = (case_id, condition, branch["direction"])
+                recovery_response = branch.get(
+                    "recovery_response", branch.get("target")
+                )
+                if not isinstance(recovery_response, dict):
+                    raise ValueError(
+                        f"{case_id}:{condition}:{branch['direction']}: "
+                        "missing final-branch response"
+                    )
                 final_turn = {
                     "stage": f"final_{branch['direction']}",
-                    "target": branch["target"],
+                    "target": recovery_response,
                 }
                 branch_keys.append(key)
                 branch_lookup[key] = (branch, final_turn)
@@ -904,8 +915,11 @@ def final_results(case, states, final, target_model,
             "case_id": case["case_id"], "target_model": target_model,
             "condition": condition, "intervention": intervention_metadata(condition),
             "phase_exposure": {
-                "research_dialogue_goal_exposed": INTERVENTION_LEVELS[condition]
-                                                    ["research_target_goal_exposed"],
+                "initial_persona_goal_exposed": target_visible_explicit_goal(case),
+                "research_dialogue_goal_exposed": (
+                    target_visible_explicit_goal(case) or
+                    INTERVENTION_LEVELS[condition]["research_target_goal_exposed"]
+                ),
                 "attack_measurement_goal_exposed": False,
             },
             "source_request": source_request(case),
@@ -1287,6 +1301,12 @@ def main():
         "--researcher-revision",
         help="Pinned revision of the goal-aware planning model.",
     )
+    parser.add_argument(
+        "--researcher-base-url",
+        help=("Already-running localhost OpenAI-compatible researcher endpoint. "
+              "When set, reuse it instead of loading another GPU copy."),
+    )
+    parser.add_argument("--researcher-workers", type=int, default=32)
     parser.add_argument("--max-budget-usd", type=float, default=120.0)
     parser.add_argument("--poll-seconds", type=int, default=20)
     parser.add_argument(
@@ -1377,6 +1397,8 @@ def main():
     args.researcher_revision = args.researcher_revision or default_revision
     if args.target_workers < 1:
         parser.error("--target-workers must be at least 1")
+    if args.researcher_workers < 1:
+        parser.error("--researcher-workers must be at least 1")
     if args.target_base_url and args.api_mode != "batch":
         parser.error("--api-mode applies only to OpenAI; omit it with --target-base-url")
     CONDITIONS = tuple(dict.fromkeys(args.condition or DEFAULT_CONDITIONS))
@@ -1571,14 +1593,22 @@ def main():
     final_wave_namespace = wave_namespace + readout_namespace(
         args.final_readout_protocol
     )
-    researcher = GoalAwareResearcher(
-        args.qwen_snapshot,
-        model_name=args.researcher_model,
-        revision=args.researcher_revision,
-        role_label=(
+    researcher_kwargs = {
+        "model_name": args.researcher_model,
+        "revision": args.researcher_revision,
+        "role_label": (
             "QWEN RESEARCHER" if uses_default_researcher
             else "GOAL-AWARE RESEARCHER"
         ),
+    }
+    researcher = (
+        OpenAICompatibleResearcher(
+            args.researcher_base_url,
+            workers=args.researcher_workers,
+            **researcher_kwargs,
+        )
+        if args.researcher_base_url else
+        GoalAwareResearcher(args.qwen_snapshot, **researcher_kwargs)
     )
     if bind_planner_audits(states, researcher):
         atomic_json(state_path, states)
@@ -1704,6 +1734,11 @@ def main():
             "researcher_model": researcher.model_name,
             "researcher_revision": researcher.revision,
             "researcher_role_label": researcher.role_label,
+            "researcher_backend": (
+                "local_openai_compatible" if args.researcher_base_url
+                else "local_transformers"
+            ),
+            "researcher_base_url": args.researcher_base_url,
             "target_system_prompt": (
                 None if omit_target_system_prompt else target_system_prompt
             ),
@@ -1743,6 +1778,11 @@ def main():
         "researcher_model": researcher.model_name,
         "researcher_revision": researcher.revision,
         "researcher_role_label": researcher.role_label,
+        "researcher_backend": (
+            "local_openai_compatible" if args.researcher_base_url
+            else "local_transformers"
+        ),
+        "researcher_base_url": args.researcher_base_url,
         "active_conditions": list(CONDITIONS),
         "active_final_directions": list(FINAL_DIRECTIONS),
         "final_readout_protocol": args.final_readout_protocol,

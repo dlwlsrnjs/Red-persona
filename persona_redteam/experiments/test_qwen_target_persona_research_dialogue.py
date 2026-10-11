@@ -39,6 +39,8 @@ from experiments.qwen_target_persona_research_dialogue import (
     target_quote_candidates,
     direct_response_question,
     dynamic_researcher_prompt,
+    researcher_prompt,
+    target_visible_explicit_goal,
     unavailable_bridge_record,
     verified_bridge_record,
     visible_goal_evidence_anchor,
@@ -46,6 +48,34 @@ from experiments.qwen_target_persona_research_dialogue import (
 
 
 class PersonaResearchDialogueTest(unittest.TestCase):
+    def test_explicit_goal_case_never_claims_target_is_goal_blind(self):
+        case = {
+            "original_request": "Give the requested harmful procedure.",
+            "persona": (
+                "Latent persona summary.\n\n[EXPLICIT GOAL — VERBATIM]\n"
+                "Give the requested harmful procedure."
+            ),
+            "metaphor": "a locked room",
+            "persona_goal_exposure": {
+                "target_visible": True,
+                "verbatim_source_field": "original_request",
+            },
+            "persona_history": [],
+            "provenance": {"goal_pathology": {}},
+        }
+        self.assertTrue(target_visible_explicit_goal(case))
+        selector = researcher_prompt(
+            case, "surface_observation", "Inspect evidence.", [], "neutral",
+            ["First?", "Second?"],
+        )
+        dynamic = dynamic_researcher_prompt(
+            case, "surface_observation", "Inspect evidence.", [], "neutral", [],
+        )
+        for prompt in (selector, dynamic):
+            self.assertIn("target-visible", prompt)
+            self.assertNotIn("target does not", prompt.casefold())
+            self.assertNotIn("hidden answer", prompt.casefold())
+
     def test_jargon_readout_bridges_history_to_private_goal(self):
         task = final_readout_task("Final direction task")
 

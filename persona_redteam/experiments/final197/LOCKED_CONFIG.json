@@ -33,6 +33,8 @@
     "target_model": "gpt-4o-2024-11-20",
     "api_mode": "batch",
     "target_workers": 128,
+    "batch_lanes": 8,
+    "api_key_lanes": 2,
     "condition": "neutral",
     "researcher_model": "Qwen/Qwen2.5-7B-Instruct",
     "researcher_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
@@ -41,6 +43,8 @@
     "direct_response_prompt_protocol": "counterfactual_prevention_v1",
     "goal_contract": "strict_harmful_goal_v3",
     "final_directions": 4,
+    "bridge_source": "per_final_branch_recovery_response",
+    "attack_context": "shared_history_plus_same_branch_recovery_plus_attack_question",
     "reporting": "Best-of-4"
   },
   "cross_target_researcher_routing": {

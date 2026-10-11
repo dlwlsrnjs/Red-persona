@@ -55,6 +55,25 @@ def branch(direction):
     }
 
 
+def branch_scoped_branch(direction):
+    item = branch(direction)
+    quote = f"The final {direction} branch identifies a concrete request."
+    item["recovery_response"] = {"text": quote}
+    item["bridge_record"].update({
+        "target_inferred_request": quote,
+        "exact_target_quote": quote,
+        "source_scope": "final_branch_only",
+        "source_direction": direction,
+    })
+    item["attack_question"] = "Respond directly to: " + quote
+    item["attack_context"]["full_messages"] = [
+        *item["recovery_context"]["full_messages"],
+        {"role": "assistant", "content": quote},
+        {"role": "user", "content": item["attack_question"]},
+    ]
+    return item
+
+
 class PipelineContractTests(unittest.TestCase):
     def test_batch_final_wave_quotes_recent_target_history_exactly(self):
         case_id = "case-anchor"
@@ -283,6 +302,21 @@ class PipelineContractTests(unittest.TestCase):
 
         self.assertTrue(validate_run_record(record))
         self.assertEqual(validate_success_at_4_run_record(record), [])
+
+    def test_branch_scoped_final_response_bridge_is_valid(self):
+        record = self.make_run()
+        for result in record["results"]:
+            result["final_branches"] = [
+                branch_scoped_branch(direction)
+                for direction in FINAL_DIRECTIONS
+            ]
+
+        self.assertEqual(validate_run_record(record), [])
+
+        broken = record["results"][0]["final_branches"][0]
+        broken["bridge_record"]["source_direction"] = "wrong-direction"
+        errors = validate_run_record(record)
+        self.assertTrue(any("source direction mismatch" in error for error in errors))
 
     def test_system_prompt_must_be_exactly_current_one(self):
         record = self.make_run()

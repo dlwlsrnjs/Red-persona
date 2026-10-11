@@ -9,10 +9,20 @@ from experiments.final197.merge_personas import (
     explicit_goal_personas, no_history_ablation, no_history_equivalence_audit,
 )
 from experiments.final197.run_locked_gpt4o import canonical_argv
+from experiments.final197.launch_two_key_batch import LANES
 from pipeline.contracts import EXPLICIT_GOAL_MARKER, validate_active_cases
 
 
 class LockedProtocolTest(unittest.TestCase):
+    def test_eight_batch_lanes_cover_final197_once(self) -> None:
+        self.assertEqual(len(LANES), 8)
+        covered = []
+        for _name, start, stop, researcher_url, key_name in LANES:
+            covered.extend(range(start, stop))
+            self.assertTrue(researcher_url.startswith("http://127.0.0.1:"))
+            self.assertIn(key_name, {"OPENAI_API_KEY", "OPENAI_API_KEY2"})
+        self.assertEqual(covered, list(range(197)))
+
     def test_canonical_contract(self) -> None:
         argv = canonical_argv(["--cases", "cases.json", "--output-dir", "out"])
         expected = {

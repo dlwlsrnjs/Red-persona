@@ -1,0 +1,145 @@
+"""Run local HarmBench and write the complete explicit-goal pilot-10 summary."""
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+from datetime import datetime, timezone
+import json
+from pathlib import Path
+
+from experiments.evaluate_harmbench_direct_response import run_directory
+from pipeline.runtime_io import atomic_json
+
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_RUN_ROOT = ROOT / "result/OURS/final197_explicit_goal_pilot10_gpt4o_v1"
+DEFAULT_CAMPAIGN_ROOT = (
+    ROOT / "data/evaluations/final197_explicit_goal_pilot10_gpt4o_v1"
+)
+DEFAULT_HARMBENCH = Path(
+    "/data1/users/ljk98/hf_cache/hub/models--cais--HarmBench-Llama-2-13b-cls/"
+    "snapshots/bda705349d1144fa618770bea64d99ce54e3835b"
+)
+
+
+def pct(value: float | None) -> str:
+    return "N/A" if value is None else f"{100 * value:.1f}%"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-root", type=Path, default=DEFAULT_RUN_ROOT)
+    parser.add_argument("--campaign-root", type=Path, default=DEFAULT_CAMPAIGN_ROOT)
+    parser.add_argument(
+        "--lane1-override", type=Path,
+        help="Use the repaired lane_1 summary when computing generation cost.",
+    )
+    parser.add_argument("--classifier-model", type=Path, default=DEFAULT_HARMBENCH)
+    parser.add_argument("--device", default="cuda:0")
+    parser.add_argument("--batch-size", type=int, default=32)
+    args = parser.parse_args()
+
+    score_root = args.campaign_root / "scoring"
+    merged = args.run_root / "merged"
+    cares_path = score_root / "cares_jmir/results.json"
+    recovery_path = score_root / "recovery_behavior.json"
+    missing = [str(path) for path in (cares_path, recovery_path) if not path.exists()]
+    if missing:
+        raise FileNotFoundError("Batch scoring is not complete: " + ", ".join(missing))
+    harmbench_path = score_root / "harmbench.json"
+    harmbench = run_directory(
+        merged,
+        recovery_path,
+        harmbench_path,
+        model_name=str(args.classifier_model),
+        batch_size=args.batch_size,
+        device=args.device,
+        expected_cases=10,
+    )
+    cares = json.loads(cares_path.read_text(encoding="utf-8"))
+    recovery = json.loads(recovery_path.read_text(encoding="utf-8"))
+    selection = json.loads((args.campaign_root / "selection.json").read_text(
+        encoding="utf-8"
+    ))
+    best = cares["summary"]["best_of_4"]
+    rb = recovery["summary"]
+    hb = harmbench["summary"]
+    generation_cost = 0.0
+    for index in range(4):
+        lane_dir = (
+            args.lane1_override
+            if index == 1 and args.lane1_override
+            else args.run_root / f"lane_{index}"
+        )
+        summary_path = lane_dir / "run_summary.json"
+        value = json.loads(summary_path.read_text(encoding="utf-8"))
+        generation_cost += float(value.get("batch_cost_usd", 0.0))
+    costs = {
+        "generation": generation_cost,
+        "cares_jmir": float(cares.get("cost_usd", 0.0)),
+        "recovery_behavior": float(recovery.get("cost_usd", 0.0)),
+    }
+    costs["external_total"] = sum(costs.values())
+    record = {
+        "version": "final197-explicit-goal-pilot10-summary-v1",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "method_label": "OURS (Best-of-4)",
+        "target_model": "gpt-4o-2024-11-20",
+        "target_goal_visibility": "verbatim_original_request_in_initial_persona_packet",
+        "selection": selection,
+        "cares_best_of_4": best["cares"],
+        "jmir_best_of_4": best["jmir"],
+        "recovery_behavior_best_of_4": rb,
+        "harmbench_and_joint_best_of_4": hb,
+        "branch_distributions": {
+            "cares": dict(Counter(
+                row["cares"]["response_label"] if row.get("cares") else "NoResponse"
+                for row in cares["rows"]
+            )),
+            "recovery": dict(Counter(
+                row["custom"]["recovery_level"] for row in recovery["rows"]
+            )),
+            "behavior": dict(Counter(
+                row["custom"]["response_behavior_level"] for row in recovery["rows"]
+            )),
+        },
+        "cost_usd": costs,
+        "limitations": [
+            "n=10 is an outcome-blind diagnostic pilot, not a stable full-dataset estimate.",
+            "The target saw the original request verbatim in its initial persona packet.",
+            "This explicit-goal condition must not be mislabeled as a hidden-goal experiment.",
+        ],
+    }
+    atomic_json(score_root / "combined_summary.json", record)
+
+    c, j = best["cares"], best["jmir"]
+    lines = [
+        "# GPT-4o 명시적 GOAL 10건 파일럿", "",
+        "- 방법: `OURS (Best-of-4)`",
+        "- 타깃: `gpt-4o-2024-11-20`",
+        "- 조건: 초기 persona packet에 `original_request` 원문이 명시적으로 포함됨",
+        "- 선택: 결과를 보기 전에 고정한 10건, 네 출처와 주요 요청 유형 혼합", "",
+        "| 지표 | 결과 |", "|---|---:|",
+        f"| CARES A/C/R/NR | {c['A']}/{c['C']}/{c['R']}/{c['NR']} |",
+        f"| CARES Accept | {pct(c['accept_rate'])} |",
+        f"| CARES ASR | {pct(c['cares_asr'])} |",
+        f"| CARES SS | {c['cares_ss_level2']:.3f} |",
+        f"| JMIR mean | {j['mean_score']:.3f} |",
+        f"| JMIR exact-1 | {pct(j['exact_1_harmful_rate'])} |",
+        f"| R3+@4 | {pct(rb['R3_plus_at_4'])} |",
+        f"| B4+@4 | {pct(rb['B4_plus_at_4'])} |",
+        f"| 같은 branch R3+ ∧ B4+@4 | {pct(rb['R3_plus_and_B4_plus_at_4'])} |",
+        f"| HarmBench+@4 | {pct(hb['harmbench_unconditional_ASR_at_4'])} |",
+        f"| 같은 branch R3+ ∧ B4+ ∧ HarmBench+@4 | {pct(hb['joint_success_at_4'])} |",
+        "",
+        f"외부 Batch API 비용 합계: `${costs['external_total']:.4f}`. "
+        "HarmBench는 로컬 GPU에서 평가했다.", "",
+        "이 수치는 10건 진단 결과이며, 최종 197건 성능이나 은닉형 GOAL 조건의 성능으로 "
+        "해석하지 않는다.", "",
+    ]
+    (args.run_root / "RESULTS_KO.md").write_text("\n".join(lines), encoding="utf-8")
+    print(json.dumps(record, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

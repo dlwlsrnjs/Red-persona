@@ -245,6 +245,7 @@ def validate_run_record(record):
             errors.append(f"{prefix}: recovery branches do not share one cumulative prefix")
         if attack_required:
             bridge_identities = set()
+            branch_scoped_bridges = []
             for branch in branches:
                 branch_prefix = f"{prefix}:{branch.get('direction')}"
                 required = {
@@ -257,6 +258,11 @@ def validate_run_record(record):
                     errors.append(f"{branch_prefix}: missing direct-response fields {missing}")
                     continue
                 bridge = branch["bridge_record"]
+                source_scope = bridge.get("source_scope")
+                is_branch_scoped = source_scope in {
+                    "final_branch_only", "accumulated_dialogue_plus_final_branch",
+                }
+                branch_scoped_bridges.append(is_branch_scoped)
                 identity = (
                     bridge.get("status"), bridge.get("exact_target_quote"),
                     bridge.get("source_turn_index"),
@@ -274,10 +280,26 @@ def validate_run_record(record):
                 if bridge.get("status") == "available":
                     turn_index = bridge.get("source_turn_index")
                     quote = bridge.get("exact_target_quote", "")
+                    recovery_response = branch.get("recovery_response", {})
+                    recovery_text = (
+                        recovery_response.get("text", "")
+                        if isinstance(recovery_response, dict)
+                        else str(recovery_response)
+                    )
+                    if source_scope == "final_branch_only":
+                        source_turns = [{"target": {"text": recovery_text}}]
+                    elif source_scope == "accumulated_dialogue_plus_final_branch":
+                        source_turns = [*turns, {"target": {"text": recovery_text}}]
+                    else:
+                        source_turns = turns
                     if (not isinstance(turn_index, int) or
-                            not 0 <= turn_index < len(turns) or
-                            quote not in turns[turn_index].get("target", {}).get("text", "")):
+                            not 0 <= turn_index < len(source_turns) or
+                            quote not in source_turns[turn_index].get(
+                                "target", {}).get("text", "")):
                         errors.append(f"{branch_prefix}: bridge quote is not in target history")
+                    if (is_branch_scoped and
+                            bridge.get("source_direction") != branch.get("direction")):
+                        errors.append(f"{branch_prefix}: bridge source direction mismatch")
                     if bridge.get("semantic_goal_match") is not True:
                         errors.append(f"{branch_prefix}: available bridge lacks semantic match")
                     if not branch.get("attack_question"):
@@ -286,14 +308,29 @@ def validate_run_record(record):
                         errors.append(f"{branch_prefix}: missing attack response")
                     messages = attack_context.get("full_messages", [])
                     shared_messages = result.get("shared_history", {}).get("full_messages", [])
-                    if messages[:-1] != shared_messages:
+                    if is_branch_scoped:
+                        recovery_messages = branch.get(
+                            "recovery_context", {}).get("full_messages", [])
+                        expected_messages = [
+                            *recovery_messages,
+                            {"role": "assistant", "content": recovery_text},
+                            {"role": "user", "content": branch.get("attack_question", "")},
+                        ]
+                        if messages != expected_messages:
+                            errors.append(
+                                f"{branch_prefix}: attack history does not preserve its "
+                                "recovery branch prefix"
+                            )
+                    elif messages[:-1] != shared_messages:
                         errors.append(f"{branch_prefix}: attack history contains branch contamination")
                 elif bridge.get("status") == "bridge_unavailable":
                     if branch.get("attack_question") or branch.get("attack_response", {}).get("text"):
                         errors.append(f"{branch_prefix}: unavailable bridge has an attack pair")
                 else:
                     errors.append(f"{branch_prefix}: invalid bridge status")
-            if len(bridge_identities) != 1:
+            if any(branch_scoped_bridges) and not all(branch_scoped_bridges):
+                errors.append(f"{prefix}: mixed legacy and branch-scoped bridge contracts")
+            elif not any(branch_scoped_bridges) and len(bridge_identities) != 1:
                 errors.append(f"{prefix}: attack branches do not use one shared inferred request")
         for messages in _target_histories(result):
             systems = [message.get("content") for message in messages

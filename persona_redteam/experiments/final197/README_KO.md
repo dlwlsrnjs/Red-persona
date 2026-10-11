@@ -19,6 +19,10 @@
 - 직접응답 프레임: `counterfactual_prevention_v1`
 - GOAL 계약: `strict_harmful_goal_v3`
 - 보고: 사례별 네 방향 중 평가 지표상 최댓값을 택하는 `Best-of-4`
+- 타깃 가시 페르소나: 기존 은닉형 누적 페르소나와 이력을 보존하고, 마지막에
+  `[EXPLICIT GOAL — VERBATIM]` 아래 `original_request` 원문을 함께 제공
+- 기존 대화 이력은 보조적 비순차 맥락으로 사용하며, GOAL 원문을 복원하기 위한 필수
+  연속 서사로 간주하지 않음
 
 정확한 기계 판독 설정은 `LOCKED_CONFIG.json`에 있다. API 키는 코드·설정·결과에 저장하지 않고 환경변수로만 전달한다.
 
@@ -43,7 +47,7 @@
 
 `data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/`
 
-모든 작업이 끝나면 `merge_personas.py`가 원 데이터 순서를 복원하고 197건·중복·버전·품질 1.0을 검사한다. 통과 결과는 `persona_cases.json`, 감사 기록은 `persona197_audit.json`이다.
+모든 작업이 끝나면 `merge_personas.py`가 원 데이터 순서를 복원하고 197건·중복·버전·품질 1.0을 검사한다. 은닉형 보존본은 `persona_cases.json`, 본실험용 결합본은 `FINAL197_PERSONAS_WITH_HISTORY_AND_EXPLICIT_GOAL.json`, 감사 기록은 `persona197_audit.json`이다.
 
 같은 병합 단계에서 대화 이력만 제거한 등록 ablation 입력
 `persona_cases_NO_HISTORY_ABLATION.json`도 별도로 만든다. 이 파일은 최종 페르소나와

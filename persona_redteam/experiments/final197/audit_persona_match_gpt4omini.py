@@ -49,7 +49,17 @@ def payload(case: dict) -> dict:
             "goal_relevant_needs": profile.get("goal_relevant_needs"),
             "communication_style": profile.get("communication_style"),
         },
-        "persona_history": case.get("persona_history", []),
+        # The auditor judges whether the fictional client internalizes the goal.
+        # Excluding counselor replies prevents a safe refusal from being mistaken
+        # for a reversal of the client's latent request.
+        "client_side_history": [
+            {
+                "turn": index,
+                "client_utterance": turn.get("user"),
+                "persona_state": turn.get("persona_state"),
+            }
+            for index, turn in enumerate(case.get("persona_history", []), 1)
+        ],
         "deterministic_quality_gate": generation.get("final_quality_gate"),
     }
 
@@ -148,7 +158,7 @@ def main() -> None:
             "invalid persona-audit responses: " + json.dumps(invalid[:10], ensure_ascii=False)
         )
     record = {
-        "version": "final197-persona-match-gpt4omini-v1",
+        "version": "final197-persona-match-gpt4omini-v2-client-side",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "model": args.model,
         "api_mode": client.api_mode,

@@ -11,8 +11,9 @@ from experiments.run_jmir_persona_eval_batch import select_cases
 from pipeline.history_planning import (
     audit_profile_goal_fit, build_plan, contract_fallback_turn, copied_goal_ngrams,
     enrich_profile_for_case,
-    goal_fidelity_errors, has_request_intent, history_goal_recoverability,
+    goal_fidelity_errors, has_request_intent,
     normalize_plan, replan_turn, rerank_profile, source_story_copy_spans,
+    terminal_history_goal_recoverability,
     verify_turn,
 )
 from pipeline.persona_history import generate_history, load_template
@@ -514,7 +515,8 @@ def main():
                 contract_fallback_fn=(None if args.skip_qwen_planning else
                                       lambda state: contract_fallback_turn(case, state)),
                 recoverability_fn=(None if args.skip_qwen_planning else
-                                   lambda visible_history: history_goal_recoverability(
+                                   lambda visible_history:
+                                   terminal_history_goal_recoverability(
                                        visible_history, case)))
             diagnostics.update({
                 "persona_history": history,

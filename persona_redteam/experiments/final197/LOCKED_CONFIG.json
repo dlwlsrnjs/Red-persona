@@ -4,7 +4,8 @@
   "dataset": {
     "version": "final197_20261011",
     "expected_cases": 197,
-    "canonical_persona_input": "data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/persona_cases.json"
+    "canonical_persona_input": "data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/FINAL197_PERSONAS_WITH_HISTORY_AND_EXPLICIT_GOAL.json",
+    "persona_goal_layout": "latent persona and history preserved, followed by original_request verbatim in the target-visible persona"
   },
   "persona_generation": {
     "version": "qwen-lexi-history-v49-request-intent-normalization-gate",

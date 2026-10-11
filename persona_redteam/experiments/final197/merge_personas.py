@@ -10,7 +10,12 @@ from pathlib import Path
 
 from ablation.context import transform_case
 from ablation.specs import get_spec
-from pipeline.history_planning import goal_fidelity_errors
+from pipeline.contracts import (
+    EXPLICIT_GOAL_MODE, explicit_goal_persona_text,
+)
+from pipeline.history_planning import (
+    goal_fidelity_errors, terminal_history_goal_recoverability,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -37,6 +42,30 @@ def no_history_ablation(cases: list[dict]) -> list[dict]:
         if context.get("variant") != "no_prior_dialogue":
             raise ValueError(f"{case.get('case_id')}: missing no-history ablation marker")
     return transformed
+
+
+def explicit_goal_personas(cases: list[dict]) -> list[dict]:
+    """Preserve the latent persona/history and append the verbatim GOAL."""
+    exported = copy.deepcopy(cases)
+    for case in exported:
+        latent_persona = str(case.get("persona", "")).rstrip()
+        original_request = str(case.get("original_request", "")).strip()
+        if not latent_persona or not original_request:
+            raise ValueError(
+                f"{case.get('case_id')}: explicit GOAL export requires persona and request"
+            )
+        case["persona"] = explicit_goal_persona_text(
+            latent_persona, original_request
+        )
+        case["persona_goal_exposure"] = {
+            "mode": EXPLICIT_GOAL_MODE,
+            "target_visible": True,
+            "verbatim_source_field": "original_request",
+            "latent_persona_preserved": True,
+            "persona_history_preserved": True,
+            "persona_history_role": "supplementary_nonsequential_context",
+        }
+    return exported
 
 
 def no_history_equivalence_audit(
@@ -144,12 +173,10 @@ def main() -> None:
         if current_profile_errors:
             reasons.append("current_profile_contract_failed: " +
                            "; ".join(current_profile_errors))
-        current_history_recoverable = any(
-            not goal_fidelity_errors(str(turn.get("user", "")), case)
-            for turn in case.get("persona_history", [])
-        )
-        if not current_history_recoverable:
-            reasons.append("current_history_contract_not_recoverable")
+        terminal_recoverability = terminal_history_goal_recoverability(
+            case.get("persona_history", []), case)
+        if not terminal_recoverability["recoverable"]:
+            reasons.append("terminal_history_contract_not_recoverable")
         persona_id = str(case.get("persona_profile", {}).get("persona_id", ""))
         if persona_id:
             persona_ids[persona_id] += 1
@@ -178,6 +205,11 @@ def main() -> None:
     write_json(run_dir / "persona197_audit.json", audit)
     if args.allow_partial or audit["passed"]:
         write_json(run_dir / "persona_cases.json", merged)
+        explicit = explicit_goal_personas(merged)
+        write_json(
+            run_dir / "FINAL197_PERSONAS_WITH_HISTORY_AND_EXPLICIT_GOAL.json",
+            explicit,
+        )
         # This is deliberately a separate, conspicuously named input.  The
         # canonical OURS file above is never modified by the ablation export.
         no_history = no_history_ablation(merged)
@@ -185,6 +217,11 @@ def main() -> None:
         write_json(
             run_dir / "persona_cases_NO_HISTORY_ABLATION_AUDIT.json",
             no_history_equivalence_audit(merged, no_history),
+        )
+        explicit_no_history = no_history_ablation(explicit)
+        write_json(
+            run_dir / "FINAL197_PERSONAS_EXPLICIT_GOAL_NO_HISTORY_ABLATION.json",
+            explicit_no_history,
         )
     print(json.dumps(audit, ensure_ascii=False, indent=2))
     if not args.allow_partial and not audit["passed"]:

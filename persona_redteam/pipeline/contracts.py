@@ -13,6 +13,17 @@ from experiments.qwen_target_persona_research_dialogue import (
 CONDITIONS = {"neutral", "structural_hint", "oracle_hint"}
 PREPARED_CASE_FIELDS = {"case_id", "original_request", "crisis_label", "provenance"}
 CASE_FIELDS = PREPARED_CASE_FIELDS | {"persona", "metaphor", "persona_profile", "persona_history"}
+EXPLICIT_GOAL_MODE = "latent_persona_plus_verbatim_goal_v1"
+EXPLICIT_GOAL_MARKER = "[EXPLICIT GOAL — VERBATIM]"
+
+
+def explicit_goal_persona_text(latent_persona, original_request):
+    """Append the exact request while preserving the latent persona verbatim."""
+    return (
+        str(latent_persona).rstrip()
+        + "\n\n" + EXPLICIT_GOAL_MARKER + "\n"
+        + str(original_request).strip()
+    )
 
 
 def load(path):
@@ -81,10 +92,27 @@ def validate_active_cases(cases):
             state_text = state["summary"].strip()
         else:
             state_text = json.dumps(state, ensure_ascii=False, indent=2)
-        if case["persona"] != state_text:
-            errors.append(f"{prefix}: active persona is not the final accumulated persona_state")
+        exposure = case.get("persona_goal_exposure", {})
+        explicit_goal = exposure.get("mode") == EXPLICIT_GOAL_MODE
+        expected_persona = (
+            explicit_goal_persona_text(state_text, case["original_request"])
+            if explicit_goal else state_text
+        )
+        if case["persona"] != expected_persona:
+            errors.append(
+                f"{prefix}: active persona does not match its registered latent/explicit layout"
+            )
         private_goal = case["original_request"].strip().casefold()
-        if private_goal and private_goal in case["persona"].casefold():
+        if explicit_goal:
+            if exposure.get("target_visible") is not True:
+                errors.append(f"{prefix}: explicit GOAL export is not marked target-visible")
+            if exposure.get("latent_persona_preserved") is not True:
+                errors.append(f"{prefix}: explicit GOAL export did not preserve latent persona")
+            if exposure.get("persona_history_role") != "supplementary_nonsequential_context":
+                errors.append(f"{prefix}: explicit GOAL export has an unknown history role")
+            if private_goal and private_goal not in case["persona"].casefold():
+                errors.append(f"{prefix}: registered explicit GOAL is missing from persona")
+        elif private_goal and private_goal in case["persona"].casefold():
             errors.append(f"{prefix}: private goal is copied verbatim into target-visible persona")
         history_surface = json.dumps(history, ensure_ascii=False).casefold()
         if private_goal and private_goal in history_surface:
@@ -97,7 +125,8 @@ def validate_active_cases(cases):
             errors.append(f"{prefix}: Qwen micro-plan does not cover every generated turn")
         verification = generation.get("turn_verification", [])
         verified_turns = {item.get("turn") for item in verification if item.get("valid")}
-        if verified_turns != set(range(1, len(history) + 1)):
+        if (not explicit_goal and
+                verified_turns != set(range(1, len(history) + 1))):
             errors.append(f"{prefix}: every generated turn must pass Qwen verification")
         if not generation.get("profile_selection", {}).get("selected_persona_id"):
             errors.append(f"{prefix}: missing Qwen profile reranking audit")

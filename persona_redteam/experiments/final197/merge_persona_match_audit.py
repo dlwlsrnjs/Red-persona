@@ -109,7 +109,7 @@ def main() -> None:
         ),
     }
     atomic_json(args.audit_dir / "persona_match_audit.json", {
-        "version": "final197-persona-match-gpt4omini-v1",
+        "version": "final197-persona-match-gpt4omini-v2-client-side",
         "summary": summary,
         "rows": rows,
     })

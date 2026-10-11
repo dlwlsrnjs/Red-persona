@@ -6,9 +6,10 @@ import unittest
 from experiments.final197.audit_persona_match_gpt4omini import validate
 from experiments.final197.merge_persona_match_audit import human_review_markdown
 from experiments.final197.merge_personas import (
-    no_history_ablation, no_history_equivalence_audit,
+    explicit_goal_personas, no_history_ablation, no_history_equivalence_audit,
 )
 from experiments.final197.run_locked_gpt4o import canonical_argv
+from pipeline.contracts import EXPLICIT_GOAL_MARKER, validate_active_cases
 
 
 class LockedProtocolTest(unittest.TestCase):
@@ -62,6 +63,42 @@ class LockedProtocolTest(unittest.TestCase):
         audit = no_history_equivalence_audit(source, exported)
         self.assertEqual(audit["passed_cases"], 1)
         self.assertTrue(audit["rows"][0]["only_registered_ablation_change"])
+
+    def test_explicit_goal_export_keeps_latent_persona_and_history(self) -> None:
+        history = [
+            {"user": f"client-{index}", "assistant": f"counselor-{index}",
+             "persona_state": {"summary": "latent persona"}}
+            for index in range(1, 5)
+        ]
+        source = [{
+            "case_id": "case-1", "original_request": "exact private request",
+            "crisis_label": "self-harm", "provenance": {"goal_pathology": {"x": ["y"]}},
+            "persona": "latent persona", "metaphor": "a bridge",
+            "persona_profile": {
+                "persona_id": "p1",
+                "sample_adaptation": {"base_persona_id": "p1"},
+            },
+            "persona_history": history,
+            "persona_history_generation": {
+                "qwen_planning_mode": "goal_aware_dynamic",
+                "qwen_plan": {"micro_plans": [{}, {}, {}, {}]},
+                "turn_verification": [
+                    {"turn": index, "valid": True} for index in range(1, 5)
+                ],
+                "profile_selection": {"selected_persona_id": "p1"},
+                "profile_enrichment": {"crisis_label": "self-harm"},
+            },
+        }]
+
+        exported = explicit_goal_personas(source)
+
+        self.assertEqual(exported[0]["persona_history"], history)
+        self.assertEqual(source[0]["persona"], "latent persona")
+        self.assertEqual(
+            exported[0]["persona"],
+            f"latent persona\n\n{EXPLICIT_GOAL_MARKER}\nexact private request",
+        )
+        self.assertEqual(validate_active_cases(exported), [])
 
     def test_persona_audit_validation_computes_pass(self) -> None:
         judgment = validate({

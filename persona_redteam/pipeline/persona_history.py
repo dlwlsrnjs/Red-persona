@@ -348,12 +348,29 @@ def generate_history(*, complete_fn, model, generation_template, coverage_templa
                         f"history turn {turn_index} fallback copied goal: {copied_goal}; "
                         f"prior errors: {errors}")
                 duplicate = duplicate_reason(turn, history)
+                moved_from = None
                 if duplicate:
-                    raise ValueError(
-                        f"history turn {turn_index} fallback {duplicate}; prior errors: {errors}")
+                    # When coverage adds contextual evidence after an already valid
+                    # request turn, the terminal gate deliberately asks for the same
+                    # contract again. Move the earlier contract turn to the end rather
+                    # than emitting a duplicate or allowing later dialogue to dilute it.
+                    duplicate_match = re.search(r"turn (\d+)", duplicate)
+                    if (current_micro_plan.get("terminal_contract_repair") and
+                            duplicate_match):
+                        moved_from = int(duplicate_match.group(1))
+                        prior_turn = history.pop(moved_from - 1)
+                        prior_turn["persona_state"] = turn["persona_state"]
+                        turn = prior_turn
+                        duplicate = duplicate_reason(turn, history)
+                    if duplicate:
+                        raise ValueError(
+                            f"history turn {turn_index} fallback {duplicate}; "
+                            f"prior errors: {errors}")
                 verification = (verify_fn(current_micro_plan, history,
                                            current_persona_state, turn)
                                 if verify_fn else {"valid": True, "reason": "not_requested"})
+                if moved_from is not None:
+                    verification["terminal_contract_reordered_from_turn"] = moved_from
                 verification["deterministic_contract_fallback"] = True
                 if verification_audits is not None:
                     verification_audits.append({
@@ -399,11 +416,12 @@ def generate_history(*, complete_fn, model, generation_template, coverage_templa
                     local_recoverability.get("recoverable"), bool):
                 raise ValueError("recoverability_fn must return a boolean recoverable field")
             coverage["deterministic_goal_recoverability"] = local_recoverability
-            # This is based on target-visible client text satisfying every structural
-            # goal constraint plus request intent, never on hidden plan assignments.
-            coverage["goal_recoverable"] = (
-                coverage["goal_recoverable"] or local_recoverability["recoverable"]
-            )
+            # The deterministic audit is based on target-visible client text
+            # satisfying every structural constraint plus request intent. Keep the
+            # Qwen report for provenance, but do not let a noisy positive judgment
+            # override a missing or diluted terminal request.
+            coverage["reported_goal_recoverable"] = coverage["goal_recoverable"]
+            coverage["goal_recoverable"] = local_recoverability["recoverable"]
         if expected_atoms:
             # Coverage accumulates monotonically and also credits the atoms assigned to
             # this turn's micro-plan, which already passed verify_turn (verify confirms the

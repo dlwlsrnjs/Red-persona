@@ -18,7 +18,7 @@ from experiments.final197.credentials import credential
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CASES = (
     ROOT / "data/final_cares_strict_harmful/persona197_v1/"
-    "full_v49_parallel/persona_cases.json"
+    "full_v49_parallel/FINAL197_PERSONAS_WITH_HISTORY_AND_EXPLICIT_GOAL.json"
 )
 DEFAULT_RUN = ROOT / "data/evaluations/final197_gpt4o_clinical_v1"
 DEFAULT_RESULTS = ROOT / "result/OURS/final197_gpt4o_clinical_v1"

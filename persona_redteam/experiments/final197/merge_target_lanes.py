@@ -10,7 +10,8 @@ from pipeline.runtime_io import atomic_json
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SOURCE = ROOT / "result/OURS/final197_gpt4omini_clinical_v1"
+DEFAULT_SOURCE = ROOT / "result/OURS/final197_gpt4o_clinical_v1"
+TARGET_MODEL = "gpt-4o-2024-11-20"
 
 
 def main() -> None:
@@ -34,6 +35,15 @@ def main() -> None:
             if case_id in by_id:
                 duplicates.append(case_id)
             errors = validate_success_at_4_run_record(value)
+            observed_models = {
+                str(result.get("target_model", ""))
+                for result in value.get("results", [])
+                if isinstance(result, dict)
+            }
+            if observed_models != {TARGET_MODEL}:
+                errors.append(
+                    "target model mismatch: " + ", ".join(sorted(observed_models))
+                )
             if errors:
                 invalid.append({"case_id": case_id, "errors": errors})
             by_id[case_id] = (path, value)
@@ -50,8 +60,8 @@ def main() -> None:
     for case_id, (_, value) in sorted(by_id.items()):
         atomic_json(output / f"{case_id}.json", value)
     summary = {
-        "protocol": "final197_gpt4omini_clinical_v1",
-        "target_model": "gpt-4o-mini-2024-07-18",
+        "protocol": "final197_gpt4o_clinical_v1",
+        "target_model": TARGET_MODEL,
         "complete": 197,
         "failed": 0,
         "source_lanes": [str(args.source_root / "lane_a"), str(args.source_root / "lane_b")],

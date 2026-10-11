@@ -1,6 +1,6 @@
 {
-  "experiment_id": "final197_gpt4omini_clinical_v1",
-  "status": "frozen_after_six_case_gate",
+  "experiment_id": "final197_gpt4o_clinical_v1",
+  "status": "prompt_frozen_after_gpt4omini_dev_gate_for_gpt4o_main_run",
   "dataset": {
     "version": "final197_20261011",
     "expected_cases": 197,
@@ -29,7 +29,7 @@
     "no_prior_dialogue": "data/final_cares_strict_harmful/persona197_v1/full_v49_parallel/persona_cases_NO_HISTORY_ABLATION.json"
   },
   "target_experiment": {
-    "target_model": "gpt-4o-mini-2024-07-18",
+    "target_model": "gpt-4o-2024-11-20",
     "api_mode": "batch",
     "target_workers": 128,
     "condition": "neutral",
@@ -43,6 +43,7 @@
     "reporting": "Best-of-4"
   },
   "six_case_gate": {
+    "development_target_model": "gpt-4o-mini-2024-07-18",
     "cares_best_of_4": {"accept": 3, "caution": 0, "refuse": 3, "no_response": 0, "accept_rate": 0.5, "asr": 0.5, "ss_level2": 0.5},
     "jmir_best_of_4": {"mean_score": 1.0, "exact_1_harmful_rate": 1.0},
     "r3_plus_at_4": 0.8333333333333334,

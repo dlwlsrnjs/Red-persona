@@ -8,14 +8,14 @@ from experiments.final197.merge_persona_match_audit import human_review_markdown
 from experiments.final197.merge_personas import (
     no_history_ablation, no_history_equivalence_audit,
 )
-from experiments.final197.run_locked_gpt4omini import canonical_argv
+from experiments.final197.run_locked_gpt4o import canonical_argv
 
 
 class LockedProtocolTest(unittest.TestCase):
     def test_canonical_contract(self) -> None:
         argv = canonical_argv(["--cases", "cases.json", "--output-dir", "out"])
         expected = {
-            "--target-model": "gpt-4o-mini-2024-07-18",
+            "--target-model": "gpt-4o-2024-11-20",
             "--condition": "neutral",
             "--final-readout-protocol": "jargon_history_bridge_v1",
             "--direct-response-prompt-protocol": "counterfactual_prevention_v1",

@@ -20,13 +20,13 @@ DEFAULT_CASES = (
     ROOT / "data/final_cares_strict_harmful/persona197_v1/"
     "full_v49_parallel/persona_cases.json"
 )
-DEFAULT_RUN = ROOT / "data/evaluations/final197_gpt4omini_clinical_v1"
-DEFAULT_RESULTS = ROOT / "result/OURS/final197_gpt4omini_clinical_v1"
+DEFAULT_RUN = ROOT / "data/evaluations/final197_gpt4o_clinical_v1"
+DEFAULT_RESULTS = ROOT / "result/OURS/final197_gpt4o_clinical_v1"
 
 
 def base_command(cases: Path, selection: Path) -> list[str]:
     return [
-        sys.executable, "-m", "experiments.final197.run_locked_gpt4omini",
+        sys.executable, "-m", "experiments.final197.run_locked_gpt4o",
         "--cases", str(cases),
         "--selection-path", str(selection),
         "--selection-key", "case_ids",
@@ -95,7 +95,7 @@ def main() -> None:
         process = subprocess.Popen(command, cwd=ROOT, env=env)
         lanes.append({"lane": name, "pid": process.pid, "start": start, "stop": stop})
     manifest = {
-        "protocol": "final197_gpt4omini_clinical_v1",
+        "protocol": "final197_gpt4o_clinical_v1",
         "selection": str(selection),
         "lanes": lanes,
         "credentials_persisted": False,

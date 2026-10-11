@@ -15,8 +15,25 @@ if [[ -z "${OPENAI_API_KEY:-}" ]]; then
   exit 1
 fi
 
-ROOT="external_baselines/outputs/pcsa_persona_history_final197/qwen7b_instruct/pcsa_phase2"
-WORK="official_evaluation/work/pcsa_persona_history_final197"
+PCSA_CONDITION="${PCSA_CONDITION:-persona_history}"
+case "$PCSA_CONDITION" in
+  persona_history)
+    ROOT="external_baselines/outputs/pcsa_persona_history_final197/qwen7b_instruct/pcsa_phase2"
+    WORK="official_evaluation/work/pcsa_persona_history_final197"
+    METHOD="pcsa_phase2_persona_history"
+    ROW_PREFIX="final197-persona-history"
+    ;;
+  no_persona)
+    ROOT="external_baselines/outputs/pcsa_no_persona_final197/qwen7b_instruct/pcsa_phase2"
+    WORK="official_evaluation/work/pcsa_no_persona_final197"
+    METHOD="pcsa_phase2_no_persona"
+    ROW_PREFIX="final197-no-persona"
+    ;;
+  *)
+    echo "PCSA_CONDITION must be persona_history or no_persona" >&2
+    exit 1
+    ;;
+esac
 INPUT="$WORK/input.jsonl"
 HB="$WORK/harmbench.jsonl"
 CARES="$WORK/cares.jsonl"
@@ -29,8 +46,8 @@ persona_redteam/.venv/bin/python official_evaluation/prepare_single_baseline_cel
   --input-dir "$ROOT/shard-0" \
   --input-dir "$ROOT/shard-1" \
   --target-model qwen7b_instruct \
-  --method pcsa_phase2_persona_history \
-  --row-prefix final197-persona-history \
+  --method "$METHOD" \
+  --row-prefix "$ROW_PREFIX" \
   --output "$INPUT"
 
 pids=()
@@ -102,4 +119,4 @@ if ! persona_redteam/.venv/bin/python official_evaluation/aggregate_strict_joint
   echo "WARNING: strict-joint summary contains missing or invalid rows" >&2
 fi
 
-echo "PCSA persona-history Final-197 evaluation complete: $WORK"
+echo "PCSA Final-197 evaluation complete: condition=$PCSA_CONDITION work=$WORK"

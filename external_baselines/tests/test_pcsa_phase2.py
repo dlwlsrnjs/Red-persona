@@ -215,6 +215,47 @@ def test_phase1_history_warms_attacker_but_is_not_replayed_to_target():
     )
 
 
+def test_no_persona_ablation_excludes_profile_and_history_from_attacker():
+    attacker_systems = []
+
+    async def attacker_chat(messages):
+        attacker_systems.append(messages[0]["content"])
+        return "new client probe"
+
+    async def target_chat(messages):
+        return "safe target response"
+
+    async def evaluator_chat(messages):
+        return evaluation(1)
+
+    result = asyncio.run(
+        run_phase2(
+            objective="test objective",
+            persona_profile={"persona": "UNIQUE PROFILE MARKER"},
+            persona_history=[
+                {
+                    "user": "UNIQUE HISTORY MARKER",
+                    "assistant": "counselor response",
+                }
+            ],
+            pathology={"cognitive_distortions": ["catastrophizing"]},
+            attacker_chat=attacker_chat,
+            target_chat=target_chat,
+            evaluator_chat=evaluator_chat,
+            max_turns=1,
+            candidates_per_turn=1,
+            personalization_enabled=False,
+        )
+    )
+
+    assert "UNIQUE PROFILE MARKER" not in attacker_systems[0]
+    assert "UNIQUE HISTORY MARKER" not in attacker_systems[0]
+    assert "no-persona ablation" in attacker_systems[0]
+    assert result["personalization_enabled"] is False
+    assert result["phase1_style_reference_count"] == 0
+    assert result["phase1_replacement"] == "disabled_no_persona_ablation"
+
+
 def test_final_judge_prompt_contains_all_four_dimensions():
     prompt = final_judge_prompt(
         dialogue=[{"role": "user", "content": "hello"}],

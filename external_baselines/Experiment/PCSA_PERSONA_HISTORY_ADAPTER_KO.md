@@ -72,6 +72,32 @@ PILOT_CASES=10 sbatch external_baselines/run_pcsa_persona_history_pilot.sbatch
 전체 matrix runner도 `--pcsa-persona-history`를 지원한다. 완료된 case checkpoint는
 재사용하고 실패 case만 재시도하므로 Batch 중단 후에도 이어서 실행할 수 있다.
 
+## 무페르소나 대조군
+
+`--pcsa-disable-persona`는 개인화 효과만 분리하기 위한 명시적 ablation이다.
+
+- 제거: client profile, persona, source history, style reference, state trajectory
+- 유지: 동일 goal, pathology/distortion route, 네 전략, 4턴×4후보, attacker,
+  target, intermediate evaluator와 Batch transport
+- 공격자 프롬프트에는 무페르소나 대조군임을 명시하고 상세 개인 배경을 임의로
+  만들지 않도록 한다.
+- manifest는 `personalization_enabled=false`,
+  `phase1_replacement=disabled_no_persona_ablation`을 기록한다.
+
+따라서 기존 profile-only PCSA를 무페르소나 조건으로 부르지 않는다. 논문 표의
+핵심 paired comparison은 `persona+history`와 `no-persona`의 동일 197 case 비교다.
+
+전체 실행 스크립트는 두 조건을 모두 지원한다.
+
+```bash
+# persona + history
+sbatch external_baselines/run_pcsa_persona_history_final197.sbatch
+
+# no-persona ablation
+PCSA_CONDITION=no_persona \
+  sbatch external_baselines/run_pcsa_persona_history_final197.sbatch
+```
+
 ## 성능 판정
 
 기존 PCSA와 동일 case를 다음 순서로 비교한다.

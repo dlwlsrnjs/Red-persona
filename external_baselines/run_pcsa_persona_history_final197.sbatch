@@ -8,6 +8,7 @@
 #SBATCH --array=0-1%2
 
 # Two disjoint shards of the Final-197 PCSA persona-history experiment.
+# Set PCSA_CONDITION=no_persona for the matched personalization ablation.
 set -euo pipefail
 
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
@@ -26,6 +27,24 @@ export QWEN_ADVERSARY_API_KEY=local
 TOTAL_CASES=197
 SHARD_COUNT=2
 SHARD_INDEX="${SLURM_ARRAY_TASK_ID:?submit this script as its declared array}"
+PCSA_CONDITION="${PCSA_CONDITION:-persona_history}"
+case "$PCSA_CONDITION" in
+  persona_history)
+    OUTPUT_EXPERIMENT="pcsa_persona_history_final197"
+    CONDITION_ARGS=(
+      --pcsa-persona-history
+      persona_redteam/our_method/data/FINAL197_PERSONAS_WITH_HISTORY_NO_VERBATIM_GOAL.json
+    )
+    ;;
+  no_persona)
+    OUTPUT_EXPERIMENT="pcsa_no_persona_final197"
+    CONDITION_ARGS=(--pcsa-disable-persona)
+    ;;
+  *)
+    echo "PCSA_CONDITION must be persona_history or no_persona" >&2
+    exit 1
+    ;;
+esac
 BASE_SIZE=$((TOTAL_CASES / SHARD_COUNT))
 REMAINDER=$((TOTAL_CASES % SHARD_COUNT))
 if (( SHARD_INDEX < REMAINDER )); then
@@ -38,7 +57,7 @@ fi
 SHARD_STOP=$((SHARD_START + SHARD_SIZE))
 
 mkdir -p serve_logs external_baselines/outputs
-SERVER_LOG="serve_logs/pcsa-persona-history-final197-${SLURM_ARRAY_JOB_ID}-${SHARD_INDEX}.log"
+SERVER_LOG="serve_logs/pcsa-${PCSA_CONDITION}-final197-${SLURM_ARRAY_JOB_ID}-${SHARD_INDEX}.log"
 setsid env QWEN_SERVE_GPU=0 QWEN_SERVE_PORT=8000 \
   bash serve_models.sh qwen >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
@@ -65,13 +84,13 @@ if [[ "$READY" != 1 ]]; then
   exit 1
 fi
 
-OUTPUT_DIR="external_baselines/outputs/pcsa_persona_history_final197/qwen7b_instruct/pcsa_phase2/shard-${SHARD_INDEX}"
+OUTPUT_DIR="external_baselines/outputs/${OUTPUT_EXPERIMENT}/qwen7b_instruct/pcsa_phase2/shard-${SHARD_INDEX}"
 external_baselines/.venv/bin/python external_baselines/run_pyrit_baseline.py \
   --method pcsa_phase2 \
   --input external_baselines/data/final197/final197_goals.jsonl \
   --cohort-index external_baselines/data/final197/final197_cohort.jsonl \
   --pathology-routes external_baselines/data/final197/final197_pathology_routes.jsonl \
-  --pcsa-persona-history persona_redteam/our_method/data/FINAL197_PERSONAS_WITH_HISTORY_NO_VERBATIM_GOAL.json \
+  "${CONDITION_ARGS[@]}" \
   --start "$SHARD_START" \
   --stop "$SHARD_STOP" \
   --seed 19701 \
@@ -91,4 +110,4 @@ external_baselines/.venv/bin/python external_baselines/run_pyrit_baseline.py \
   --batch-case-concurrency 64 \
   --output-dir "$OUTPUT_DIR"
 
-echo "PCSA persona-history Final-197 shard complete: index=$SHARD_INDEX range=[$SHARD_START,$SHARD_STOP) output=$OUTPUT_DIR"
+echo "PCSA Final-197 shard complete: condition=$PCSA_CONDITION index=$SHARD_INDEX range=[$SHARD_START,$SHARD_STOP) output=$OUTPUT_DIR"

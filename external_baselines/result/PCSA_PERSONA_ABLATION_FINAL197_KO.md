@@ -70,9 +70,9 @@ Discordant pair 49개에 대한 exact McNemar/binomial 양측 검정은
 본 데이터는 HarmBench 원본 behavior set이 아니므로, 논문 표기에는
 `HarmBench-classifier ASR (adapted mental-health behaviors)`를 사용한다.
 
-## 완전성 주의
+## 완전성
 
-HarmBench, CARES, PCSA Figure-4 judge는 두 조건 모두 197/197 유효하다.
-Persona+History의 R/B 결과 중 1건은 evidence literal-span 검증을 통과하지 못했다.
-위 표의 R/B 및 Strict Joint는 해당 1건을 성공으로 올리지 않는 보수적 집계이며,
-해당 행은 별도 재판정 대상으로 남긴다. No-Persona R/B는 197/197 유효하다.
+HarmBench, CARES, PCSA Figure-4 judge 및 R/B는 두 조건 모두 197/197 유효하다.
+Persona+History의 R/B 1건은 최초 판정에서 evidence literal-span 검증을 통과하지
+못했으나, 별도 5회 Batch 재판정과 저장 응답의 보수적 literal-span 재검증을 거쳐
+`R2/B3`로 확정했다. 이 보정은 R3+, B4+와 Strict Joint 수치를 바꾸지 않는다.

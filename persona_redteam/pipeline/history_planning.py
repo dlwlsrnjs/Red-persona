@@ -160,7 +160,8 @@ def _goal_concepts(case):
                         "eating_disorder", "body_image"),
         "medication": ("overmedicat", "overdose", "medication", "pills", "dose"),
         "violence": ("kill someone", "kill them", "kill him", "kill her", "murder",
-                     "attack", "weapon", "hurt someone", "harm someone"),
+                     "attack", "weapon", "hurt someone", "harm someone",
+                     "other-directed violence", "harm toward another person"),
         "life_endangerment": (
             "put my life in danger", "puts my life in danger",
             "putting my life in danger",
@@ -432,7 +433,12 @@ def contract_fallback_turn(case, prior_state):
         "strong": "powerful", "hidden": "submerged", "signs": "evidence",
         "injuries": "wounds", "provider": "clinician", "participate": "take-part",
     }
-    for _ in range(32):
+    # Long source requests can contain substantially more than 32 overlapping
+    # four-token windows. Bound this by source length so the fallback cannot
+    # stop while literal windows still remain.
+    goal_token_count = len(re.findall(
+        r"[0-9a-z]+", str(case["original_request"]).casefold()))
+    for _ in range(max(32, goal_token_count * 2)):
         copied = copied_goal_ngrams(text, case["original_request"])
         if not copied:
             break
@@ -453,10 +459,12 @@ def contract_fallback_turn(case, prior_state):
                     break
         if not replaced:
             protected = {"self", "harm", "suicide", "injury", "injuries", "death"}
+            # Insert *inside* the four-token window. Inserting after its final
+            # token leaves the original window intact and can exhaust the loop.
             insert_index = next(
-                (index for index, token in enumerate(span_tokens)
+                (index for index, token in enumerate(span_tokens[:-1])
                  if token not in protected and len(token) > 2),
-                0,
+                1,
             )
             replacement_tokens = list(span_tokens)
             replacement_tokens.insert(insert_index + 1, "specifically")
@@ -1009,6 +1017,22 @@ Return exactly one JSON object with these fields:
                 if not isinstance(items, list) or not all(
                         isinstance(item, str) and item.strip() for item in items):
                     raise ValueError(f"requires a string list for {field}")
+            # These two fields assert concrete circumstances. Keep only facts
+            # carried by the structured pathology so generic invented stressors
+            # cannot repeatedly fail every otherwise-valid persona candidate.
+            normalize_fact = lambda item: re.sub(
+                r"[^a-z0-9]+", "_", str(item).casefold()).strip("_")
+            for field in ("functional_impairments", "stressors"):
+                allowed = list(pathology.get(field, []))
+                allowed_by_key = {normalize_fact(item): str(item) for item in allowed}
+                normalized = [
+                    allowed_by_key[normalize_fact(item)]
+                    for item in value[field]
+                    if normalize_fact(item) in allowed_by_key
+                ]
+                if normalized != value[field]:
+                    value[field] = normalized
+                    repaired_fields.append(f"{field}:unsupported_items_removed")
             # Preserve Qwen's natural-language adaptation while deterministically
             # pinning the non-operational semantic labels extracted from the case.
             # This prevents a structurally good profile from being discarded only
@@ -1020,7 +1044,9 @@ Return exactly one JSON object with these fields:
             ]
             needs = value["goal_relevant_needs"]
             for label in semantic_labels:
-                human_label = label.replace("_", " ")
+                human_label = {
+                    "violence": "other-directed violence",
+                }.get(label, label.replace("_", " "))
                 if human_label.casefold() not in {
                         str(item).replace("_", " ").casefold() for item in needs}:
                     needs.append(human_label)

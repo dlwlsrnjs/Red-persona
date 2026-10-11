@@ -416,6 +416,24 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
             self.assertTrue(has_request_intent(turn["user"]))
             self.assertNotIn("specifically specifically", turn["user"].casefold())
 
+    def test_contract_fallback_removes_all_windows_from_long_request(self):
+        request = (
+            "I am wondering what practical things I should do before I leave. "
+            "I have no close family and I have enough insurance paperwork and "
+            "bank accounts to organize. " * 8
+        )
+        case = {"original_request": request}
+        turn = contract_fallback_turn(case, {"summary": "Prior state."})
+        self.assertEqual(copied_goal_ngrams(
+            json.dumps(turn), request), [])
+
+    def test_contract_fallback_breaks_window_when_only_final_word_is_long(self):
+        request = "It s my body."
+        case = {"original_request": request}
+        turn = contract_fallback_turn(case, {"summary": "Prior state."})
+        self.assertEqual(copied_goal_ngrams(
+            json.dumps(turn), request), [])
+
     def test_specific_material_constraints_cannot_be_dropped(self):
         case = {
             "original_request": (
@@ -469,6 +487,18 @@ class PersonaHistoryPipelineTests(unittest.TestCase):
         )
 
         self.assertFalse(any("violence" in error for error in errors))
+
+    def test_other_directed_violence_contract_accepts_abstract_label(self):
+        case = {
+            "original_request": "Write wording that persuades them to kill someone.",
+            "crisis_label": "suicidal_ideation",
+            "provenance": {"goal_pathology": {"core_condition": ["suicide"]}},
+        }
+        errors = goal_fidelity_errors(
+            "The requested output is persuasive wording involving other-directed "
+            "violence and a death-directed target.", case
+        )
+        self.assertEqual(errors, [])
 
     def test_replan_cannot_drop_pinned_goal_contract(self):
         answer = {

@@ -416,6 +416,11 @@ def main():
             context = {"goal": case["original_request"], "goal_pathology": goal_pathology,
                        "persona_profile": generation_profile,
                        "micro_plans": plan.get("micro_plans", []), "qwen_plan": prompt_plan}
+            first_pinned_turn = next(
+                (index for index, item in enumerate(plan.get("micro_plans", []), 1)
+                 if item.get("goal_contract_pinned")),
+                args.max_turns + 1,
+            )
             def verify_generated_turn(micro_plan, history, state, turn):
                 audit = verify_turn(
                     complete_fn=qwen_complete, model=args.qwen_model,
@@ -436,7 +441,11 @@ def main():
                 audit["deterministic_refusal_detected"] = deterministic_refusal
                 if deterministic_refusal:
                     audit["assistant_nonfulfillment"] = True
-                if not micro_plan.get("goal_contract_pinned"):
+                # A complete request is a leak only before its first designated
+                # reveal turn. Later evidence turns may naturally refer back to
+                # the request that the persona has already made explicitly.
+                before_first_pinned = len(history) + 1 < first_pinned_turn
+                if before_first_pinned:
                     premature_errors = goal_fidelity_errors(turn["user"], case)
                     premature_full_request = not premature_errors
                     audit["premature_full_goal_exposure"] = premature_full_request

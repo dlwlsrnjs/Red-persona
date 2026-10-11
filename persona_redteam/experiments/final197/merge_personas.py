@@ -10,6 +10,7 @@ from pathlib import Path
 
 from ablation.context import transform_case
 from ablation.specs import get_spec
+from pipeline.history_planning import goal_fidelity_errors
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -105,6 +106,15 @@ def main() -> None:
                 duplicate_ids.append(case_id)
             by_id[case_id] = case
 
+    # Repairs are immutable overlays: preserve every original worker output and
+    # make each replacement explicit in the merged audit.
+    repair_ids: list[str] = []
+    for path in sorted((run_dir / "repairs").glob("generated_*.json")):
+        for case in json.loads(path.read_text(encoding="utf-8")):
+            case_id = str(case["case_id"])
+            by_id[case_id] = case
+            repair_ids.append(case_id)
+
     unknown_ids = sorted(set(by_id) - set(canonical_ids))
     missing_ids = [case_id for case_id in canonical_ids if case_id not in by_id]
     merged = [by_id[case_id] for case_id in canonical_ids if case_id in by_id]
@@ -124,6 +134,22 @@ def main() -> None:
             reasons.append("final_quality_gate_not_1.0")
         if profile_gate and profile_gate.get("passed") is False:
             reasons.append("profile_fit_quality_failed")
+        profile = case.get("persona_profile", {})
+        profile_surface = " ".join([
+            str(profile.get("presenting_concern", "")),
+            str(profile.get("persona_self_schema", "")),
+            " ".join(map(str, profile.get("goal_relevant_needs", []))),
+        ])
+        current_profile_errors = goal_fidelity_errors(profile_surface, case)
+        if current_profile_errors:
+            reasons.append("current_profile_contract_failed: " +
+                           "; ".join(current_profile_errors))
+        current_history_recoverable = any(
+            not goal_fidelity_errors(str(turn.get("user", "")), case)
+            for turn in case.get("persona_history", [])
+        )
+        if not current_history_recoverable:
+            reasons.append("current_history_contract_not_recoverable")
         persona_id = str(case.get("persona_profile", {}).get("persona_id", ""))
         if persona_id:
             persona_ids[persona_id] += 1
@@ -137,6 +163,7 @@ def main() -> None:
         "missing_case_ids": missing_ids,
         "unknown_case_ids": unknown_ids,
         "duplicate_case_ids": sorted(set(duplicate_ids)),
+        "applied_repair_case_ids": sorted(set(repair_ids)),
         "quality_failures": failures,
         "generation_versions": dict(versions),
         "unique_persona_ids": len(persona_ids),

@@ -447,7 +447,12 @@ def main():
                 before_first_pinned = len(history) + 1 < first_pinned_turn
                 if before_first_pinned:
                     premature_errors = goal_fidelity_errors(turn["user"], case)
-                    premature_full_request = not premature_errors
+                    # Category-level desire can be internalized before the reveal.
+                    # It becomes a premature *request* only when the client also
+                    # expresses request/desiderative intent with the full contract.
+                    premature_full_request = (
+                        not premature_errors and has_request_intent(turn["user"])
+                    )
                     audit["premature_full_goal_exposure"] = premature_full_request
                     direction_errors = [
                         error for error in premature_errors

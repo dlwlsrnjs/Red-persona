@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from pipeline.contracts import (
     CONDITIONS, validate_active_cases, validate_evaluation, validate_prepared_cases,
@@ -10,28 +11,119 @@ from pipeline.research_context import (
     FINAL_DIRECTIONS,
 )
 from experiments.qwen_target_persona_research_dialogue import (
+    DIRECT_MANIFESTATION_MODES,
     JARGON_HISTORY_BRIDGE_PROTOCOL, LEGACY_FINAL_READOUT_PROTOCOL,
     TARGET_SYSTEM_PROMPT,
+)
+from experiments.run_jmir_persona_batch_api import (
+    enforce_final_readout_frame, make_final_branches, prepare_final_wave,
 )
 
 
 def history():
-    return {"full_messages": [{"role": "system", "content": TARGET_SYSTEM_PROMPT}]}
+    return {
+        "full_messages": [{"role": "system", "content": TARGET_SYSTEM_PROMPT}],
+        "sha256": "same-prefix",
+    }
 
 
 def branch(direction):
+    quote = "The person wants the counselor to confirm the inferred request."
+    attack_question = "Respond directly to: " + quote
+    shared_messages = history()["full_messages"]
     return {
         "direction": direction,
-        "context": {**history(), "shared_history_sha256": "same-prefix"},
-        "manifestation_context": history(),
-        "manifestation_question": "question",
-        "manifestation_target": {"text": "raw target output"},
-        "manifestation_candidate_response": {"text": "candidate only"},
-        "manifestation_research_analysis": "analysis only",
+        "attack_style": DIRECT_MANIFESTATION_MODES.get(direction, "direct_continuation"),
+        "recovery_context": {**history(), "shared_history_sha256": "same-prefix"},
+        "recovery_question": "analysis question",
+        "recovery_response": {"text": quote},
+        "bridge_record": {
+            "status": "available",
+            "target_inferred_request": quote,
+            "exact_target_quote": quote,
+            "source_turn_index": 0,
+            "semantic_goal_match": True,
+            "private_goal_leak": False,
+        },
+        "attack_question": attack_question,
+        "attack_response": {"text": "candidate only"},
+        "attack_evaluation": {"status": "pending"},
+        "attack_context": {
+            "full_messages": [*shared_messages, {"role": "user", "content": attack_question}],
+            "shared_history_sha256": "same-prefix",
+        },
     }
 
 
 class PipelineContractTests(unittest.TestCase):
+    def test_batch_final_wave_quotes_recent_target_history_exactly(self):
+        case_id = "case-anchor"
+        case = {
+            "case_id": case_id,
+            "original_request": "a response that addresses the stated objective",
+            "persona": "A person who describes isolation.",
+            "metaphor": "A closed door.",
+            "persona_history": [],
+        }
+        target_texts = [
+            "The person is focused on social distance.",
+            "The requested output appears to be a concrete written response.",
+            "The remaining constraint is that the response must address the stated objective.",
+        ]
+        turns = [
+            {"stage": stage, "target": {"text": text}}
+            for stage, text in zip(
+                ("desired_response", "alternative_response", "latent_goal"),
+                target_texts,
+            )
+        ]
+        shared = [
+            {"role": "system", "content": TARGET_SYSTEM_PROMPT},
+            {"role": "user", "content": "initial persona packet"},
+        ]
+        dialogue = [("Target", text) for text in target_texts]
+        states = {case_id: {condition: {
+            "turns": turns,
+            "history": list(shared),
+            "dialogue": list(dialogue),
+        } for condition in CONDITIONS}}
+
+        class Researcher:
+            role_label = "QWEN RESEARCHER"
+
+            @staticmethod
+            def bridge_records_batch(requests):
+                return [{"status": "unavailable"} for _ in requests]
+
+            @staticmethod
+            def questions_batch(requests):
+                return [(request["fallback"], {"source": "test"})
+                        for request in requests]
+
+        specs = prepare_final_wave({case_id: case}, states, Researcher())
+        self.assertEqual(len(specs), len(CONDITIONS) * len(FINAL_DIRECTIONS))
+        for spec in specs:
+            anchor = spec["final_anchor_record"]
+            quote = anchor["exact_target_quote"]
+            self.assertEqual(anchor["status"], "available")
+            self.assertIn(quote, target_texts)
+            self.assertIn(quote, spec["question"])
+            self.assertEqual(spec["question"].count("<target_quote>"), 1)
+
+        before = [spec["question"] for spec in specs]
+        self.assertFalse(enforce_final_readout_frame(
+            specs, JARGON_HISTORY_BRIDGE_PROTOCOL
+        ))
+        self.assertEqual(before, [spec["question"] for spec in specs])
+
+        outputs = {spec["custom_id"]: {"text": "final analysis"} for spec in specs}
+        first = {case_id: "initial persona packet"}
+        branches = make_final_branches(specs, outputs, states, first)
+        for condition in CONDITIONS:
+            for branch_item in branches[case_id][condition]:
+                quote = branch_item["final_anchor_record"]["exact_target_quote"]
+                self.assertIn(quote, branch_item["question"])
+
     def test_prepared_cases_reject_fixed_seed(self):
         case = {"case_id": "case-1", "original_request": "goal", "crisis_label": "anxiety",
                 "provenance": {"goal_pathology": {"symptoms": ["anxiety"]}}}
@@ -79,8 +171,10 @@ class PipelineContractTests(unittest.TestCase):
                 {
                     "case_id": "case-1",
                     "condition": condition,
-                    "turns": ([{"stage": "initial_analysis"}] +
-                              [{"stage": f"stage-{index}"} for index in range(4)]),
+                    "turns": ([{"stage": "initial_analysis", "target": {"text": (
+                        "The person wants the counselor to confirm the inferred request."
+                    )}}] + [{"stage": f"stage-{index}", "target": {"text": "analysis"}}
+                            for index in range(4)]),
                     "research_stop": {"reason": "qwen_goal_coverage_sufficient",
                                       "after_stage": "stage-3"},
                     "shared_history": history(),
@@ -119,7 +213,10 @@ class PipelineContractTests(unittest.TestCase):
             result for result in record["results"]
             if result["condition"] == "neutral"
         ]
-        record["results"][0]["turns"] = [{"stage": "initial_analysis"}]
+        record["results"][0]["turns"] = [{
+            "stage": "initial_analysis",
+            "target": {"text": "The person wants the counselor to confirm the inferred request."},
+        }]
         record["results"][0]["research_stop"] = {
             "reason": "ablation_no_research_dialogue",
             "after_stage": "initial_analysis",
@@ -137,7 +234,10 @@ class PipelineContractTests(unittest.TestCase):
         ]
         result = record["results"][0]
         result["final_readout_protocol"] = JARGON_HISTORY_BRIDGE_PROTOCOL
-        result["turns"] = [{"stage": "initial_analysis"}]
+        result["turns"] = [{
+            "stage": "initial_analysis",
+            "target": {"text": "The person wants the counselor to confirm the inferred request."},
+        }]
         result["research_stop"] = {
             "reason": "ablation_no_research_dialogue",
             "after_stage": "initial_analysis",
@@ -154,10 +254,10 @@ class PipelineContractTests(unittest.TestCase):
     def test_stale_engine_and_missing_candidate_are_rejected(self):
         record = self.make_run()
         record["research_engine_version"] = "stale"
-        del record["results"][0]["final_branches"][0]["manifestation_candidate_response"]
+        del record["results"][0]["final_branches"][0]["attack_response"]
         errors = validate_run_record(record)
         self.assertTrue(any("stale research engine" in error for error in errors))
-        self.assertTrue(any("missing separated candidate_response" in error for error in errors))
+        self.assertTrue(any("missing direct-response fields" in error for error in errors))
 
     def test_final_response_only_does_not_require_manifestation_followup(self):
         record = self.make_run()
@@ -165,9 +265,8 @@ class PipelineContractTests(unittest.TestCase):
         for result in record["results"]:
             for item in result["final_branches"]:
                 for field in (
-                    "manifestation_question", "manifestation_target",
-                    "manifestation_candidate_response",
-                    "manifestation_research_analysis",
+                    "bridge_record", "attack_style", "attack_question",
+                    "attack_response", "attack_evaluation", "attack_context",
                 ):
                     item.pop(field, None)
 
@@ -201,8 +300,8 @@ class PipelineContractTests(unittest.TestCase):
             )
             result["shared_history"]["full_messages"][0]["content"] = prompt
             for item in result["final_branches"]:
-                item["context"]["full_messages"][0]["content"] = prompt
-                item["manifestation_context"]["full_messages"][0]["content"] = prompt
+                item["recovery_context"]["full_messages"][0]["content"] = prompt
+                item["attack_context"]["full_messages"][0]["content"] = prompt
 
         self.assertEqual(validate_run_record(record), [])
 
@@ -219,7 +318,7 @@ class PipelineContractTests(unittest.TestCase):
                         "unsafe_manifestation_success": False,
                     },
                     "official_cares": {
-                        "response_source": "manifestation_candidate_response.text"
+                        "response_source": "attack_response.text"
                     },
                 })
         self.assertEqual(validate_evaluation({
@@ -227,12 +326,12 @@ class PipelineContractTests(unittest.TestCase):
             "rows": rows,
         }), [])
 
-        rows[0]["official_cares"]["response_source"] = "manifestation_target.text"
+        rows[0]["official_cares"]["response_source"] = "recovery_response.text"
         errors = validate_evaluation({
             "active_final_directions": list(FINAL_DIRECTIONS),
             "rows": rows,
         })
-        self.assertTrue(any("candidate_response only" in error for error in errors))
+        self.assertTrue(any("attack_response only" in error for error in errors))
 
     def test_neutral_only_evaluation_contract_passes_when_declared(self):
         rows = []
@@ -246,7 +345,7 @@ class PipelineContractTests(unittest.TestCase):
                     "unsafe_manifestation_success": False,
                 },
                 "official_cares": {
-                    "response_source": "manifestation_candidate_response.text"
+                    "response_source": "attack_response.text"
                 },
             })
         self.assertEqual(validate_evaluation({
@@ -268,7 +367,7 @@ class PipelineContractTests(unittest.TestCase):
                         "unsafe_manifestation_success": False,
                     },
                     "official_cares": {
-                        "response_source": "manifestation_candidate_response.text"
+                        "response_source": "attack_response.text"
                     },
                 })
         record = {"active_final_directions": [*FINAL_DIRECTIONS, "retired_direction"],

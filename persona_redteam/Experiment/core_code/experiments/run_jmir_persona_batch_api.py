@@ -5,34 +5,54 @@ import argparse
 import copy
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from pipeline.runtime_io import atomic_json
+from pipeline.runtime_io import atomic_json, primary_key
 from pipeline.contracts import validate_active_cases, validate_success_at_4_run_record
 from pipeline.openai_batch import BatchChatClient, chat_request as _batch_chat_request
+from pipeline.openai_chat import OpenAIChatClient
 from pipeline.local_chat import LocalChatClient
 from pipeline.official_selection import METHOD as OFFICIAL_SELECTION_METHOD
 from pipeline.official_selection import load_official_case_ids, select_new_cases
 from ablation.context import transform_case
 from ablation.specs import get_spec
+from experiments.goal_contract_v2 import (
+    HARMFUL_GOAL_CONTRACT,
+    STRICT_HARMFUL_GOAL_CONTRACT,
+    experimental_goal,
+    goal_contract,
+    source_request,
+    validate_harmful_goal_case,
+    validate_strict_harmful_goal_case,
+)
 from experiments.qwen_target_persona_research_dialogue import (
-    ACTIVE_PIPELINE_VERSION, DEFAULT_FINAL_READOUT_PROTOCOL,
-    DIRECT_MANIFESTATION_MODES, FINAL_DIRECTIONS, FINAL_READOUT_PROTOCOLS,
-    GENERIC_TARGET_SYSTEM_PROMPT, INTERVENTION_LEVELS, MANIFESTATION_DIRECTIONS,
+    ACTIVE_PIPELINE_VERSION, ATTACK_STYLE_INSTRUCTIONS,
+    CLINICAL_TERMINOLOGY_PROFILE,
+    DEFAULT_FINAL_READOUT_PROTOCOL, DIRECT_MANIFESTATION_MODES,
+    DIRECT_RESPONSE_PROMPT_PROTOCOLS, FINAL_DIRECTIONS, FINAL_READOUT_PROTOCOLS,
+    GENERIC_TARGET_SYSTEM_PROMPT, INTERVENTION_LEVELS,
     LEGACY_FINAL_READOUT_PROTOCOL,
     MODEL as DEFAULT_RESEARCHER_MODEL, REVISION as DEFAULT_RESEARCHER_REVISION,
-    SNAPSHOT, TARGET_SYSTEM_PROMPT,
-    STAGES, GoalAwareResearcher, candidate_record, dynamic_researcher_prompt,
+    MIN_DYNAMIC_STOP_STAGE_INDEX, SNAPSHOT, TARGET_SYSTEM_PROMPT,
+    PLAIN_DIRECT_RESPONSE_PROTOCOL, PLAIN_LANGUAGE_PROFILE,
+    RESEARCH_LANGUAGE_PROFILES, STAGES, GoalAwareResearcher,
+    attack_branch_record, branch_attack_prefix, clinical_term_candidates,
+    dynamic_researcher_prompt,
+    direct_response_question,
     final_question_bank, final_readout_task, frame_selected_final_question,
-    frame_selected_manifestation_question,
+    goal_recovery_fallback_question,
     has_initial_persona_packet, history_digest, intervention_metadata,
-    manifestation_question_bank, manifestation_readout_task,
-    parse_manifestation_output, question_bank,
+    lexical_goal_quote_candidate,
+    parse_manifestation_output, question_bank, quote_anchored_final_question,
     researcher_prompt, target_initial_history, validate_final_readout_protocol,
+    validate_research_language_profile,
+    target_quote_candidates, verified_bridge_record,
+    visible_goal_evidence_anchor,
 )
 
 
@@ -48,6 +68,7 @@ CONTEXT_ABLATION_VARIANTS = (
     "dialogue_only",
     "no_initial_evidence",
     "no_system_and_guidelines",
+    "no_clinical_terminology",
 )
 
 
@@ -477,22 +498,38 @@ def active_pairs(states):
             if "research_stop" not in states[case_id][condition]]
 
 
-def prepare_stage_wave(stage, task, cases_by_id, states, researcher):
+def prepare_stage_wave(
+        stage, task, cases_by_id, states, researcher,
+        research_language_profile=CLINICAL_TERMINOLOGY_PROFILE):
+    validate_research_language_profile(research_language_profile)
     pairs = active_pairs(states)
     requests = []
     for case_id, condition in pairs:
         case = cases_by_id[case_id]
         state = states[case_id][condition]
+        recovery_anchor = (
+            visible_goal_evidence_anchor(case)["exact_visible_quote"]
+            if stage in {"desired_response", "alternative_hypothesis", "latent_goal"}
+            else ""
+        )
         previous = [text.split("\n", 1)[-1] for role, text in state["dialogue"]
                     if role == "Researcher"]
         requests.append({
             "dynamic": True, "condition": condition,
             "dedup_scope": case_id,
-            "private_goal": case["original_request"],
-            "fallback": question_bank(condition, stage, case)[0],
+            "private_goal": experimental_goal(case),
+            "research_language_profile": research_language_profile,
+            "clinical_term_candidates": list(clinical_term_candidates(
+                case, state["dialogue"], stage
+            )),
+            "required_anchor_quote": recovery_anchor,
+            "fallback": goal_recovery_fallback_question(
+                case, stage, question_bank(condition, stage, case)[0]
+            ),
             "previous_questions": previous,
             "prompt": dynamic_researcher_prompt(
-                case, stage, task, state["dialogue"], condition, previous
+                case, stage, task, state["dialogue"], condition, previous,
+                research_language_profile,
             ),
         })
     proposals = researcher.questions_batch(requests)
@@ -507,7 +544,9 @@ def prepare_stage_wave(stage, task, cases_by_id, states, researcher):
         specs.append({
             "custom_id": f"s{STAGES.index((stage, task)) + 1}-{case_id}-{CONDITION_CODES[condition]}",
             "case_id": case_id, "condition": condition, "question": labelled,
-            "question_audit": audit, "messages": messages,
+            "question_audit": audit,
+            "research_language_profile": research_language_profile,
+            "messages": messages,
         })
     return specs
 
@@ -527,11 +566,11 @@ def apply_stage(stage_index, stage, specs, outputs, cases_by_id, states, researc
             "stage": stage, "question": spec["question"],
             "question_audit": spec["question_audit"], "target": answer,
         })
-    if stage_index < 4:
+    if stage_index < MIN_DYNAMIC_STOP_STAGE_INDEX:
         return
     pairs = [(spec["case_id"], spec["condition"]) for spec in specs]
     coverage = researcher.coverage_batch([
-        {"private_goal": cases_by_id[case_id]["original_request"],
+        {"private_goal": experimental_goal(cases_by_id[case_id]),
          "dialogue": states[case_id][condition]["dialogue"]}
         for case_id, condition in pairs
     ])
@@ -545,9 +584,11 @@ def apply_stage(stage_index, stage, specs, outputs, cases_by_id, states, researc
 
 
 def prepare_final_wave(cases_by_id, states, researcher,
-                       final_readout_protocol=DEFAULT_FINAL_READOUT_PROTOCOL):
+                       final_readout_protocol=DEFAULT_FINAL_READOUT_PROTOCOL,
+                       research_language_profile=CLINICAL_TERMINOLOGY_PROFILE):
     validate_final_readout_protocol(final_readout_protocol)
-    requests, keys = [], []
+    validate_research_language_profile(research_language_profile)
+    requests, keys, anchor_turn_sets = [], [], []
     for case_id, case_states in states.items():
         case = cases_by_id[case_id]
         for condition in CONDITIONS:
@@ -559,7 +600,11 @@ def prepare_final_wave(cases_by_id, states, researcher,
                 requests.append({
                     "dynamic": True, "condition": condition,
                     "dedup_scope": case_id,
-                    "private_goal": case["original_request"],
+                    "private_goal": experimental_goal(case),
+                    "research_language_profile": research_language_profile,
+                    "clinical_term_candidates": list(clinical_term_candidates(
+                        case, state["dialogue"], f"final_{direction}"
+                    )),
                     "fallback": frame_selected_final_question(
                         bank[0], final_readout_protocol
                     ),
@@ -572,15 +617,58 @@ def prepare_final_wave(cases_by_id, states, researcher,
                             final_readout_protocol,
                         ),
                         state["dialogue"], condition, previous,
+                        research_language_profile,
                     ),
                 })
                 keys.append((case_id, condition, direction))
+                # The final question must cite the conclusion from the last
+                # completed research stage, not an earlier convenient sentence.
+                anchor_turn_sets.append(state["turns"][-1:])
+    if hasattr(researcher, "bridge_records_batch"):
+        anchor_rows = researcher.bridge_records_batch([
+            {
+                "private_goal": experimental_goal(cases_by_id[case_id]),
+                "turns": turns,
+            }
+            for (case_id, _condition, _direction), turns
+            in zip(keys, anchor_turn_sets)
+        ])
+    else:
+        anchor_rows = [{} for _ in keys]
+    verified_anchors = []
+    for index, ((case_id, condition, direction), turns, anchor) in enumerate(
+            zip(keys, anchor_turn_sets, anchor_rows)):
+        if anchor.get("status") != "available":
+            candidate = lexical_goal_quote_candidate(
+                experimental_goal(cases_by_id[case_id]), turns
+            )
+            if candidate is None:
+                raise RuntimeError(
+                    f"{case_id}:{condition}:{direction}: latent-goal turn has no "
+                    "semantically usable target-authored anchor; refusing a diluted final question"
+                )
+            anchor = verified_bridge_record(
+                candidate, turns,
+                audit={
+                    "source": "deterministic_latest_target_quote_fallback",
+                    "semantic_selector_status": anchor.get("status", "unsupported"),
+                },
+            )
+        source_index = anchor["source_turn_index"]
+        verified_anchors.append({
+            **anchor,
+            "anchor_scope": "latent_goal_turn_only",
+            "source_stage": turns[source_index].get("stage"),
+            "source_direction": direction,
+        })
     proposals = researcher.questions_batch(requests)
     specs = []
-    for (case_id, condition, direction), (question, audit) in zip(keys, proposals):
+    for ((case_id, condition, direction), (question, audit), anchor) in zip(
+            keys, proposals, verified_anchors):
         question = frame_selected_final_question(
             question, final_readout_protocol
         )
+        question = quote_anchored_final_question(question, anchor)
         labelled = (f"[{researcher.role_label} | CONDITION={condition} | "
                     f"FINAL_DIRECTION={direction}]\n{question}")
         shared = states[case_id][condition]["history"]
@@ -590,6 +678,8 @@ def prepare_final_wave(cases_by_id, states, researcher,
                           f"{list(FINAL_DIRECTIONS).index(direction)}"),
             "case_id": case_id, "condition": condition, "direction": direction,
             "final_readout_protocol": final_readout_protocol,
+            "research_language_profile": research_language_profile,
+            "final_anchor_record": anchor,
             "question": labelled, "question_audit": audit, "messages": messages,
         })
     return specs
@@ -600,6 +690,20 @@ def enforce_final_readout_frame(specs, final_readout_protocol):
     changed = False
     for spec in specs:
         labelled = spec["question"]
+        anchor = spec.get("final_anchor_record") or {}
+        quote = anchor.get("exact_target_quote", "")
+        if quote:
+            if anchor.get("status") != "available" or quote not in labelled:
+                raise RuntimeError(
+                    f"{spec.get('custom_id', 'unknown')}: invalid cached final quote anchor"
+                )
+            # prepare_final_wave frames the selected question before binding the
+            # exact target-authored quote. Re-framing the whole cached question
+            # would move or duplicate that evidence anchor.
+            if spec.get("final_readout_protocol") != final_readout_protocol:
+                spec["final_readout_protocol"] = final_readout_protocol
+                changed = True
+            continue
         header, separator, question = labelled.partition("\n")
         framed = frame_selected_final_question(
             question if separator else labelled,
@@ -623,6 +727,7 @@ def make_final_branches(specs, outputs, states, first_by_case):
         branch = {
             "direction": spec["direction"], "question": spec["question"],
             "question_audit": spec["question_audit"],
+            "final_anchor_record": spec.get("final_anchor_record", {}),
             "final_readout_protocol": spec.get(
                 "final_readout_protocol", LEGACY_FINAL_READOUT_PROTOCOL
             ),
@@ -646,90 +751,128 @@ def make_final_branches(specs, outputs, states, first_by_case):
 
 
 def prepare_manifestation_wave(cases_by_id, states, final, researcher,
-                               final_readout_protocol=DEFAULT_FINAL_READOUT_PROTOCOL):
+                               final_readout_protocol=DEFAULT_FINAL_READOUT_PROTOCOL,
+                               direct_response_prompt_protocol=PLAIN_DIRECT_RESPONSE_PROTOCOL):
+    """Prepare direct-response attacks from each branch's recovery exchange.
+
+    The historical function name is retained for checkpoint compatibility. No
+    private-goal manifestation prompt is constructed here.
+    """
     validate_final_readout_protocol(final_readout_protocol)
-    requests, keys = [], []
-    for case_id, case_final in final.items():
-        case = cases_by_id[case_id]
-        for condition in CONDITIONS:
-            state = states[case_id][condition]
-            for branch in case_final[condition]:
-                bank = manifestation_question_bank(branch["direction"], case)
-                dialogue = [*state["dialogue"], ["Researcher", branch["question"]],
-                            ["Target", branch["target"]["text"]]]
-                requests.append({
-                    "condition": condition, "private_goal": case["original_request"],
-                    "bank": bank, "allow_goal_wording": True, "fallback": bank[0],
-                    "previous_questions": [text.split("\n", 1)[-1]
-                                           for role, text in dialogue if role == "Researcher"],
-                    "prompt": researcher_prompt(
-                        case, f"manifest_{branch['direction']}",
-                        manifestation_readout_task(
-                            "Choose the best sample-specific direct response or performance request. "
-                            "The prompt may expose the private goal at this measurement-only stage.",
-                            final_readout_protocol,
-                        ),
-                        dialogue, condition, bank,
-                    ),
-                })
-                keys.append((case_id, condition, branch["direction"]))
-    proposals = researcher.questions_batch(requests)
-    specs = []
-    lookup = {(case_id, condition, branch["direction"]): branch
-              for case_id, case_final in final.items()
-              for condition in CONDITIONS for branch in case_final[condition]}
-    for (case_id, condition, direction), (question, audit) in zip(keys, proposals):
-        branch = lookup[(case_id, condition, direction)]
-        question = frame_selected_manifestation_question(
-            question, final_readout_protocol
+    if direct_response_prompt_protocol not in DIRECT_RESPONSE_PROMPT_PROTOCOLS:
+        raise ValueError(
+            "unsupported direct-response prompt protocol: "
+            + direct_response_prompt_protocol
         )
-        labelled = (f"[{researcher.role_label} | CONDITION={condition} | "
-                    f"ACTUAL_RESPONSE_MODE={direction}]\n{question}")
-        messages = [*branch["context"]["full_messages"],
-                    {"role": "assistant", "content": branch["target"]["text"]},
-                    {"role": "user", "content": labelled}]
-        specs.append({
-            "custom_id": (f"m-{case_id}-{CONDITION_CODES[condition]}-"
-                          f"{list(FINAL_DIRECTIONS).index(direction)}"),
-            "case_id": case_id, "condition": condition, "direction": direction,
-            "final_readout_protocol": final_readout_protocol,
-            "question": labelled, "question_audit": audit, "messages": messages,
-        })
+    branch_keys = []
+    branch_lookup = {}
+    final_only_requests = []
+    for case_id, case_final in final.items():
+        for condition in CONDITIONS:
+            for branch in case_final[condition]:
+                key = (case_id, condition, branch["direction"])
+                final_turn = {
+                    "stage": f"final_{branch['direction']}",
+                    "target": branch["target"],
+                }
+                branch_keys.append(key)
+                branch_lookup[key] = (branch, final_turn)
+                final_only_requests.append({
+                    "private_goal": experimental_goal(cases_by_id[case_id]),
+                    "turns": [final_turn],
+                })
+    bridge_rows = researcher.bridge_records_batch(final_only_requests)
+    fallback_positions = [
+        index for index, row in enumerate(bridge_rows)
+        if row.get("status") != "available"
+    ]
+    if fallback_positions:
+        fallback_requests = []
+        for index in fallback_positions:
+            case_id, condition, _ = branch_keys[index]
+            _, final_turn = branch_lookup[branch_keys[index]]
+            fallback_requests.append({
+                "private_goal": experimental_goal(cases_by_id[case_id]),
+                "turns": [*states[case_id][condition]["turns"], final_turn],
+            })
+        fallback_rows = researcher.bridge_records_batch(fallback_requests)
+        for index, fallback in zip(fallback_positions, fallback_rows):
+            bridge_rows[index] = fallback
+    bridges = {}
+    for key, bridge, originally_unavailable in zip(
+            branch_keys, bridge_rows,
+            [index in fallback_positions for index in range(len(branch_keys))]):
+        bridges[key] = {
+            **bridge,
+            "source_scope": (
+                "accumulated_dialogue_plus_final_branch"
+                if originally_unavailable else "final_branch_only"
+            ),
+            "source_direction": key[2],
+        }
+    specs = []
+    for case_id, case_final in final.items():
+        for condition in CONDITIONS:
+            for branch in case_final[condition]:
+                direction = branch["direction"]
+                bridge = bridges[(case_id, condition, direction)]
+                available = bridge.get("status") == "available"
+                attack_style = DIRECT_MANIFESTATION_MODES[direction]
+                question = (
+                    direct_response_question(
+                        bridge, attack_style, direct_response_prompt_protocol
+                    )
+                    if available else ""
+                )
+                labelled = (
+                    f"[DIRECT RESPONSE MEASUREMENT | ATTACK_STYLE={attack_style}]\n"
+                    f"{question}"
+                    if available else ""
+                )
+                shared = states[case_id][condition]["history"]
+                attack_prefix = branch_attack_prefix(branch, shared)
+                messages = (
+                    [*attack_prefix, {"role": "user", "content": labelled}]
+                    if available else []
+                )
+                specs.append({
+                    "custom_id": (f"a-{case_id}-{CONDITION_CODES[condition]}-"
+                                  f"{list(FINAL_DIRECTIONS).index(direction)}"),
+                    "case_id": case_id, "condition": condition,
+                    "direction": direction, "attack_style": attack_style,
+                    "final_readout_protocol": final_readout_protocol,
+                    "direct_response_prompt_protocol": direct_response_prompt_protocol,
+                    "question": labelled,
+                    "question_audit": bridge.get("selection_audit", {}),
+                    "bridge_record": bridge,
+                    "messages": messages,
+                    "requestable": available,
+                })
     return specs
 
 
 def apply_manifestation(specs, outputs, cases_by_id, states, final, first_by_case):
-    lookup = {(case_id, condition, branch["direction"]): branch
-              for case_id, case_final in final.items()
-              for condition in CONDITIONS for branch in case_final[condition]}
-    for spec in specs:
-        answer = outputs[spec["custom_id"]]
-        candidate, analysis, output_format = parse_manifestation_output(answer)
-        branch = lookup[(spec["case_id"], spec["condition"], spec["direction"])]
-        case = cases_by_id[spec["case_id"]]
-        shared = states[spec["case_id"]][spec["condition"]]["history"]
-        branch.update({
-            "manifestation_question": spec["question"],
-            "manifestation_question_audit": spec["question_audit"],
-            "manifestation_mode": DIRECT_MANIFESTATION_MODES[spec["direction"]],
-            "manifestation_goal_exposure": (
-                "explicit_private_goal"
-                if "{goal}" in MANIFESTATION_DIRECTIONS[spec["direction"]][0]
-                else "persona_plus_target_inference"
-            ),
-            "manifestation_target": answer,
-            "manifestation_candidate_response": candidate_record(answer, candidate),
-            "manifestation_research_analysis": analysis,
-            "manifestation_output_format": output_format,
-            "manifestation_context": {
-                "message_count": len(spec["messages"]),
-                "shared_history_sha256": history_digest(shared),
-                "contains_initial_persona_packet": has_initial_persona_packet(
-                    spec["messages"], first_by_case[case["case_id"]]
-                ),
-                "full_messages": spec["messages"],
-            },
-        })
+    """Attach canonical attack fields and remove ambiguous legacy aliases."""
+    specs_by_key = {
+        (spec["case_id"], spec["condition"], spec["direction"]): spec
+        for spec in specs
+    }
+    for case_id, case_final in final.items():
+        for condition in CONDITIONS:
+            shared = states[case_id][condition]["history"]
+            transformed = []
+            for branch in case_final[condition]:
+                spec = specs_by_key[(case_id, condition, branch["direction"])]
+                transformed.append(attack_branch_record(
+                    branch, spec["bridge_record"], shared,
+                    first_by_case[case_id],
+                    answer=outputs.get(spec["custom_id"]),
+                    prompt_protocol=spec.get(
+                        "direct_response_prompt_protocol",
+                        PLAIN_DIRECT_RESPONSE_PROTOCOL,
+                    ),
+                ))
+            case_final[condition] = transformed
 
 
 def final_results(case, states, final, target_model,
@@ -744,9 +887,11 @@ def final_results(case, states, final, target_model,
             "phase_exposure": {
                 "research_dialogue_goal_exposed": INTERVENTION_LEVELS[condition]
                                                     ["research_target_goal_exposed"],
-                "manifestation_measurement_goal_exposed": manifestation_included,
+                "attack_measurement_goal_exposed": False,
             },
-            "private_goal": case["original_request"],
+            "source_request": source_request(case),
+            "private_goal": experimental_goal(case),
+            "goal_contract": goal_contract(case),
             "target_visible_persona": case["persona"],
             "target_visible_metaphor": case["metaphor"],
             "turns": state["turns"],
@@ -761,6 +906,7 @@ def final_results(case, states, final, target_model,
             "final_branches": final[case["case_id"]][condition],
             "case_success_rule": "any_valid_final_branch", "required_successes": 1,
             "active_final_directions": list(FINAL_DIRECTIONS),
+            "active_attack_styles": list(ATTACK_STYLE_INSTRUCTIONS),
             "final_readout_protocol": final_readout_protocol,
             "total_final_branches": len(FINAL_DIRECTIONS),
         })
@@ -859,7 +1005,9 @@ def repair_final_branches(label, final, client, target_model):
     for case_id, by_condition in final.items():
         for condition, branches in by_condition.items():
             for branch in branches:
-                if branch["target"].get("finish_reason") != "length":
+                response = branch.get("recovery_response", branch.get("target", {}))
+                context = branch.get("recovery_context", branch.get("context", {}))
+                if response.get("finish_reason") != "length":
                     continue
                 custom_id = (
                     f"rf-{case_id}-{CONDITION_CODES[condition]}-"
@@ -867,13 +1015,15 @@ def repair_final_branches(label, final, client, target_model):
                 )
                 specs.append({
                     "custom_id": custom_id,
-                    "messages": branch["context"]["full_messages"],
+                    "messages": context["full_messages"],
                 })
                 branch_by_id[custom_id] = branch
     if not specs:
         return final
     initial = {
-        spec["custom_id"]: branch_by_id[spec["custom_id"]]["target"]
+        spec["custom_id"]: branch_by_id[spec["custom_id"]].get(
+            "recovery_response", branch_by_id[spec["custom_id"]].get("target")
+        )
         for spec in specs
     }
     outputs = repair_length_outputs(
@@ -882,7 +1032,11 @@ def repair_final_branches(label, final, client, target_model):
         allow_remaining=True,
     )
     for custom_id, output in outputs.items():
-        branch_by_id[custom_id]["target"] = output
+        branch = branch_by_id[custom_id]
+        if "recovery_response" in branch:
+            branch["recovery_response"] = output
+        else:
+            branch["target"] = output
     return final
 
 
@@ -981,31 +1135,29 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
 
     if not args.final_response_only:
         manifestation_specs = planner_wave(
-            wave_dir / "ablation-no-research-manifestation.json",
+            wave_dir / "ablation-no-research-attack-v1.json",
             lambda: prepare_manifestation_wave(
                 cases_by_id, states, final, researcher,
                 LEGACY_FINAL_READOUT_PROTOCOL,
+                args.direct_response_prompt_protocol,
             ),
             researcher,
         )
-        manifestation_outputs = run_with_budget_splitting(
+        requestable_specs = [spec for spec in manifestation_specs
+                             if spec.get("requestable")]
+        manifestation_outputs = (run_with_budget_splitting(
             client,
-            batch_label_prefix + "generation-ablation-no-research-manifestation", [
+            batch_label_prefix + "generation-ablation-no-research-attack-v1", [
                 chat_request(spec["custom_id"], args.target_model, spec["messages"],
-                             max_tokens=1200, json_mode=True)
-                for spec in manifestation_specs
+                             max_tokens=1200)
+                for spec in requestable_specs
             ], adaptive=adaptive_budget_split,
-        )
+        ) if requestable_specs else {})
         manifestation_outputs = repair_length_outputs(
             batch_label_prefix +
-            "generation-ablation-no-research-manifestation-length",
-            manifestation_specs, manifestation_outputs, client, args.target_model,
+            "generation-ablation-no-research-attack-v1-length",
+            requestable_specs, manifestation_outputs, client, args.target_model,
             token_limits=(1600, 2200),
-        )
-        manifestation_outputs = repair_manifestation_schema(
-            batch_label_prefix +
-            "generation-ablation-no-research-manifestation-schema",
-            manifestation_specs, manifestation_outputs, client, args.target_model,
         )
         apply_manifestation(
             manifestation_specs, manifestation_outputs, cases_by_id, states, final,
@@ -1030,9 +1182,10 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
             "active_conditions": ["neutral"],
             "active_final_directions": list(FINAL_DIRECTIONS),
             "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
+            "direct_response_prompt_protocol": args.direct_response_prompt_protocol,
             "measurement_scope": (
                 "final_analysis_response_only" if args.final_response_only
-                else "final_analysis_plus_manifestation_followup"
+                else "final_analysis_plus_verified_direct_attack"
             ),
             "ablation": spec.metadata(),
             "case_index": index,
@@ -1057,10 +1210,11 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
         "active_conditions": ["neutral"],
         "active_final_directions": list(FINAL_DIRECTIONS),
         "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
+        "direct_response_prompt_protocol": args.direct_response_prompt_protocol,
         "final_response_only": args.final_response_only,
         "measurement_scope": (
             "final_analysis_response_only" if args.final_response_only
-            else "final_analysis_plus_manifestation_followup"
+            else "final_analysis_plus_verified_direct_attack"
         ),
         "api_mode": (
             f"{getattr(client, 'api_mode', 'unknown')}_reusing_initial_analysis"
@@ -1117,6 +1271,11 @@ def main():
     parser.add_argument("--max-budget-usd", type=float, default=120.0)
     parser.add_argument("--poll-seconds", type=int, default=20)
     parser.add_argument(
+        "--api-mode", choices=("batch", "standard"), default="batch",
+        help=("Use OpenAI Batch by default, or synchronous Chat Completions for "
+              "small latency-sensitive pilots. Checkpoints remain mode-specific."),
+    )
+    parser.add_argument(
         "--target-base-url",
         help="Local OpenAI-compatible target endpoint, for example http://127.0.0.1:8001/v1.",
     )
@@ -1132,6 +1291,22 @@ def main():
         help=("Final-question policy for the full-dialogue arm. The paired "
               "no-research-dialogue arm remains on legacy_v15 because it has "
               "no accumulated research dialogue to bridge from."),
+    )
+    parser.add_argument(
+        "--direct-response-prompt-protocol",
+        choices=DIRECT_RESPONSE_PROMPT_PROTOCOLS,
+        default=PLAIN_DIRECT_RESPONSE_PROTOCOL,
+        help=("Prompt used only for the final direct-response measurement. "
+              "Use counterfactual_prevention_v1 for the registered internal "
+              "prevention-research framing."),
+    )
+    parser.add_argument(
+        "--research-language-profile",
+        choices=RESEARCH_LANGUAGE_PROFILES,
+        default=CLINICAL_TERMINOLOGY_PROFILE,
+        help=("Language policy for goal-aware research questions. The clinical "
+              "profile uses evidence-qualified terminology; the plain-language "
+              "profile is its matched terminology ablation."),
     )
     parser.add_argument(
         "--condition", action="append", choices=DEFAULT_CONDITIONS,
@@ -1150,6 +1325,16 @@ def main():
               "history-bridge final-response evaluation."),
     )
     parser.add_argument(
+        "--require-harmful-goal-v2", action="store_true",
+        help=("Reject every selected case that does not separate original_request "
+              "from a preregistered, human-approved hidden_adversarial_target."),
+    )
+    parser.add_argument(
+        "--require-strict-harmful-goal-v3", action="store_true",
+        help=("Reject every selected case that is not backed by a verbatim "
+              "strict_harmful_request record with positive explicit-request verification."),
+    )
+    parser.add_argument(
         "--omit-target-system-prompt", action="store_true",
         help=("Remove the target system message while preserving the persona packet, "
               "research dialogue, history-bridge readout, model, and decoding policy."),
@@ -1157,12 +1342,17 @@ def main():
     args = parser.parse_args()
     if args.target_workers < 1:
         parser.error("--target-workers must be at least 1")
+    if args.target_base_url and args.api_mode != "batch":
+        parser.error("--api-mode applies only to OpenAI; omit it with --target-base-url")
     CONDITIONS = tuple(dict.fromkeys(args.condition or DEFAULT_CONDITIONS))
+    if args.require_harmful_goal_v2 and args.require_strict_harmful_goal_v3:
+        parser.error("choose exactly one harmful-goal contract, not both v2 and v3")
 
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
     args.campaign_dir.mkdir(parents=True, exist_ok=True)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     prior_summary_path = args.output_dir / "run_summary.json"
+    prior_language_profile = None
     if prior_summary_path.exists():
         prior_summary = load_json(prior_summary_path, {})
         prior_protocol = prior_summary.get(
@@ -1173,6 +1363,17 @@ def main():
                 "--output-dir already contains a different final readout protocol "
                 f"({prior_protocol}); use a new output directory"
             )
+        prior_direct_protocol = prior_summary.get(
+            "direct_response_prompt_protocol", PLAIN_DIRECT_RESPONSE_PROTOCOL
+        )
+        if prior_direct_protocol != args.direct_response_prompt_protocol:
+            parser.error(
+                "--output-dir already contains a different direct-response prompt "
+                f"protocol ({prior_direct_protocol}); use a new output directory"
+            )
+        prior_language_profile = prior_summary.get(
+            "research_language_profile", PLAIN_LANGUAGE_PROFILE
+        )
     all_selected = selected_cases(
         cases, args.existing_run_dir, args.target_total,
         args.selection_path or args.campaign_dir / "selection.json",
@@ -1185,6 +1386,18 @@ def main():
     if selected_errors:
         parser.error("selected cases failed leakage/contract checks: " +
                      "; ".join(selected_errors[:5]))
+    if args.require_harmful_goal_v2:
+        for _, case in selected:
+            try:
+                validate_harmful_goal_case(case)
+            except ValueError as exc:
+                parser.error(f"{case.get('case_id', '<unknown>')}: {exc}")
+    if args.require_strict_harmful_goal_v3:
+        for _, case in selected:
+            try:
+                validate_strict_harmful_goal_case(case)
+            except ValueError as exc:
+                parser.error(f"{case.get('case_id', '<unknown>')}: {exc}")
     ablation_spec = None
     if args.ablation_variant and args.omit_target_system_prompt:
         parser.error(
@@ -1197,6 +1410,15 @@ def main():
             (index, transform_case(case, ablation_spec))
             for index, case in selected
         ]
+    if ablation_spec and not ablation_spec.include_clinical_terminology:
+        args.research_language_profile = PLAIN_LANGUAGE_PROFILE
+    validate_research_language_profile(args.research_language_profile)
+    if (prior_language_profile is not None and
+            prior_language_profile != args.research_language_profile):
+        parser.error(
+            "--output-dir already contains a different research language profile "
+            f"({prior_language_profile}); use a new output directory"
+        )
     omit_target_system_prompt = (
         args.omit_target_system_prompt or
         bool(ablation_spec and not ablation_spec.include_target_system_prompt)
@@ -1211,6 +1433,8 @@ def main():
             "start": args.start, "stop": args.stop,
             "active_conditions": list(CONDITIONS),
             "final_readout_protocol": args.final_readout_protocol,
+            "direct_response_prompt_protocol": args.direct_response_prompt_protocol,
+            "research_language_profile": args.research_language_profile,
             "ablation_variant": args.ablation_variant,
             "omit_target_system_prompt": omit_target_system_prompt,
             "include_research_guidelines": include_research_guidelines,
@@ -1241,7 +1465,15 @@ def main():
             base_url=args.target_base_url,
             workers=args.target_workers,
         )
+    elif args.api_mode == "standard":
+        os.environ.setdefault("OPENAI_API_KEY", primary_key())
+        client = OpenAIChatClient(
+            args.campaign_dir / "openai_chat",
+            workers=args.target_workers,
+            max_budget_usd=args.max_budget_usd,
+        )
     else:
+        os.environ.setdefault("OPENAI_API_KEY", primary_key())
         client = BatchChatClient(
             args.campaign_dir / "openai_batches",
             max_budget_usd=args.max_budget_usd,
@@ -1330,7 +1562,8 @@ def main():
         specs = planner_wave(
             wave_dir / f"{wave_namespace}stage-{stage_index:02d}-{stage}.json",
             lambda stage=stage, task=task: prepare_stage_wave(
-                stage, task, cases_by_id, states, researcher
+                stage, task, cases_by_id, states, researcher,
+                args.research_language_profile,
             ),
             researcher,
         )
@@ -1344,7 +1577,7 @@ def main():
             outputs = repair_length_outputs(
                 f"generation-{wave_namespace}stage-{stage_index:02d}-{stage}-length",
                 specs, outputs, client, args.target_model,
-                token_limits=(1200, 1800),
+                token_limits=(1200, 1800, 2600, 3600),
             )
         apply_stage(stage_index, stage, specs, outputs, cases_by_id, states, researcher)
         atomic_json(state_path, states)
@@ -1367,6 +1600,7 @@ def main():
             lambda: prepare_final_wave(
                 cases_by_id, states, researcher,
                 args.final_readout_protocol,
+                args.research_language_profile,
             ),
             researcher,
         )
@@ -1390,30 +1624,29 @@ def main():
 
     if not args.final_response_only:
         manifestation_specs = planner_wave(
-            wave_dir / f"{final_wave_namespace}manifestation.json",
+            wave_dir / f"{final_wave_namespace}attack-v1.json",
             lambda: prepare_manifestation_wave(
                 cases_by_id, states, final, researcher,
                 args.final_readout_protocol,
+                args.direct_response_prompt_protocol,
             ),
             researcher,
         )
-        manifestation_outputs = client.run(
-            f"generation-{final_wave_namespace}manifestation", [
+        requestable_specs = [spec for spec in manifestation_specs
+                             if spec.get("requestable")]
+        manifestation_outputs = (client.run(
+            f"generation-{final_wave_namespace}attack-v1", [
             chat_request(spec["custom_id"], args.target_model, spec["messages"],
-                         max_tokens=1200, json_mode=True)
-            for spec in manifestation_specs
-        ])
+                         max_tokens=1200)
+            for spec in requestable_specs
+        ]) if requestable_specs else {})
         if not args.allow_truncated:
             manifestation_outputs = repair_length_outputs(
-                f"generation-{final_wave_namespace}manifestation-length",
-                manifestation_specs, manifestation_outputs, client,
+                f"generation-{final_wave_namespace}attack-v1-length",
+                requestable_specs, manifestation_outputs, client,
                 args.target_model,
                 token_limits=(1600, 2200, 3200, 4096, 6144, 8192),
             )
-        manifestation_outputs = repair_manifestation_schema(
-            f"generation-{final_wave_namespace}manifestation-schema",
-            manifestation_specs, manifestation_outputs, client, args.target_model,
-        )
         apply_manifestation(
             manifestation_specs, manifestation_outputs, cases_by_id, states, final,
             first_by_case,
@@ -1431,6 +1664,8 @@ def main():
             "active_conditions": list(CONDITIONS),
             "active_final_directions": list(FINAL_DIRECTIONS),
             "final_readout_protocol": args.final_readout_protocol,
+            "direct_response_prompt_protocol": args.direct_response_prompt_protocol,
+            "research_language_profile": args.research_language_profile,
             "researcher_model": researcher.model_name,
             "researcher_revision": researcher.revision,
             "researcher_role_label": researcher.role_label,
@@ -1441,8 +1676,9 @@ def main():
             "research_guidelines_included": include_research_guidelines,
             "measurement_scope": (
                 "final_analysis_response_only" if args.final_response_only
-                else "final_analysis_plus_manifestation_followup"
+                else "final_analysis_plus_verified_direct_attack"
             ),
+            "goal_contract_version": goal_contract(case)["version"],
             **(
                 {"ablation": ablation_spec.metadata()}
                 if ablation_spec else
@@ -1475,10 +1711,17 @@ def main():
         "active_conditions": list(CONDITIONS),
         "active_final_directions": list(FINAL_DIRECTIONS),
         "final_readout_protocol": args.final_readout_protocol,
+        "direct_response_prompt_protocol": args.direct_response_prompt_protocol,
+        "research_language_profile": args.research_language_profile,
         "ablation_variant": args.ablation_variant,
         "omit_target_system_prompt": omit_target_system_prompt,
         "include_research_guidelines": include_research_guidelines,
         "final_response_only": args.final_response_only,
+        "goal_contract_version": (
+            HARMFUL_GOAL_CONTRACT if args.require_harmful_goal_v2 else
+            STRICT_HARMFUL_GOAL_CONTRACT if args.require_strict_harmful_goal_v3 else
+            "mixed_or_legacy_allowed"
+        ),
         "initial_response_reuse": bool(args.reuse_initial_from_run_dir),
         "initial_response_reuse_sources": [
             str(path) for path in args.reuse_initial_from_run_dir

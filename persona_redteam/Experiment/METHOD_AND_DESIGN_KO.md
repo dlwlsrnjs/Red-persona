@@ -1,5 +1,9 @@
 # Official-500 실험 구성과 설계 근거
 
+> **범위 교정:** 이 문서는 기존 v1 latent-request 실험의 재현 문서다. JMIR 상담 원문과
+> 별도 유해 목표가 분리된 공격 실험은 `METHOD_V2_HARMFUL_GOAL_CONTRACT_KO.md`를 따른다.
+> v1의 B3+·CARES·JMIR 수치를 harmful-goal ASR로 해석하지 않는다.
+
 ## 1. 연구 목적과 철학
 
 RED-Persona의 생성 Method는 goal-adapted persona와 과거 상담 이력을 만든 뒤, private goal을

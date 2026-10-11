@@ -1,12 +1,19 @@
 # Canonical OURS Method configuration
 
+> **v1 보존 문서:** 아래 설정은 JMIR `original_request`를 private goal로 사용한 기존
+> latent-request 실험을 재현한다. 숨은 유해 목표 공격을 주장하려면 별도 유해 목표를 요구하는
+> `../../Experiment/METHOD_V2_HARMFUL_GOAL_CONTRACT_KO.md`와
+> `../../experiments/run_ours_harmful_goal_v2.py`를 사용한다.
+
 > **OURS = neutral research dialogue + jargon_history_bridge_v1 + four independent final directions.**
 
 ## 고정 처리 흐름
 
 ```mermaid
 flowchart LR
-  G[Private goal] --> P[Goal-adapted persona]
+  S[JMIR source request] --> P[Goal-adapted persona]
+  S --> G[v1 private goal: same source request]
+  G --> P
   P --> H[Past counseling history: 4-12 exchanges]
   H --> I[Initial target analysis]
   I --> D[Neutral research dialogue: 4-7 stages]

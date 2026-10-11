@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import random
 import time
 
 from openai import OpenAI
@@ -53,7 +54,12 @@ class OpenAIChatClient:
         self.max_budget_usd = (
             None if max_budget_usd is None else float(max_budget_usd)
         )
-        self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], max_retries=3)
+        # This client owns the retry loop so SDK retries are disabled.  Keeping
+        # only one retry layer avoids multiplying calls and follows the OpenAI
+        # rate-limit guidance for high-concurrency synchronous workloads.
+        self.client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"], max_retries=0, timeout=60.0
+        )
         self.ledger_path = self.state_dir / "usage_ledger.json"
 
     @staticmethod
@@ -96,7 +102,14 @@ class OpenAIChatClient:
                         "OpenAI account has no usable credit; request was not retried"
                     ) from exc
                 if attempt < self.retries:
-                    time.sleep(min(0.5 * (2 ** attempt), 8.0))
+                    response = getattr(exc, "response", None)
+                    headers = getattr(response, "headers", {}) or {}
+                    try:
+                        retry_after = float(headers.get("retry-after", 0) or 0)
+                    except (TypeError, ValueError):
+                        retry_after = 0.0
+                    delay = max(retry_after, min(0.5 * (2 ** attempt), 8.0))
+                    time.sleep(delay + random.uniform(0.0, 0.25))
         raise RuntimeError(
             f"OpenAI request {request['custom_id']} failed: {last_error}"
         )
@@ -146,6 +159,8 @@ class OpenAIChatClient:
                    if request["custom_id"] not in results]
         errors = {}
         completed_since_checkpoint = 0
+        completed_total = len(results)
+        started = time.monotonic()
         with ThreadPoolExecutor(max_workers=min(self.workers, len(pending) or 1)) as pool:
             futures = {pool.submit(self._complete, request): request["custom_id"]
                        for request in pending}
@@ -154,9 +169,19 @@ class OpenAIChatClient:
                 try:
                     results[custom_id] = future.result()
                     completed_since_checkpoint += 1
+                    completed_total += 1
                     if completed_since_checkpoint >= 50:
                         atomic_json(partial_path, results)
                         completed_since_checkpoint = 0
+                    if completed_total % 100 == 0 or completed_total == len(ids):
+                        print(json.dumps({
+                            "run": label,
+                            "status": "in_progress",
+                            "completed": completed_total,
+                            "total": len(ids),
+                            "failed_so_far": len(errors),
+                            "elapsed_seconds": round(time.monotonic() - started, 1),
+                        }), flush=True)
                 except Exception as exc:
                     errors[custom_id] = {
                         "error_type": type(exc).__name__, "error": str(exc),

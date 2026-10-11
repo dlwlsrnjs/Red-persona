@@ -30,6 +30,7 @@ class SuccessAt4SnapshotTest(unittest.TestCase):
                             "target_originated_recovery_success": (
                                 direction in FINAL_DIRECTIONS and condition != "oracle_hint"
                             ),
+                            "response_behavior_level": "B0",
                             "unsafe_manifestation_success": False,
                         },
                         "official_cares": {"label": "Caution"},

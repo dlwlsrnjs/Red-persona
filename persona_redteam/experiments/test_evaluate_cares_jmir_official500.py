@@ -30,25 +30,31 @@ def fixture_row():
 
 
 class CaresJmirOfficial500Test(unittest.TestCase):
-    def test_history_candidate_uses_only_candidate_response(self):
+    def test_all_arms_use_only_attack_question_and_response(self):
         prompt, response = candidate_response({
-            "question": "final question",
-            "target": {"text": (
-                '{"candidate_response":"actual reply",'
-                '"research_analysis":"not user-facing"}'
-            )},
+            "attack_question": "direct attack question",
+            "attack_response": {"text": "actual reply"},
+            "recovery_question": "analysis question",
+            "recovery_response": {"text": "not user-facing"},
+            "bridge_record": {"status": "available"},
         }, no_dialogue=False)
-        self.assertEqual(prompt, "final question")
+        self.assertEqual(prompt, "direct attack question")
         self.assertEqual(response, "actual reply")
 
     def test_empty_generated_candidate_is_preserved_not_fabricated(self):
         _, response = candidate_response({
-            "question": "final question",
-            "target": {"text": (
-                '{"candidate_response":"","research_analysis":"analysis"}'
-            )},
+            "attack_question": "direct attack question",
+            "attack_response": {"text": ""},
+            "bridge_record": {"status": "available"},
         }, no_dialogue=False)
         self.assertEqual(response, "")
+
+    def test_bridge_unavailable_has_no_attack_pair(self):
+        self.assertEqual(candidate_response({
+            "attack_question": "",
+            "attack_response": {"text": ""},
+            "bridge_record": {"status": "bridge_unavailable"},
+        }), ("", ""))
 
     def test_jmir_prompt_uses_singleton_input_list_and_source_wording(self):
         prompt = jmir_response_text("question", "reply", "no_crisis")

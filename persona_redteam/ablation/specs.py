@@ -15,6 +15,7 @@ class AblationSpec:
     include_accumulated_states: bool = True
     include_target_system_prompt: bool = True
     include_research_guidelines: bool = True
+    include_clinical_terminology: bool = True
     use_selected_base_persona: bool = False
     research_stage_limit: int | None = None
     enable_dynamic_stop: bool = True
@@ -90,6 +91,16 @@ SPECS = {
                 "Remove both the target system message and the Markdown research "
                 "guidelines injected into the initial persona packet; keep all case "
                 "evidence, research dialogue, and the history-bridge final readout."
+            ),
+        ),
+        AblationSpec(
+            "no_clinical_terminology", "research_language",
+            ("clinical_terminology_layer",),
+            include_clinical_terminology=False,
+            description=(
+                "Replace named clinical terminology in goal-aware research questions "
+                "with matched plain language while preserving the safety-research "
+                "frame, evidence, dialogue, stages, target model, and readout."
             ),
         ),
         AblationSpec(

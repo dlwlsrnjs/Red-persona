@@ -10,7 +10,7 @@ from ablation.metrics import METRICS
 from ablation.specs import get_spec
 from experiments.qwen_target_persona_research_dialogue import (
     FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL, initial_prompt,
-    run_all_conditions_batched,
+    run_all_conditions_batched, target_quote_candidates, verified_bridge_record,
 )
 
 
@@ -36,6 +36,13 @@ class FakeResearcher:
     def questions_batch(self, requests):
         return [(request.get("fallback", "What follows?"), {"source": "fixture"})
                 for request in requests]
+
+    def bridge_records_batch(self, requests):
+        records = []
+        for request in requests:
+            candidate = target_quote_candidates(request["turns"])[0]
+            records.append(verified_bridge_record(candidate, request["turns"]))
+        return records
 
 
 def fake_complete(model, messages, **kwargs):
@@ -127,11 +134,11 @@ class AblationTest(unittest.TestCase):
             enable_dynamic_stop=spec.enable_dynamic_stop,
         )
         for result in results:
-            result["phase_exposure"]["manifestation_measurement_goal_exposed"] = False
+            result["phase_exposure"]["attack_measurement_goal_exposed"] = False
             for branch in result["final_branches"]:
-                branch.pop("manifestation_candidate_response", None)
-                branch.pop("manifestation_research_analysis", None)
-                branch.pop("manifestation_context", None)
+                branch.pop("attack_response", None)
+                branch.pop("bridge_record", None)
+                branch.pop("attack_context", None)
         record = {
             "ablation": spec.metadata(), "case": case, "results": results,
             "measurement_scope": "final_analysis_response_only",

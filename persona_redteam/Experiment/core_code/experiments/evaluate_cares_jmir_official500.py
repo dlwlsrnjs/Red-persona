@@ -103,27 +103,22 @@ def _json_object(text: str) -> dict:
     return value
 
 
-def candidate_response(branch: dict, no_dialogue: bool) -> tuple[str, str]:
-    if no_dialogue:
-        prompt = branch.get("manifestation_question")
-        response = branch.get("manifestation_candidate_response")
-        if isinstance(response, dict):
-            response = response.get("text")
-    else:
-        prompt = branch.get("question")
-        target = branch.get("target") or {}
-        response = target.get("text") if isinstance(target, dict) else target
-        if isinstance(response, str):
-            try:
-                parsed = _json_object(response)
-            except (ValueError, TypeError, json.JSONDecodeError):
-                parsed = {}
-            if isinstance(parsed.get("candidate_response"), str):
-                response = parsed["candidate_response"]
+def candidate_response(branch: dict, no_dialogue: bool | None = None) -> tuple[str, str]:
+    """Read the one canonical attack pair for every experimental arm."""
+    del no_dialogue  # Kept only for callers pinned to the prior function signature.
+    prompt = branch.get("attack_question")
+    response = branch.get("attack_response")
+    if isinstance(response, dict):
+        response = response.get("text")
+    bridge = branch.get("bridge_record", {})
+    if bridge.get("status") == "bridge_unavailable":
+        if prompt not in (None, "") or response not in (None, ""):
+            raise ValueError("bridge_unavailable branch must not contain an attack pair")
+        return "", ""
     if not isinstance(prompt, str) or not prompt.strip():
-        raise ValueError("missing exact final target question")
+        raise ValueError("missing exact attack question")
     if not isinstance(response, str):
-        raise ValueError("missing candidate response")
+        raise ValueError("missing attack response")
     return prompt, response
 
 
@@ -166,11 +161,10 @@ def extract_arm_rows(spec: dict, case_ids: list[str]) -> list[dict]:
         branches = results[0]["final_branches"]
         if len(branches) != 4:
             raise ValueError(f"{path}: expected four final branches")
-        no_dialogue = spec["condition"] == "no_dialogue"
         directions = []
         for branch in branches:
             try:
-                prompt, response = candidate_response(branch, no_dialogue)
+                prompt, response = candidate_response(branch)
             except ValueError as exc:
                 raise ValueError(
                     f"{path} [{branch.get('direction', 'unknown')}]: {exc}"
@@ -189,10 +183,11 @@ def extract_arm_rows(spec: dict, case_ids: list[str]) -> list[dict]:
                 "prompt": prompt,
                 "candidate_response": response,
                 "candidate_response_nonempty": bool(response.strip()),
+                "bridge_available": bool(prompt.strip()),
                 "prompt_sha256": sha256_text(prompt),
                 "response_sha256": sha256_text(response),
                 "source_file": str(path.relative_to(ROOT)),
-                "input_mapping": "exact_final_target_question_only",
+                "input_mapping": "attack_question_and_attack_response_only",
             })
         if len(directions) != len(set(directions)):
             raise ValueError(f"{path}: duplicate final directions")
@@ -250,13 +245,15 @@ def cares_risk_messages(prompt: str) -> list[dict]:
     ]
 
 
-def evaluation_requests(rows: list[dict], evaluator_model: str) -> dict[str, list[dict]]:
+def evaluation_requests(rows: list[dict], evaluator_model: str,
+                        fixed_harm_level: int | None = None) -> dict[str, list[dict]]:
     protocol = load_jmir_protocol()
+    rows = [row for row in rows if row.get("bridge_available", True)]
     risks = {}
     for row in rows:
         risks.setdefault(row["prompt_sha256"], row["prompt"])
     return {
-        "cares_input_risk": [
+        "cares_input_risk": [] if fixed_harm_level is not None else [
             chat_request(
                 f"risk-{prompt_hash[:32]}", evaluator_model,
                 cares_risk_messages(prompt), max_tokens=400,
@@ -325,6 +322,8 @@ def cares_repair_requests(rows: list[dict], exact_outputs: dict[str, dict],
     """Repeat only max_tokens=4 truncations with an 8-token compatibility cap."""
     requests = []
     for row in rows:
+        if not row.get("bridge_available", True):
+            continue
         exact = exact_outputs[f"cares-{row['row_id']}"]
         try:
             parse_cares_label(exact["text"])
@@ -349,6 +348,8 @@ def cares_second_repair_requests(rows: list[dict], repair_outputs: dict[str, dic
     """Give rare non-label max8 outputs enough room without changing the prompt."""
     requests = []
     for row in rows:
+        if not row.get("bridge_available", True):
+            continue
         repair = repair_outputs.get(f"cares8-{row['row_id']}")
         if repair is None:
             continue
@@ -375,6 +376,8 @@ def cares_schema_repair_requests(rows: list[dict], second_outputs: dict[str, dic
     """Repair only persistent format violations; retain the official attempts."""
     requests = []
     for row in rows:
+        if not row.get("bridge_available", True):
+            continue
         prior = second_outputs.get(f"cares32-{row['row_id']}")
         if prior is None:
             continue
@@ -407,6 +410,8 @@ def jmir_schema_repair_requests(rows: list[dict], exact_outputs: dict[str, dict]
     protocol = load_jmir_protocol()
     requests = []
     for row in rows:
+        if not row.get("bridge_available", True):
+            continue
         for repeat in range(3):
             exact = exact_outputs[f"jmir-{row['row_id']}-{repeat}"]
             try:
@@ -454,21 +459,44 @@ def _request_metadata(result: dict) -> dict:
     )}
 
 
-def merge_results(rows: list[dict], raw: dict[str, dict[str, dict]]) -> list[dict]:
+def merge_results(rows: list[dict], raw: dict[str, dict[str, dict]],
+                  fixed_harm_level: int | None = None) -> list[dict]:
+    if fixed_harm_level is not None and fixed_harm_level not in SAFETY_SCORE_TABLE:
+        raise ValueError(f"invalid fixed CARES harmful level: {fixed_harm_level}")
     risk_by_hash = {}
     for row in rows:
+        if not row.get("bridge_available", True):
+            continue
         prompt_hash = row["prompt_sha256"]
         if prompt_hash in risk_by_hash:
             continue
-        result = raw["cares_input_risk"][f"risk-{prompt_hash[:32]}"]
-        risk_by_hash[prompt_hash] = {
-            "annotation": parse_harm_level(result["text"]),
-            "raw": result["text"],
-            "request": _request_metadata(result),
-        }
+        if fixed_harm_level is None:
+            result = raw["cares_input_risk"][f"risk-{prompt_hash[:32]}"]
+            risk_by_hash[prompt_hash] = {
+                "annotation": parse_harm_level(result["text"]),
+                "raw": result["text"],
+                "request": _request_metadata(result),
+            }
+        else:
+            risk_by_hash[prompt_hash] = {
+                "annotation": {
+                    "harmful_level": fixed_harm_level,
+                    "source": "fixed_preregistered_evaluation_level",
+                },
+                "raw": "",
+                "request": {},
+            }
     merged = []
     for row in rows:
         value = dict(row)
+        if not row.get("bridge_available", True):
+            value.update({
+                "evaluation_status": "bridge_unavailable",
+                "cares": None,
+                "jmir": None,
+            })
+            merged.append(value)
+            continue
         risk = risk_by_hash[row["prompt_sha256"]]
         cares_exact = raw["cares_response"][f"cares-{row['row_id']}"]
         cares = cares_exact
@@ -562,12 +590,26 @@ def mean(values: list[float]) -> float | None:
 
 
 def summarize_rows(rows: list[dict]) -> dict:
+    all_rows = rows
+    rows = [row for row in rows if row.get("cares") and row.get("jmir")]
     cares_labels = Counter(row["cares"]["response_label"] for row in rows)
     harm_levels = Counter(row["cares"]["input_harm_level"] for row in rows)
     jmir_scores = [row["jmir"]["evaluation"] for row in rows]
+    denominator = len(rows)
+    if not denominator:
+        return {
+            "n_responses": 0,
+            "n_cases": len({row["case_id"] for row in all_rows}),
+            "bridge_unavailable_count": len(all_rows),
+            "bridge_unavailable_rate": 1.0 if all_rows else None,
+            "cares": {},
+            "jmir": {},
+        }
     return {
         "n_responses": len(rows),
-        "n_cases": len({row["case_id"] for row in rows}),
+        "n_cases": len({row["case_id"] for row in all_rows}),
+        "bridge_unavailable_count": len(all_rows) - len(rows),
+        "bridge_unavailable_rate": (len(all_rows) - len(rows)) / len(all_rows),
         "cares": {
             "response_counts": dict(sorted(cares_labels.items())),
             "exact_max_tokens_4_parseable_count": sum(
@@ -586,9 +628,9 @@ def summarize_rows(rows: list[dict]) -> dict:
                 row["cares"]["response_repair_kind"] == "schema_only_followup"
                 for row in rows
             ),
-            "accept_rate": cares_labels["Accept"] / len(rows),
-            "caution_rate": cares_labels["Caution"] / len(rows),
-            "refuse_rate": cares_labels["Refuse"] / len(rows),
+            "accept_rate": cares_labels["Accept"] / denominator,
+            "caution_rate": cares_labels["Caution"] / denominator,
+            "refuse_rate": cares_labels["Refuse"] / denominator,
             "input_harm_level_counts": {
                 str(level): harm_levels[level] for level in range(4)
             },
@@ -638,10 +680,12 @@ def paired_condition_summary(rows: list[dict], target_prefix: str,
     all_keys = sorted(control)
     keys = [
         key for key in all_keys
-        if not require_nonempty or (
+        if (control[key].get("bridge_available", True) and
+            treatment[key].get("bridge_available", True)) and (
+            not require_nonempty or (
             control[key]["candidate_response_nonempty"] and
             treatment[key]["candidate_response_nonempty"]
-        )
+        ))
     ]
     ss_delta = [
         treatment[key]["cares"]["safety_score"] -
@@ -712,10 +756,10 @@ def summarize(rows: list[dict]) -> dict:
 def protocol_metadata(api_mode: str, evaluator_model: str) -> dict:
     return {
         "input_mapping": {
-            "unit": "exact final target question and exact candidate_response",
-            "jmir_conversation_input": "one-element JSON list containing the final target question",
+            "unit": "branch.attack_question and branch.attack_response.text",
+            "jmir_conversation_input": "one-element JSON list containing attack_question",
             "private_goal_used": False,
-            "research_analysis_used_as_response": False,
+            "recovery_response_used_as_attack_response": False,
             "adapted_mapping_not_original_benchmark_ground_truth": True,
         },
         "cares": {
@@ -781,6 +825,9 @@ def prepare(output_dir: Path, selection: Path, api_mode: str,
         "unique_final_prompts": len({row["prompt_sha256"] for row in rows}),
         "empty_candidate_responses": sum(
             not row["candidate_response_nonempty"] for row in rows
+        ),
+        "bridge_unavailable_rows": sum(
+            not row.get("bridge_available", True) for row in rows
         ),
         "rows_by_arm": dict(sorted(Counter(row["arm"] for row in rows).items())),
         "requests_and_cost": estimate_costs(requests, api_mode),

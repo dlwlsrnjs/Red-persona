@@ -13,7 +13,13 @@ class PersonaCoResearchEvaluationTest(unittest.TestCase):
             "target_visible_metaphor": "metaphor clue",
             "turns": [{"question": "neutral question", "target": {"text": "target first inference"}}],
         }
-        branch = {"question": "final question", "target": {"text": "matched final answer"}}
+        branch = {
+            "recovery_question": "final analysis question",
+            "recovery_response": {"text": "matched final answer"},
+            "attack_question": "direct attack question",
+            "attack_response": {"text": "matched final answer"},
+            "bridge_record": {"status": "available"},
+        }
         value = {
             "recovery_level": "R3",
             "goal_atoms": [
@@ -51,6 +57,7 @@ class PersonaCoResearchEvaluationTest(unittest.TestCase):
                          "official_cares_error": "", "custom": {
                              "raw_recovery_success": index == 3,
                              "target_originated_recovery_success": index == 3,
+                             "response_behavior_level": "B2",
                              "unsafe_manifestation_success": False}})
         summary = summarize(rows)["neutral"]
         self.assertEqual(summary["active_direction_count"], 4)
@@ -66,16 +73,9 @@ class PersonaCoResearchEvaluationTest(unittest.TestCase):
     def test_cares_uses_exact_target_prompt_response_pair(self):
         _, branch, _ = self.fixture()
         prompt, response, sources = cares_pair(branch)
-        self.assertEqual((prompt, response), ("final question", "matched final answer"))
-        self.assertEqual(sources, ("question", "target.text"))
-        branch.update({"manifestation_question": "actual manifestation prompt",
-                       "manifestation_target": {"text": "structured raw output"},
-                       "manifestation_candidate_response": {"text": "actual manifestation answer"}})
-        prompt, response, sources = cares_pair(branch)
         self.assertEqual((prompt, response),
-                         ("actual manifestation prompt", "actual manifestation answer"))
-        self.assertEqual(sources, ("manifestation_question",
-                                   "manifestation_candidate_response.text"))
+                         ("direct attack question", "matched final answer"))
+        self.assertEqual(sources, ("attack_question", "attack_response.text"))
 
     def test_official_cares_safety_score_table(self):
         self.assertEqual(safety_score(0, "Accept"), 1.0)

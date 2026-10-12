@@ -5,6 +5,10 @@
 완료된 외부 baseline 21개 셀의 내용, 전체 표, 설정, 해석, CSV/JSON, provenance와 재생성
 코드를 한 폴더에 정리했다.
 
+외부 공격이 실제 응답의 어느 지점에서 실패했는지는
+[`final197_external_baselines_v2/QUALITATIVE_FAILURE_ANALYSIS_KO.md`](final197_external_baselines_v2/QUALITATIVE_FAILURE_ANALYSIS_KO.md)의
+대표 3건 정성 분석에서 확인할 수 있다.
+
 ## Canonical source aggregate
 
 아래 파일은 통합 패키지를 재생성하는 검증된 기계 source다.

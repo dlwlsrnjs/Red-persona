@@ -1,5 +1,8 @@
 # Final-197 외부 baseline 결과 해석
 
+대표 실패 3건의 응답 수준 분석은
+[`QUALITATIVE_FAILURE_ANALYSIS_KO.md`](QUALITATIVE_FAILURE_ANALYSIS_KO.md)에 분리했다.
+
 ## 1. 기존 9종 비교
 
 GPT-4o target에서 HarmBench 상위는 PAIR 29/197(14.72%), TAP 28/197(14.21%), Red

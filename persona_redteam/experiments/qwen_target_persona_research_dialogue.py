@@ -3159,10 +3159,10 @@ def run_all_conditions_batched(case, target_model, researcher, target_workers=25
     research_stages = STAGES[:research_stage_limit]
     if research_stage_limit is None:
         research_stages = STAGES
-    effective_readout_protocol = (
-        LEGACY_FINAL_READOUT_PROTOCOL
-        if not research_stages else final_readout_protocol
-    )
+    # A controlled no-research ablation must hold the four-branch readout
+    # protocol fixed. Its final questions can anchor to the initial target
+    # analysis; only the seven intervening research turns are removed.
+    effective_readout_protocol = final_readout_protocol
     conditions = ["neutral", "structural_hint", "oracle_hint"]
     initial_history, first = target_initial_history(case)
     initial_answer = complete(target_model, initial_history, max_tokens=650)

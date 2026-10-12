@@ -41,6 +41,9 @@
   GPT-5.4-mini와 GPT-6-luna는 **0%**였다.
 - 코사인 상위 타 샘플 이력의 short 결합@4는 **89.85%**로 자체 이력 95.94%보다는
   낮지만 무이력 83.76%보다 높았다. 비유사 이력은 77.16%로 오히려 방해가 됐다.
+- 장문 조건에서는 유사/비유사 전이 이력의 GOAL 복원이 **76.65%/47.21%**였지만
+  엄격 결합@4는 **56.35%/31.98%**였다. GOAL 복원과 최종 행동 성공이 분리됨을
+  확인했고, 장문 대화가 잘못된 이력을 충분히 교정한다는 가설은 지지되지 않았다.
 
 ## 원본 결과 진입점
 
@@ -51,4 +54,3 @@
 - 표현공간: `persona_redteam/result/OURS/qwen_semantic_harm_geometry_final197_v1/`
 - 교차모델: `persona_redteam/result/OURS/final197_best_short_cross_model_v1/`
 - 이력 전이: `persona_redteam/result/OURS/final197_history_transfer_cosine_v1/`
-

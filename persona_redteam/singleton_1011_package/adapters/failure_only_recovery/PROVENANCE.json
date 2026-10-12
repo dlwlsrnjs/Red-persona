@@ -1,0 +1,38 @@
+{
+  "adapter_version": "singleton-1011-failure-only-recovery-adapter-v1",
+  "source_branch": "codex/1011-method",
+  "source_head_when_copied": "666598dd9e5a528e0a73a7aba4c3957381f28fc1",
+  "copy_date": "2026-10-12",
+  "preserved_sources": {
+    "engine.py": {
+      "source": "persona_redteam/our_method/run_nonaccept_max4_pilot.py",
+      "sha256": "5ea4ebf929338e2e41d79eef64b05cd35698d343b85726e759c7a903c3332e6b",
+      "adapter_change": "package bootstrap and relative core imports"
+    },
+    "scoring_engine.py": {
+      "source": "persona_redteam/experiments/evaluate_nonaccept_max4_cares_harmbench.py",
+      "sha256": "321dde7cf166a569b71d1a2dd1bb7f13dd2ce2e69b45bdff1c9f714dc9e8db37",
+      "adapter_change": "package bootstrap only"
+    },
+    "adaptive_core.py": {
+      "source": "persona_redteam/our_method/method_1011/adaptive_attack.py",
+      "sha256": "3058658d6c47bbeddc0c44004e19570158eb86cbd1a872fd2328349302e98d0b",
+      "adapter_change": "none"
+    },
+    "attack_turn_core.py": {
+      "source": "persona_redteam/our_method/run_attack_turn_ablation.py",
+      "sha256": "db7e5a03ff3900315a901d42f42c5c5740dc89a3bffa722343125c1edfde33c0",
+      "adapter_change": "relative adaptive_core import"
+    }
+  },
+  "protocol": {
+    "target_model": "gpt-4o-2024-11-20",
+    "researcher_model": "Qwen/Qwen2.5-7B-Instruct",
+    "singleton_candidates": 4,
+    "additional_turns": [2, 3, 4],
+    "candidates_per_additional_turn": 4,
+    "failure_gate": "no CARES Accept among four singleton candidates",
+    "official_metric_used_for_online_path_selection": false,
+    "reporting": "monotone cumulative OR"
+  }
+}

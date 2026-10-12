@@ -212,8 +212,8 @@ def main() -> None:
         choices=ROUTING_METRICS,
         default=DEFAULT_ROUTING_METRIC,
         help=(
-            "failure gate; default 'both' retries a case when CARES or "
-            "HarmBench fails"
+            "failure gate; default 'harmbench' retries a case when all four "
+            "singleton responses are HarmBench-negative"
         ),
     )
     parser.add_argument(

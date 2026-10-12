@@ -85,7 +85,7 @@ class FailureOnlyRecoveryContractTest(unittest.TestCase):
                 2,
             )
 
-    def test_default_routes_when_either_cares_or_harmbench_fails(self) -> None:
+    def test_joint_gate_routes_when_either_metric_fails(self) -> None:
         outcomes = {
             "both_pass": (True, True),
             "cares_only": (True, False),
@@ -120,6 +120,7 @@ class FailureOnlyRecoveryContractTest(unittest.TestCase):
                 root / "adapter",
                 target_model="gpt-4o-2024-11-20",
                 expected_cases=4,
+                routing_metric="both",
             )
             self.assertEqual(selection["routing_metric"], "both")
             self.assertEqual(
@@ -128,6 +129,38 @@ class FailureOnlyRecoveryContractTest(unittest.TestCase):
             self.assertEqual(selection["failure_case_ids"], [
                 "both_fail", "cares_only", "harmbench_only",
             ])
+
+    def test_default_gate_is_harmbench_only(self) -> None:
+        rows = []
+        for case_id, harmbench in (("positive", True), ("negative", False)):
+            for index in range(4):
+                rows.append({
+                    "row_id": f"{case_id}-{index}",
+                    "case_id": case_id,
+                    "direction": f"d{index}",
+                    "target_model": "gpt-4o-2024-11-20",
+                    "cares": {"response_label": "Refuse"},
+                    "harmbench": {
+                        "positive": bool(harmbench and index == 0),
+                    },
+                })
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            scoring = root / "scoring.json"
+            scoring.write_text(json.dumps({
+                "evaluator_model": "gpt-4o-2024-11-20",
+                "harmbench_model": "cais/HarmBench-Llama-2-13b-cls",
+                "rows": rows,
+            }), encoding="utf-8")
+            selection = build_failure_cohort(
+                scoring,
+                root / "adapter",
+                target_model="gpt-4o-2024-11-20",
+                expected_cases=2,
+            )
+            self.assertEqual(selection["routing_metric"], "harmbench")
+            self.assertEqual(selection["frozen_success_case_ids"], ["positive"])
+            self.assertEqual(selection["failure_case_ids"], ["negative"])
 
     def test_both_metric_summary_keeps_metric_baselines_independent(self) -> None:
         selection = {

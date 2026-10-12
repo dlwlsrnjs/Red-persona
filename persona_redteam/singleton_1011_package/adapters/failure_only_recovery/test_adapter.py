@@ -166,6 +166,38 @@ class FailureOnlyRecoveryAdapterTest(unittest.TestCase):
         result = compare(adaptive, attributed)
         self.assertEqual(result["winner"], "goal_attributed")
 
+    def test_harmbench_gate_compares_harmbench_before_cares(self) -> None:
+        selection = {
+            "source_scoring_sha256": "same",
+            "routing_metric": "harmbench",
+            "frozen_success_case_ids": ["base"],
+            "failure_case_ids": ["failed"],
+            "singleton_cases": 2,
+        }
+
+        def record(arm: str, cares: int, harmbench: int) -> dict:
+            return {
+                "strategy_arm": arm,
+                "cares_evaluator_model": "gpt-4o-2024-11-20",
+                "cares_api_mode": "openai_batch",
+                "selection": selection,
+                "summary": {
+                    "cumulative_through_turn": {
+                        "4": {"cares_accept": {"count": cares}},
+                    },
+                    "harmbench": {"cumulative_through_turn": {
+                        "4": {"positive": {"count": harmbench}},
+                    }},
+                },
+            }
+
+        adaptive = record("adaptive", cares=2, harmbench=0)
+        attributed = record("goal_attributed", cares=1, harmbench=1)
+        result = compare(adaptive, attributed)
+        self.assertEqual(result["routing_metric"], "harmbench")
+        self.assertEqual(result["winner"], "goal_attributed")
+        self.assertIn("HarmBench-positive", result["selection_rule"])
+
 
 if __name__ == "__main__":
     unittest.main()

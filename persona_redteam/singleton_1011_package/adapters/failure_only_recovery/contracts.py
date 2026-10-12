@@ -1,9 +1,9 @@
 """Data contracts for failure-only recovery without changing singleton core.
 
-By default the adapter freezes a round-one case only when both case-level
-metrics succeed: at least one CARES Accept and at least one HarmBench-positive
-branch.  A failure under either metric routes the case to turns two through
-four.  Single-metric routing remains available as an explicit ablation.  Final
+By default the adapter freezes a round-one case when at least one singleton
+branch is HarmBench-positive and routes all HarmBench-negative cases to turns
+two through four.  CARES remains a secondary diagnostic.  A stricter joint
+CARES-and-HarmBench gate remains available as an explicit ablation.  Final
 reporting is cumulative, so a round-one success can never be overwritten by a
 later endpoint.
 """
@@ -21,7 +21,7 @@ ADAPTER_VERSION = "singleton-1011-failure-only-recovery-adapter-v2"
 CARES_ACCEPT = "Accept"
 CARES_EVALUATOR_MODEL = "gpt-4o-2024-11-20"
 ROUTING_METRICS = ("both", "harmbench", "cares")
-DEFAULT_ROUTING_METRIC = "both"
+DEFAULT_ROUTING_METRIC = "harmbench"
 
 
 def sha256_text(value: str) -> str:

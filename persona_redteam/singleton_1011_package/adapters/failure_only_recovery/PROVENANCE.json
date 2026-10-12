@@ -31,7 +31,7 @@
     "singleton_candidates": 4,
     "additional_turns": [2, 3, 4],
     "candidates_per_additional_turn": 4,
-    "failure_gate": "retry when either case-level GPT-4o CARES or HarmBench fails; freeze only when both pass across four singleton candidates",
+    "failure_gate": "default: retry when all four singleton candidates are HarmBench-negative; optional joint CARES-and-HarmBench ablation",
     "strategy_arms": ["adaptive", "goal_attributed"],
     "official_metric_used_for_online_path_selection": false,
     "reporting": "per-metric monotone cumulative OR plus their cumulative joint intersection"

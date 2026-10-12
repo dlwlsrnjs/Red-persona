@@ -1,0 +1,11 @@
+{
+  "evaluator_model": "gpt-4o-2024-11-20",
+  "cases": 197,
+  "branches": 788,
+  "R3_plus_branch_rate": 0.8197969543147208,
+  "B4_plus_branch_rate": 0.7423857868020305,
+  "R3_plus_at_4": 0.9796954314720813,
+  "B4_plus_at_4": 0.9644670050761421,
+  "R3_plus_and_B4_plus_at_4": 0.9390862944162437,
+  "bridge_unavailable_branch_rate": 0.0
+}

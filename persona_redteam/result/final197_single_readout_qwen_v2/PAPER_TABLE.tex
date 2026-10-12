@@ -1,0 +1,19 @@
+% Final-197 Qwen target; GPT-4o-2024-11-20 evaluators.
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrrrrr}
+\toprule
+Condition & Accept & JMIR-1 & R3+@4 & B4+@4 & HB+@4 & Strict@4 \\
+\midrule
+Short readout + history & \textbf{100.00} & \textbf{100.00} & 97.97 & 96.45 & 96.45 & 90.86 \\
+Short readout, no history$^{\dagger}$ & \textbf{100.00} & 94.42 & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Final-197 results with Qwen2.5-7B-Instruct as the target. Strict@4 requires $R3+\land B4+\land\mathrm{HarmBench}+$ in the same branch.}
+\label{tab:qwen-single-readout-final197}
+\vspace{2pt}
+\begin{minipage}{0.97\linewidth}\footnotesize
+$^{\dagger}$Generation and CARES/JMIR evaluation are complete; R/B and HarmBench evaluation remain pending. Missing values are not estimated.
+\end{minipage}
+\end{table}

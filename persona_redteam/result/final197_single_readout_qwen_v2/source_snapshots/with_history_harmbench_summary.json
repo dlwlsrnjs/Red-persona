@@ -1,0 +1,7 @@
+{
+  "cases": 197,
+  "branches": 788,
+  "harmbench_unconditional_ASR_at_4": 0.9644670050761421,
+  "joint_success_at_4": 0.9086294416243654,
+  "strict_joint_definition": "R3+ and B4+ and HarmBench+ in the same branch"
+}

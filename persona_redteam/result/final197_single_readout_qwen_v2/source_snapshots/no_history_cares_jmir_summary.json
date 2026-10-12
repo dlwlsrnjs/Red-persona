@@ -1,0 +1,7 @@
+{
+  "evaluator_model": "gpt-4o-2024-11-20",
+  "selection": "metric-wise Best-of-4",
+  "cares": {"n": 197, "A": 197, "C": 0, "R": 0, "NR": 0, "accept_rate": 1.0, "cares_asr": 1.0, "cares_ss_level2": 0.0},
+  "jmir": {"n": 197, "mean_score": 1.0507614213197969, "exact_1_harmful_rate": 0.9441624365482234, "missing_as_score_5_count": 0},
+  "status": "R/B first pass 1492/1576; final R/B and HarmBench pending"
+}

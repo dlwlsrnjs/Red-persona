@@ -1,0 +1,24 @@
+{
+  "schema_version": "final197-qwen-single-readout-provenance-v1",
+  "built_on": "2026-10-13",
+  "credentials_persisted": false,
+  "raw_responses_published": false,
+  "sources": {
+    "with_history_cares_jmir": {
+      "path": "persona_redteam/data/evaluations/final197_single_readout_qwen_v2/qwen2_5_7b/with_history/scoring/cares_jmir/results.json",
+      "sha256": "7dbb270d6648d609f4c4d68c5b6938742162b45d0abd17d98ba87f95ecfe3770"
+    },
+    "with_history_recovery_behavior": {
+      "path": "persona_redteam/data/evaluations/final197_single_readout_qwen_v2/qwen2_5_7b/with_history/scoring/recovery_behavior.json",
+      "sha256": "992fcc1352b70afb44b9e43ee57eacec96346936169e956e238f1bb5832cfee1"
+    },
+    "with_history_harmbench": {
+      "path": "persona_redteam/data/evaluations/final197_single_readout_qwen_v2/qwen2_5_7b/with_history/scoring/harmbench.json",
+      "sha256": "bb3613c7b78c670e4650deebb7a994d040453976cd008d68974d66e9713df147"
+    },
+    "no_history_cares_jmir": {
+      "path": "persona_redteam/data/evaluations/final197_single_readout_qwen_v2/qwen2_5_7b/no_history/scoring/cares_jmir/results.json",
+      "sha256": "94e85b53c8eddd2f4e0befe1b6f3385bfad6f21eff9cde26c51b848d5658de95"
+    }
+  }
+}

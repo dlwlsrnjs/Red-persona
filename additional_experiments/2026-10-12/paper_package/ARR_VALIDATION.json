@@ -1,0 +1,13 @@
+{
+  "status": "pass",
+  "files_checked": 3,
+  "labels": 21,
+  "references": 9,
+  "unresolved_references": [],
+  "referenced_figures": 5,
+  "missing_figures": [],
+  "balanced_braces": true,
+  "balanced_environments": true,
+  "placeholder_tokens_found": false,
+  "note": "Structural validation; no TeX engine is installed in the execution environment."
+}

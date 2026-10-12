@@ -7,6 +7,10 @@ LaTeX 표, 벡터 그림, 집계 데이터, 캡션과 재현 스크립트로 묶
 
 ## 바로 사용할 파일
 
+- `ARR_PREAMBLE_COPYPASTE.tex`: ARR 원고 preamble에 그대로 붙이는 패키지·그림 경로.
+- `ARR_RESULTS_SECTION_COPYPASTE.tex`: ARR 본문 Results에 그대로 붙이는 완성 절.
+- `ARR_APPENDIX_SECTION_COPYPASTE.tex`: ARR appendix에 그대로 붙이는 완성 절.
+- `COPYPASTE_GUIDE_KO.md`: 세 파일을 붙이는 순서와 최소 확인사항.
 - `appendix_additional_experiments.tex`: 독립 실행형 LaTeX 문서.
 - `tables/paper_tables.tex`: 본문 또는 부록에 `\input`할 수 있는 표 6개.
 - `figures.tex`: 그림 5개의 LaTeX figure 환경.
@@ -68,4 +72,3 @@ python scripts/generate_paper_package.py
    입증하지 않는다.
 5. short 조건은 7단계 GOAL 복원 게이트를 실행하지 않았으므로 GOAL 복원률은 0%가
    아니라 N/A다.
-

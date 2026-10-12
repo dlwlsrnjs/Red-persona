@@ -91,12 +91,22 @@ def style() -> None:
         "figure.dpi": 140,
         "savefig.dpi": 320,
         "savefig.bbox": "tight",
+        "svg.hashsalt": "final197-paper-artifacts-v1",
     })
 
 
 def save_figure(fig, stem: str) -> None:
+    metadata = {
+        "pdf": {"Creator": "Final-197 paper artifact generator", "CreationDate": None, "ModDate": None},
+        "svg": {"Creator": "Final-197 paper artifact generator", "Date": None},
+        "png": {"Software": "Final-197 paper artifact generator"},
+    }
     for suffix in ("pdf", "svg", "png"):
-        fig.savefig(FIGURES / f"{stem}.{suffix}", facecolor="white")
+        output = FIGURES / f"{stem}.{suffix}"
+        fig.savefig(output, facecolor="white", metadata=metadata[suffix])
+        if suffix == "svg":
+            cleaned = "\n".join(line.rstrip() for line in output.read_text(encoding="utf-8").splitlines()) + "\n"
+            output.write_text(cleaned, encoding="utf-8")
     plt.close(fig)
 
 

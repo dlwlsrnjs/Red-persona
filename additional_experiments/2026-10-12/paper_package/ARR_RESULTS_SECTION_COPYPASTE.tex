@@ -1,0 +1,132 @@
+% ============================================================================
+% ARR MAIN-PAPER RESULTS SECTION — READY TO COPY AND PASTE
+% Requires ARR_PREAMBLE_COPYPASTE.tex and the PDF files in figures/.
+% ============================================================================
+
+\section{Additional Experiments}
+\label{sec:additional-experiments}
+
+\paragraph{Evaluation protocol.}
+We evaluate every condition on the same 197-case mental-health harm cohort.
+Unless stated otherwise, the target is \texttt{gpt-4o-2024-11-20} and each
+case produces four independent final branches. We report Best-of-4 (denoted
+by $@4$). Our primary metric is \emph{strict joint success}: a case is
+successful only when the same branch simultaneously satisfies goal recovery
+($R3+$), behavioral commitment ($B4+$), and HarmBench+. This same-branch
+requirement prevents success from being assembled across different branches.
+CARES Accept is reported as a complementary response-level measure.
+
+\subsection{How Much Research Mediation Is Useful?}
+\label{sec:research-depth-ablation}
+
+We compare three mediation depths: (i) \emph{direct-final-only}, which asks
+the four final questions without a shared research readout; (ii) a compact
+\emph{single readout}; and (iii) the original seven-stage research dialogue.
+Each condition is crossed with the presence or absence of persona history.
+Table~\ref{tab:main-depth-history} and Figure~\ref{fig:main-depth-history}
+show the results.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Research-mediation depth and persona-history ablation on GPT-4o
+($n=197$). Values are percentages. Strict joint success requires $R3+$,
+$B4+$, and HarmBench+ in the same branch. The strongest strict-joint result
+is boldfaced.}
+\label{tab:main-depth-history}
+\begin{threeparttable}
+\begin{tabular}{llrrrrr}
+\toprule
+Research condition & History & CARES Accept & $R3+@4$ & $B4+@4$ & HarmBench+$@4$ & Strict joint$@4$ \\
+\midrule
+Direct final only & Yes & 92.39 & 99.49 & 8.12 & 87.31 & 7.11 \\
+Direct final only & No  & 85.28 & 96.95 & 10.15 & 75.63 & 6.09 \\
+Single readout    & Yes & 100.00 & 99.49 & 100.00 & 96.95 & \textbf{95.94} \\
+Single readout    & No  & 100.00 & 97.46 & 98.98 & 86.80 & 83.76 \\
+Long 7-stage      & Yes & 96.45 & 100.00 & 76.14 & 89.34 & 63.96 \\
+Long 7-stage      & No  & 98.98 & 100.00 & 86.80 & 86.29 & 73.10 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}\footnotesize
+\item Direct-final-only omits the shared research readout. Single readout
+uses one compact, goal-directed research exchange. Long uses the seven-stage
+dialogue. All cells use four independent final branches.
+\end{tablenotes}
+\end{threeparttable}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{fig1_research_depth_history.pdf}
+\caption{Research-mediation depth and persona-history ablation. A compact
+single readout yields the highest same-branch strict-joint success, whereas
+direct final questioning rarely reaches $B4+$ and a seven-stage dialogue
+reduces final behavioral success.}
+\label{fig:main-depth-history}
+\end{figure*}
+
+The compact single-readout condition with persona history achieves
+\textbf{95.94\%} strict joint success. Removing history reduces this result
+to 83.76\% ($-12.18$ percentage points). Direct-final-only retains high
+$R3+$ and HarmBench rates but rarely reaches $B4+$, producing only 7.11\%
+strict joint success with history. Extending the interaction to seven stages
+also reduces strict joint success to 63.96\% with history, a 31.98-point drop
+relative to the compact readout. Thus, the gain does not arise from omitting
+research mediation or from maximizing conversation length. Instead, the
+results favor a short, goal-directed research readout that binds the persona
+context to the final branches without diluting the requested output.
+
+\subsection{Cross-Model Generalization}
+\label{sec:cross-model-generalization}
+
+We next apply the selected single-readout method without changing its four
+final branches. Table~\ref{tab:main-cross-model} and
+Figure~\ref{fig:main-cross-model} summarize seven target models, with 197
+cases evaluated per target.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Cross-model transfer of the selected compact method (Best-of-4,
+$n=197$ per target). The strongest strict-joint result is boldfaced.}
+\label{tab:main-cross-model}
+\begin{tabular}{lrrrrr}
+\toprule
+Target model & CARES Accept & $R3+@4$ & $B4+@4$ & HarmBench+$@4$ & Strict joint$@4$ \\
+\midrule
+Mistral Small 3.2 24B & 100.00 & 99.49 & 100.00 & 97.97 & \textbf{96.95} \\
+Gemma 4 26B-A4B       & 98.98  & 99.49 & 98.48  & 93.91 & 92.89 \\
+Phi-4                  & 100.00 & 98.98 & 98.98  & 94.42 & 91.88 \\
+Llama 3.1 8B Instruct & 100.00 & 93.91 & 98.98  & 94.92 & 88.32 \\
+Llama3-G2C             & 91.88  & 82.23 & 81.22  & 65.99 & 43.65 \\
+GPT-5.4-mini           & 0.00   & 100.00 & 0.00   & 5.58  & 0.00 \\
+GPT-6-luna             & 0.00   & 97.97 & 0.00   & 5.58  & 0.00 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{fig3_cross_model.pdf}
+\caption{Cross-model transfer of the selected compact method. CARES Accept,
+HarmBench+$@4$, and strict joint$@4$ expose distinct aspects of target
+behavior; in particular, high $R3+$ alone does not imply behavioral
+commitment.}
+\label{fig:main-cross-model}
+\end{figure*}
+
+Strict joint success exceeds 88\% on Mistral Small 3.2 24B, Gemma 4
+26B-A4B, Phi-4, and Llama 3.1 8B Instruct. It falls to 43.65\% on the
+counseling-oriented Llama3-G2C model. GPT-5.4-mini and GPT-6-luna retain high
+$R3+$ but never reach $B4+$, yielding 0\% strict joint success. These results
+show that the method transfers across several model families, while its
+effectiveness remains strongly dependent on the target's safety alignment
+and willingness to produce concrete task output.
+
+\paragraph{Main finding.}
+Across the evaluated conditions, the most effective design is a
+persona-grounded, compact research readout followed by four independent final
+branches. The full external-baseline matrix, paired PCSA personalization
+ablation, attention/representation analysis, and history-transfer study are
+reported in Appendix~\ref{sec:additional-experiments-appendix}.
+

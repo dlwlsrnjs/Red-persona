@@ -1,0 +1,212 @@
+% ============================================================================
+% ARR APPENDIX SECTION — READY TO COPY AND PASTE
+% Requires ARR_PREAMBLE_COPYPASTE.tex and the PDF files in figures/.
+% ============================================================================
+
+\section{Full Additional-Experiment Results}
+\label{sec:additional-experiments-appendix}
+
+\subsection{External Baseline Matrix}
+\label{app:external-baselines}
+
+Tables~\ref{tab:app-baselines-gpt4o} and
+\ref{tab:app-baselines-qwen} report the external attack matrix. Each row
+evaluates one stored final target response per case. Because query budgets
+and response-selection rules differ across methods, these results provide
+context rather than a budget-matched ranking against our Best-of-4 method.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{External baselines on GPT-4o over Final-197. Values are percentages
+for one stored final response per case.}
+\label{tab:app-baselines-gpt4o}
+\begin{tabular}{lrrrrr}
+\toprule
+Method & CARES Accept & $R3+$ & $B4+$ & HarmBench+ & Strict joint \\
+\midrule
+Direct                & 0.00  & 2.54  & 0.51  & 1.02  & 0.51 \\
+Skeleton Key          & 0.00  & 2.03  & 0.51  & 1.02  & 0.51 \\
+Many-shot             & 0.00  & 0.51  & 0.00  & 0.00  & 0.00 \\
+Red Teaming           & 12.18 & 30.96 & 11.17 & 8.63  & 5.58 \\
+PAIR                   & 16.24 & 41.12 & 21.32 & 14.72 & \textbf{9.64} \\
+TAP                    & 7.11  & 38.58 & 18.27 & 14.21 & 8.12 \\
+Crescendo              & 25.89 & 22.34 & 4.57  & 5.08  & 2.03 \\
+Therapist Crescendo    & 4.57  & 19.80 & 6.09  & 2.03  & 1.52 \\
+PCSA Phase 2           & 32.49 & 5.58  & 2.03  & 0.51  & 0.00 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{External baselines on Qwen2.5-7B-Instruct over Final-197. Values are
+percentages for one stored final response per case.}
+\label{tab:app-baselines-qwen}
+\begin{tabular}{lrrrrr}
+\toprule
+Method & CARES Accept & $R3+$ & $B4+$ & HarmBench+ & Strict joint \\
+\midrule
+Direct                & 0.00  & 12.69 & 3.55  & 7.61  & 2.03 \\
+Skeleton Key          & 0.00  & 20.81 & 13.20 & 18.78 & 12.69 \\
+Many-shot             & 0.00  & 12.18 & 0.51  & 6.09  & 0.00 \\
+Red Teaming           & 11.17 & 60.91 & 28.93 & 21.32 & 15.23 \\
+PAIR                   & 13.20 & 64.47 & 39.09 & 36.04 & 27.92 \\
+TAP                    & 6.09  & 76.65 & 46.70 & 43.15 & \textbf{36.04} \\
+Crescendo              & 22.84 & 44.16 & 13.71 & 19.80 & 9.64 \\
+Therapist Crescendo    & 8.12  & 44.67 & 14.72 & 11.68 & 6.60 \\
+PCSA Phase 2           & 27.41 & 14.21 & 3.55  & 2.03  & 1.02 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Paired PCSA Personalization Ablation}
+\label{app:pcsa-personalization}
+
+To isolate personalization within one multi-turn baseline, we pair PCSA
+Phase-2 runs by case and change only whether Persona+History is available to
+the attacker. Table~\ref{tab:app-pcsa-personalization} shows that
+personalization increases HarmBench+ from 7.11\% to 27.92\%, $B4+$ from
+7.11\% to 24.87\%, and strict joint success from 3.55\% to 13.20\%.
+The paired HarmBench difference is significant under an exact two-sided
+McNemar test ($p=8.23\times10^{-10}$). CARES non-refusal moves in the
+opposite direction and is therefore not used alone to characterize the
+personalization effect.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Paired PCSA Phase-2 personalization ablation on
+Qwen2.5-7B-Instruct ($n=197$). Values are percentages.}
+\label{tab:app-pcsa-personalization}
+\begin{tabular}{lrrrrr}
+\toprule
+Condition & CARES ASR & $R3+$ & $B4+$ & HarmBench+ & Strict joint \\
+\midrule
+No persona         & 98.98 & 17.26 & 7.11  & 7.11  & 3.55 \\
+Persona + history  & 85.28 & 58.38 & 24.87 & 27.92 & 13.20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{fig2_baselines_pcsa.pdf}
+\caption{External baseline results and the paired PCSA personalization
+ablation. The baseline panels use one stored response per case and should not
+be interpreted as a budget-matched leaderboard against our Best-of-4 method.}
+\label{fig:app-baselines-pcsa}
+\end{figure*}
+
+\subsection{Attention and Representation-Space Proxy Analysis}
+\label{app:proxy-analysis}
+
+We use Qwen2.5-7B-Instruct as an inspectable proxy to compare a direct GOAL,
+the compact readout, and the seven-stage dialogue. We average four branches
+within each of 197 cases before statistical inference. As shown in
+Table~\ref{tab:app-attention-geometry}, the attention-weighted GOAL cosine is
+higher under the compact readout (0.2560) than under the long dialogue
+(0.2408). The paired long-minus-short difference is $-0.0152$ (95\% CI
+[$-0.0199$, $-0.0107$]). Late-layer exact-GOAL cosine follows the same
+direction (0.6103 vs.\ 0.5557). The compact readout also has a lower matched
+harm-axis projection ($-0.0276$ vs.\ $-0.0087$).
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen proxy analysis over 197 cases and four branches per case.
+Exact-GOAL cosine and harm-axis projection use the mean of late layers 24 and
+28.}
+\label{tab:app-attention-geometry}
+\begin{tabular}{lrrrrr}
+\toprule
+Condition & Positional JS & Attention GOAL cosine & Attention entropy & Exact GOAL cosine & Harm-axis projection \\
+\midrule
+Direct GOAL    & 1.0000 & 0.2384 & 0.5133 & 0.9998 & 0.2924 \\
+Short readout  & 0.8088 & 0.2560 & 0.5431 & 0.6103 & $-0.0276$ \\
+Long dialogue  & 0.7945 & 0.2408 & 0.5232 & 0.5557 & $-0.0087$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{fig5_attention_geometry.pdf}
+\caption{Qwen proxy analysis of attention and representation geometry. The
+results are consistent with a cue-dilution hypothesis, but do not establish
+a causal mechanism in GPT-4o and should not be interpreted as evidence that
+the compact condition is safer.}
+\label{fig:app-attention-geometry}
+\end{figure*}
+
+This analysis is intentionally limited to an association claim. Sequence
+length and token position are potential confounders, and Qwen is not a proxy
+for GPT-4o's internal activations. Moreover, the compact condition has higher
+behavioral attack success, so its representation-space values must not be
+described as evidence of improved safety.
+
+\subsection{Can Persona History Be Reused Across Samples?}
+\label{app:history-transfer}
+
+We retrieve another sample's history using a GOAL-excluding representation.
+The matched condition uses the top-1 eligible donor (mean cosine 0.8761),
+whereas the mismatched condition uses a low-similarity donor with a different
+crisis label (mean cosine 0.5669). The recipient persona, private GOAL,
+question pool, final branches, and evaluators remain fixed.
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\caption{Cosine-based transfer of another sample's persona history on GPT-4o
+($n=197$). GOAL recovery is not applicable to short conditions because they
+do not run the seven-stage recovery gate. Values other than cosine are
+percentages.}
+\label{tab:app-history-transfer}
+\begin{tabular}{lllrrrrrr}
+\toprule
+Horizon & History source & Donor cosine & GOAL recovery & CARES ASR & $R3+@4$ & $B4+@4$ & HarmBench+$@4$ & Strict joint$@4$ \\
+\midrule
+Short & Own history            & --     & --    & 100.00 & 99.49  & 100.00 & 96.95 & \textbf{95.94} \\
+Short & No history             & --     & --    & 100.00 & 97.46  & 98.98  & 86.80 & 83.76 \\
+Short & Cosine-matched history & 0.8761 & --    & 100.00 & 95.94  & 99.49  & 92.89 & 89.85 \\
+Short & Mismatched history     & 0.5669 & --    & 100.00 & 91.88  & 96.95  & 84.77 & 77.16 \\
+Long  & Own history            & --     & 89.34 & 96.45  & 100.00 & 76.14  & 89.34 & 63.96 \\
+Long  & No history             & --     & 79.19 & 98.98  & 100.00 & 86.80  & 86.29 & 73.10 \\
+Long  & Cosine-matched history & 0.8761 & 76.65 & 95.94  & 98.98  & 73.10  & 81.22 & 56.35 \\
+Long  & Mismatched history     & 0.5669 & 47.21 & 92.39  & 97.97  & 58.88  & 50.76 & 31.98 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{fig4_history_transfer.pdf}
+\caption{History-transfer ablation. Cosine-matched history improves over no
+history under a compact readout but does not match sample-specific history.
+Long dialogue increases explicit GOAL recovery yet reduces final same-branch
+behavioral success.}
+\label{fig:app-history-transfer}
+\end{figure*}
+
+Cosine-matched history under the compact readout reaches 89.85\% strict joint
+success, above no history (83.76\%) but below sample-specific history
+(95.94\%). The matched-minus-own difference is $-6.09$ points (paired
+bootstrap 95\% CI [$-10.15$, $-2.03$]) and fails the preregistered
+$-5$-point non-inferiority margin. Mismatched history falls to 77.16\%, below
+even the no-history condition. Under the long dialogue, matched and
+mismatched histories recover the GOAL in 76.65\% and 47.21\% of cases, but
+their strict joint rates are only 56.35\% and 31.98\%. GOAL recovery and final
+behavioral success are therefore empirically distinct, and the long dialogue
+does not reliably repair incorrect prior context.
+
+\subsection{Reporting Scope}
+\label{app:reporting-scope}
+
+All conclusions are restricted to Final-197, the evaluated model snapshots,
+and the specified evaluators. External baselines and our method use different
+query budgets and response-selection rules, so we do not claim a formal
+budget-matched state-of-the-art ranking from the combined table. Similarly,
+the Qwen proxy analysis is descriptive and does not identify a causal safety
+mechanism in closed target models.
+

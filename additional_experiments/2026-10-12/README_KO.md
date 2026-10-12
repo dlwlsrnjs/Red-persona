@@ -29,6 +29,14 @@
 5. [코사인 기반 타 샘플 이력 전이](05_HISTORY_TRANSFER_COSINE_KO.md)
    - 유사/비유사 donor history와 short/long 연구 대화를 교차했다.
 
+## 논문용 통합 산출물
+
+- [LaTeX 표·벡터 그림·논문 서술 패키지](paper_package/README_KO.md)
+  - 표 6개, 그림 5개(PDF/SVG/PNG), 통합 수치 스냅샷, 재현 스크립트와 무결성
+    검증 파일을 포함한다.
+- [전체 패키지 ZIP](Final197_additional_experiments_paper_package_2026-10-12.zip)
+  - 다운로드 후 `MANIFEST.sha256`으로 내부 파일을 검증할 수 있다.
+
 ## 가장 중요한 요약
 
 - GPT-4o에서 `single-readout + history`가 엄격 결합@4 **95.94%**로,

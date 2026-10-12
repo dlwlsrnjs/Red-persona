@@ -1,0 +1,34 @@
+{
+  "status": "pass",
+  "source_files": 8,
+  "depth_cells": 6,
+  "baseline_rows": 18,
+  "cross_model_targets": 7,
+  "history_transfer_cells": 8,
+  "figure_sets": 5,
+  "figure_formats_each": [
+    "pdf",
+    "png",
+    "svg"
+  ],
+  "latex_files": [
+    "tables/paper_tables.tex",
+    "figures.tex",
+    "appendix_additional_experiments.tex"
+  ],
+  "latex_balanced_braces": {
+    "tables/paper_tables.tex": true,
+    "figures.tex": true,
+    "appendix_additional_experiments.tex": true
+  },
+  "source_sha256": {
+    "depth": "aaedf2f7cfa5776303459a5486866004a51e88ce8e5b1fd63e86e62552d2b3fc",
+    "baselines": "581aa81aa13b889b07b58396937154714d68a265cd19c2e6308eb2419e308620",
+    "pcsa": "d676e682d09fe6ac2fb495a12335d72c5ef662d93fef85717caaf8830916db9b",
+    "cross_model": "c1ffeb92a14da9251708d283c4d6d1cb68732819f462bbb904cd525c83cc3a39",
+    "attention": "9b3e97464d2350542b777373dcbb3240fd11c98b2d5edd435480e9c533c284e1",
+    "geometry": "7c6c438f638638dbe5ee4c16678fae771792bfd21c199c746dc4df8b52fcb4dc",
+    "geometry_readout": "d4001c6f4cb57eca51cfec6aaa7469895ca0e9462b9fbe9c921ddb1828032044",
+    "history_transfer": "efe6e4b21d514b6b848d7d64a613c3567a3d2ccf7eefe2cb5b89c5780deee34f"
+  }
+}

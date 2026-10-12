@@ -1,0 +1,24 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.72in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{threeparttable}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\title{Final-197 Additional Experiments: Publication Tables and Figures}
+\author{Anonymous authors}
+\date{}
+\begin{document}
+\maketitle
+
+\section{Reporting conventions}
+All rates use the same 197-case cohort. OURS reports Best-of-4 where marked by @4.
+The strict joint metric requires R3+, B4+, and HarmBench+ in the same branch.
+External baselines store one selected final response and use heterogeneous query budgets;
+we therefore report them as contextual evidence rather than a budget-matched leaderboard.
+
+\input{tables/paper_tables.tex}
+\clearpage
+\input{figures.tex}
+\end{document}

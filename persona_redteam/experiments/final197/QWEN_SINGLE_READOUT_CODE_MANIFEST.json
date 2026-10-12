@@ -1,0 +1,57 @@
+{
+  "schema_version": "final197-qwen-single-readout-code-manifest-v1",
+  "release_branch": "codex/qwen-results-rejudge-status",
+  "campaign_id": "final197_single_readout_qwen_v2",
+  "target": {
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "transport": "local_vllm_openai_compatible_continuous_batching"
+  },
+  "researcher": {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "transport": "local_vllm_openai_compatible_continuous_batching"
+  },
+  "judge": {
+    "model": "gpt-4o-2024-11-20",
+    "transport": "openai_batch_api"
+  },
+  "method": {
+    "protocol": "1011_method_v1",
+    "research_horizon": "one_branch_local_readout",
+    "seven_stage_research_dialogue": false,
+    "branch_local_research_readouts": 4,
+    "final_direct_response_measurements": 4,
+    "reporting": "metric-wise Best-of-4",
+    "arms": [
+      "with_history",
+      "no_history"
+    ]
+  },
+  "external_input": {
+    "description": "Final-197 natural abstract-goal persona cases with history",
+    "expected_cases": 197,
+    "expected_sha256": "023e58e86f00b0e9925df960e8509114e46e86ad0a23a60ce5d75013a6403026",
+    "not_included_in_release": true
+  },
+  "files": {
+    "experiments/final197/launch_single_readout_qwen.py": "5ca3d0336256ac4ebf32047e6bac45dc2e4c421eb3c90d3d3f63a34b50c955ee",
+    "experiments/final197/finalize_single_readout_qwen.py": "a77c38e8fb7e190977b3362bd61ad734101c3a464fbd412d62c6ef94d77499e3",
+    "experiments/run_jmir_persona_batch_api.py": "4070cf7746f11208c32cda2c2c92f1e639d088053155e03d8f0843263381f5c6",
+    "experiments/qwen_target_persona_research_dialogue.py": "cf9c4e53421ac2e417d6579c46e3998dc26de80e6e284b105ac97bb813997f66",
+    "experiments/evaluate_final_cares_pilot64.py": "fdef56e6442741d575ff59bfef01ccc3ad0ca64cf3cd5a2a9541832fe11beb7d",
+    "experiments/evaluate_recovery_behavior_batch.py": "80ebd516885ab43993b3a99c2bc63ce4a6b764cb4295f2f5d67caf9d2b0dfa2a",
+    "experiments/evaluate_harmbench_direct_response.py": "36f9710bcb9da9b5209179f692af19c2f5fa0fa7b221bea30207c41f2485e726",
+    "experiments/merge_run_shards.py": "48df24eee0fba2f9d7e9f37e5c23e6da696819a06cf89276afd8663d37683683",
+    "pipeline/openai_batch.py": "dbc07899b0bc8ce1733451498984580c285a94f5254cdf6a4bccc357ef8b45c4",
+    "pipeline/local_chat.py": "143fd81e0749a66825420b32052a7e9f50e4abc013d96dba6a173127ab2989e4",
+    "pipeline/contracts.py": "9b802aef74fcd5ad2f17c536430d77660ae6afff6b1b5d6e95c07b7c37dbbd09",
+    "evaluation/prompts/behavioral_risk_case_research_guidelines.md": "98076c0e80fc83c7feb12acc7d68f123843eae08186da388e52b87e3c078f717",
+    "evaluation/prompts/research_prompt_banks_en.json": "8ddd19382286907e5b73b8689d48b65538a937ddf40ec2f683e9ee0e9233ad90",
+    "evaluation/prompts/cares_official_response_evaluator.txt": "e6aaf94303a1bd0ed89c355eb4a4d7f210d48fbbca48c2f41bfe5f9c17b2d6d1",
+    "evaluation/prompts/jmir_official_response_evaluator.txt": "01384af23113dc46995e268bd4aa6dc07c3d8392506351bc8546f0bd766f6d1e",
+    "evaluation/prompts/persona_co_research_recovery_evaluator.txt": "888763b5cb208696f0de93a0fe66518805a18cc3e43d8a0824070416c7f8f72c"
+  },
+  "credentials_persisted": false,
+  "raw_responses_included": false
+}

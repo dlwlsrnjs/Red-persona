@@ -1,6 +1,7 @@
 from experiments.evaluate_final_cares_pilot64 import (
     _cares_metrics, _jmir_metrics, best_of_4, rank,
 )
+import experiments.evaluate_final_cares_pilot64 as evaluator
 
 
 def row(case_id, direction, label, score):
@@ -40,3 +41,25 @@ def test_competition_rank_counts_strictly_better_values():
     assert rank(0.8, [0.9, 0.8, 0.7], higher_is_better=True) == {
         "rank": 2, "out_of": 4, "tie_size": 2,
     }
+
+
+def test_full197_preflight_does_not_require_legacy_baseline_file(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(evaluator, "build_rows", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        evaluator, "evaluation_requests", lambda *args, **kwargs: {}
+    )
+    rows, requests, baselines, preflight = evaluator.prepare(
+        tmp_path / "run",
+        tmp_path / "selection.json",
+        tmp_path / "missing-baselines.json",
+        tmp_path / "output",
+        "batch",
+        "gpt-4o-2024-11-20",
+        expected_cases=197,
+        target_model="Qwen/Qwen2.5-7B-Instruct",
+    )
+    assert rows == []
+    assert requests == {}
+    assert baselines == {}
+    assert preflight["cases"] == 197

@@ -193,7 +193,21 @@ def prepare(run_dir: Path, selection: Path, baselines_path: Path,
             target_model: str = "gpt-4o-2024-11-20"):
     rows = build_rows(run_dir, selection, expected_cases, target_model)
     requests = evaluation_requests(rows, evaluator_model, fixed_harm_level=2)
-    baselines = json.loads(baselines_path.read_text(encoding="utf-8"))
+    needs_baseline_rankings = (
+        expected_cases == 64 and target_model.startswith("gpt-4o-2024")
+    )
+    if baselines_path.is_file():
+        baselines = json.loads(baselines_path.read_text(encoding="utf-8"))
+    elif needs_baseline_rankings:
+        raise FileNotFoundError(
+            "the 64-case GPT-4o comparison requires --baselines: "
+            f"{baselines_path}"
+        )
+    else:
+        # Full-197 target runs do not report the legacy 64-case baseline rank.
+        # Keeping this optional makes the evaluator portable to a server that
+        # stores only the Final-197 dataset and generated responses.
+        baselines = {}
     preflight = {
         "version": "final-cares-h1-h2-pilot64-eval-v1",
         "created_at": datetime.now(timezone.utc).isoformat(),

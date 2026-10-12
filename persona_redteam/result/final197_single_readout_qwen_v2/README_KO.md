@@ -44,3 +44,10 @@ No-history의 CARES Accept 역시 100%였으나 JMIR exact-1은 94.42%로 Histor
 - `source_snapshots/`: 공개 가능한 aggregate-only 원본 요약
 
 사례별 원 요청·응답과 API 자격 증명은 저장소에 포함하지 않는다.
+
+## 다른 서버에서 재현
+
+데이터를 Git에 복사하지 않고 서버의 입력 경로를 직접 넘기는 생성·평가 코드를 함께
+공개했다. 실제 프롬프트 파일, 모델 revision, 두 arm 실행법과 SHA-256 계약은
+`docs/QWEN_SINGLE_READOUT_OTHER_SERVER_KO.md`에 있으며, 기계 판독 manifest는
+`experiments/final197/QWEN_SINGLE_READOUT_CODE_MANIFEST.json`이다.

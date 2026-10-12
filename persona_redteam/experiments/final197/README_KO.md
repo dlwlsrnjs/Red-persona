@@ -89,3 +89,12 @@ runner가 연구자만 표준 `meta-llama/Llama-3.1-8B-Instruct` revision
 `0e9e39f249a16976918f6564b8830bc894c89659`로 자동 교체한다. 이 조건에서는
 Lexi/uncensored 변형을 연구자로 사용하지 않는다. 결과 artifact의 `target_model`,
 `researcher_model`, `researcher_revision`, `researcher_role_label`에 역할 분리를 기록한다.
+
+### Qwen short-readout 재현 코드
+
+최종 Qwen 비교 결과 `final197_single_readout_qwen_v2`의 생성·병합·평가 진입점은
+`launch_single_readout_qwen.py`와 `finalize_single_readout_qwen.py`다. 두 파일은
+데이터, selection, campaign, result 경로를 모두 명시적으로 받을 수 있어 Final-197
+데이터가 저장된 다른 서버에서도 같은 코드를 사용한다. 프롬프트 파일과 SHA-256,
+모델 서버 설정, history/no-history 명령은
+`../../docs/QWEN_SINGLE_READOUT_OTHER_SERVER_KO.md`에 고정했다.

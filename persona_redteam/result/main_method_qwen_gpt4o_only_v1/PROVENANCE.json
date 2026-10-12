@@ -1,0 +1,19 @@
+{
+  "schema_version": "main-method-qwen-gpt4o-final197-provenance-v2",
+  "sources": {
+    "gpt4o_depth_history": {
+      "repository_path": "persona_redteam/result/OURS/final197_research_mediation_depth_gpt4o_v1/summary.json",
+      "sha256": "ae81b823adc79003e6a346bd89e86dc82a5fdd9d5184aef88bca9ff753444829",
+      "snapshot": "source_snapshots/final197_depth.json"
+    },
+    "two_target_three_arm": {
+      "original_runtime_path": "/data1/users/ljk98/runtime_cache/persona_redteam_final197/final197_gpt4o_qwen_three_arm_v1/final_summary.json",
+      "sha256": "f696bc05b265f80b178bbd87aec317d6c31299fcd0b1c4c6f42fe412673255e4",
+      "snapshot": "source_snapshots/final197_gpt4o_qwen_three_arm.json",
+      "rebuild_policy": "prefer runtime aggregate when present; otherwise use snapshot"
+    }
+  },
+  "official500_included": false,
+  "raw_sensitive_text_included": false,
+  "api_credentials_included": false
+}

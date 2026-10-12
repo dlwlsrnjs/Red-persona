@@ -1,5 +1,14 @@
 # RED-Persona 논문용 주요 결과
 
+## Qwen·GPT-4o 메인 메서드 결과만 보기
+
+외부 베이스라인과 다른 타깃을 제외하고, Qwen/GPT-4o 메인 결과 및 내부 ablation만
+보려면 [`main_method_qwen_gpt4o_only_v1/README_KO.md`](main_method_qwen_gpt4o_only_v1/README_KO.md)를
+사용한다. 이 전용 패키지는 Final-197만 포함하며 Official-500은 제외한다. 최신
+GPT-4o `single readout + history` 패널과 이전에 완주된 GPT-4o/Qwen 3조건 패널을
+실험 계약에 따라 분리하며, 아직 없는 Qwen single-readout 전체 셀을 임의로 보간하지
+않는다.
+
 ## Final-197 외부 베이스라인·PCSA·1011 singleton 비교
 
 외부 baseline만의 canonical 전체 결과는

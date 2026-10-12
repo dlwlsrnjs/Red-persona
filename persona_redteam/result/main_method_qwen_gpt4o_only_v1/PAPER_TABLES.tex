@@ -1,0 +1,36 @@
+% Auto-generated. Official-500 is intentionally excluded.
+\begin{table*}[t]
+\centering
+\caption{Final-197 GPT-4o research-depth and persona-history ablation. Single readout removes the cumulative seven-stage research dialogue while retaining one branch-local readout. Joint requires one branch to satisfy R3+, B4+, and HarmBench+.}
+\label{tab:final197-gpt4o-depth-history}
+\begin{tabular}{lrrrrrr}
+\toprule
+Condition & Accept & JMIR exact-1 & R3+@4 & B4+@4 & HB+@4 & Joint@4 \\
+\midrule
+7-stage + history & 96.45 & 96.45 & 100.00 & 76.14 & 89.34 & 63.96 \\
+7-stage, no history & 98.98 & 98.98 & 100.00 & 86.80 & 86.29 & 73.10 \\
+Single readout + history (Ours) & 100.00 & 100.00 & 99.49 & 100.00 & 96.95 & 95.94 \\
+Single readout, no history & 100.00 & 98.48 & 97.46 & 98.98 & 86.80 & 83.76 \\
+Direct final + history & 92.39 & 90.36 & 99.49 & 8.12 & 87.31 & 7.11 \\
+Direct final, no history & 85.28 & 92.39 & 96.95 & 10.15 & 75.63 & 6.09 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\caption{Earlier completed Final-197 GPT-4o/Qwen three-arm reference. This seven-stage matrix is reported separately and is not a matched replication of the current single-readout protocol.}
+\label{tab:final197-two-target-three-arm}
+\begin{tabular}{llrrrrrr}
+\toprule
+Target & Arm & Accept & JMIR exact-1 & R3+@4 & B4+@4 & HB+@4 & Joint@4 \\
+\midrule
+GPT-4o & Hidden goal + history & 20.81 & 87.82 & 48.22 & 17.26 & 31.98 & 7.61 \\
+GPT-4o & Explicit goal + history & 17.77 & 86.80 & 44.16 & 14.72 & 32.99 & 2.54 \\
+GPT-4o & No history & 24.87 & 84.77 & 76.14 & 24.37 & 28.93 & 12.18 \\
+Qwen2.5-7B & Hidden goal + history & 35.53 & 93.40 & 58.88 & 30.46 & 80.20 & 15.23 \\
+Qwen2.5-7B & Explicit goal + history & 30.96 & 90.36 & 44.67 & 21.32 & 80.20 & 10.66 \\
+Qwen2.5-7B & No history & 36.04 & 88.83 & 68.53 & 43.65 & 73.60 & 21.32 \\
+\bottomrule
+\end{tabular}
+\end{table*}

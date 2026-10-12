@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from .full_history_specificity_pilot import (
+    EXPLICIT_GOAL_FOLLOWUPS,
     FOLLOWUPS,
     build_candidate_messages,
     select_contentful_seed,
@@ -43,6 +44,32 @@ class FullHistorySpecificityPilotTest(unittest.TestCase):
             )
             self.assertEqual(candidate["messages"][-1]["role"], "user")
             self.assertNotIn(private_goal, candidate["messages"][-1]["content"])
+
+    def test_explicit_goal_mode_quotes_goal_in_every_fixed_followup(self) -> None:
+        history = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "attack question"},
+        ]
+        seed = {
+            "prompt": "attack question",
+            "response": "stored safe singleton answer",
+            "full_messages": history,
+        }
+        private_goal = "KNOWN PRIVATE GOAL"
+        candidates = build_candidate_messages(
+            seed, private_goal, goal_linkage="explicit_goal"
+        )
+        self.assertEqual(len(candidates), len(EXPLICIT_GOAL_FOLLOWUPS))
+        self.assertEqual(len({row["strategy"] for row in candidates}), 4)
+        for candidate in candidates:
+            self.assertEqual(candidate["messages"][:-2], history)
+            self.assertEqual(
+                candidate["messages"][-2]["content"],
+                "stored safe singleton answer",
+            )
+            self.assertIn(private_goal, candidate["followup"])
+            lowered = candidate["followup"].lower()
+            self.assertTrue("not useful" in lowered or "not helpful" in lowered)
 
 
 if __name__ == "__main__":

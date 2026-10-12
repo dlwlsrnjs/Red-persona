@@ -78,8 +78,8 @@
       "sha256": "b531bcbc09cbac1b53da3fafc2ac00eee5be76264c2820cd6d769b6e8977459e"
     },
     "persona_redteam/result/final197_paper_comparison_v1/build_comparison.py": {
-      "bytes": 30248,
-      "sha256": "36da24a9228372875b00256f3ed9f97bda84d8c5bb31cb60cafc36ca44d62e5c"
+      "bytes": 30255,
+      "sha256": "43d831f1db722743a405edd576b21f63b505b41ac113cec48330e18c68a47d10"
     },
     "persona_redteam/singleton_1011_package/docs/SINGLETON_PROTOCOL_KO.md": {
       "bytes": 5980,
@@ -123,21 +123,21 @@
       "bytes": 99993,
       "sha256": "c588e8f8dbb08ff6a263b944d0d1c1e1a8f32037436142ed46cfea84660e535e"
     },
-    "external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md": {
-      "bytes": 3654,
-      "sha256": "6ec8a981c5faf1eed575e12c29196ff47a62a4b6cb34ffa8d4316ef081eb4498"
+    "external_baselines/result/final197_external_baselines_v2/AUDIT.json": {
+      "bytes": 4704,
+      "sha256": "ebcbbe3c671bdbeeb91c0ce1d6ba12109003da11f659dd10ecb79bc9d14f7d15"
     },
-    "external_baselines/result/PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md": {
-      "bytes": 4061,
-      "sha256": "f59923eb7373b691abef67d7f0e35acf06dee387b7a26cb14cd966d989570a6f"
+    "external_baselines/result/final197_external_baselines_v2/TABLES_KO.md": {
+      "bytes": 11125,
+      "sha256": "94fce0ca474eb2d21036ea5f47087620791605f68dcea65313a4de42a371ef9e"
     },
     "external_baselines/result/final197_main_results.json": {
       "bytes": 24540,
       "sha256": "be126baddd9137f7288629c5a9c253006874a4ca88174b3a43d7f7f2c903f693"
     },
     "external_baselines/result/pcsa_persona_ablation_final197.json": {
-      "bytes": 3595,
-      "sha256": "ac06f74630171faed73122ecb9c792ce54fd0e7f4916f1a3d412d4362a01abba"
+      "bytes": 3602,
+      "sha256": "d676e682d09fe6ac2fb495a12335d72c5ef662d93fef85717caaf8830916db9b"
     },
     "external_baselines/result/pcsa_persona_history_gpt4o_final197.json": {
       "bytes": 4802,

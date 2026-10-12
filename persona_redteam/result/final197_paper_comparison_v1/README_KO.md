@@ -26,13 +26,10 @@
 | `PROVENANCE.json` | 입력 결과·코드 SHA-256, 원 커밋, 코호트 일치 감사 |
 | `build_comparison.py` | 위 기계 파일과 표를 재생성·검증하는 표준 라이브러리 전용 코드 |
 
-PCSA Persona+History의 원 보고서는
-[`../../../external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md`](../../../external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md),
-기계 판독 결과는
-[`../../../external_baselines/result/pcsa_persona_ablation_final197.json`](../../../external_baselines/result/pcsa_persona_ablation_final197.json)에 있다.
-GPT-4o 추가 셀은
-[`../../../external_baselines/result/PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md`](../../../external_baselines/result/PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md)와
-[`../../../external_baselines/result/pcsa_persona_history_gpt4o_final197.json`](../../../external_baselines/result/pcsa_persona_history_gpt4o_final197.json)에 분리했다.
+외부 baseline과 PCSA Persona+History의 전체 표·설정·해석은 canonical
+[`../../../external_baselines/result/final197_external_baselines_v2/README_KO.md`](../../../external_baselines/result/final197_external_baselines_v2/README_KO.md)에
+통합했다. 이 비교 패키지는 그 기계 판독 source와 OURS 결과를 함께 정규화하되, 서로 다른
+실험 패널을 공식 순위로 합치지 않는다.
 
 ## 핵심 결론
 

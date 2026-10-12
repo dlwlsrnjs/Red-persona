@@ -1,43 +1,27 @@
-# 외부 베이스라인 결과
+# 외부 baseline 결과
 
-- `PCSA_PERSONA_HISTORY_PILOT10_KO.md`: PCSA 논문의 Phase I/II 연결 방식으로
-  Final-197 persona history를 적용한 동일-case 파일럿 비교와 전체 실행 판정
-- `PCSA_PERSONA_ABLATION_FINAL197_KO.md`: Final-197 전체에서 Persona+History와
-  No-Persona를 동일 조건으로 비교한 paired ablation 및 HarmBench 구현 감사
+현재 논문 코호트의 단일 기준은
+[`final197_external_baselines_v2/README_KO.md`](final197_external_baselines_v2/README_KO.md)다.
+완료된 외부 baseline 21개 셀의 내용, 전체 표, 설정, 해석, CSV/JSON, provenance와 재생성
+코드를 한 폴더에 정리했다.
 
-이 폴더는 외부 공격 기법의 확정 결과와 추가 타깃 실험 상태를 보관한다.
-RED-Persona 본 방법의 결과와 합치거나 외부 기법을 OURS로 표기하지 않는다.
+## Canonical source aggregate
 
-## Final-197 본 실험
+아래 파일은 통합 패키지를 재생성하는 검증된 기계 source다.
 
-- [`FINAL197_MAIN_RESULTS_KO.md`](FINAL197_MAIN_RESULTS_KO.md): 197개 × 9기법 × 2타깃
-  결과표. 주표는 HarmBench + CARES이고 PCSA Figure-4와 R/B v3는 보조표다.
-- [`final197_main_results.csv`](final197_main_results.csv): 논문 표·통계 처리용 평탄화 결과
-- [`final197_main_results.json`](final197_main_results.json): 모든 원시 개수와 소수 비율
-- [`final197_evaluation_audit.json`](final197_evaluation_audit.json): 3,546행 coverage와
-  누락·무효 0건 감사 요약
-- [`EVALUATION_CODE_CHANGES_KO.md`](EVALUATION_CODE_CHANGES_KO.md): 평가 코드 변경점과
-  재판정·인용 교정 내역
-- [`PCSA_PERSONA_ABLATION_FINAL197_KO.md`](PCSA_PERSONA_ABLATION_FINAL197_KO.md):
-  PCSA Phase II의 Persona+History 대 No-Persona 동일 197건 paired ablation
-- [`pcsa_persona_ablation_final197.json`](pcsa_persona_ablation_final197.json):
-  위 paired ablation의 기계 판독 가능 count·rate·McNemar 결과
-- [`PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md`](PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md):
-  Persona+History PCSA Phase II를 GPT-4o-2024-11-20 타깃으로 실행한 별도 197건 결과
-- [`pcsa_persona_history_gpt4o_final197.json`](pcsa_persona_history_gpt4o_final197.json):
-  위 GPT-4o 추가 셀의 생성·평가 계약과 기계 판독 집계
+| 파일 | 범위 |
+|---|---|
+| `final197_main_results.json` / `.csv` | 9개 방법 × GPT-4o/Qwen = 18개 셀 |
+| `final197_evaluation_audit.json` | 위 3,546행의 평가별 coverage 감사 |
+| `pcsa_persona_ablation_final197.json` | Qwen Persona+History 대 No-Persona paired 2셀 |
+| `pcsa_persona_history_gpt4o_final197.json` | GPT-4o-2024-11-20 Persona+History 추가 1셀 |
 
-## GPT-6 Luna · Llama 추가 실험
+개별 Markdown 결과표, 10건 pilot, 미완료 progress snapshot과 다른 코호트의 오래된 결과는
+canonical 통합 문서로 대체해 삭제했다. 제외 사유와 원 커밋은
+[`final197_external_baselines_v2/AUDIT.json`](final197_external_baselines_v2/AUDIT.json)에
+남아 있어 Git 이력에서 복구할 수 있다.
 
-- `GPT6_LUNA_LLAMA_PILOT10_PROGRESS_KO.md`: 파일럿 180개 생성 진행 현황, 실행 설정,
-  완료 수, 평가 상태
-- 최종 CARES/JMIR 지표: 생성 180개가 모두 완성된 뒤 추가 예정
-- 정식 500개 결과: `target × method`마다 500개 완전성을 통과한 뒤 추가 예정
-
-파일럿의 내부 task-achievement scorer는 최종 성능이 아니다. 이 폴더에는 최종 공통
-evaluator가 완료되기 전까지 CARES SS, JMIR harmful rate 또는 ASR 확정값을 기록하지
-않는다.
-
-생성 원문, Batch checkpoint, 모델 서버 로그처럼 크거나 민감할 수 있는 실행 산출물은
-Git에서 제외된 `external_baselines/outputs/`, `external_baselines/evaluations/`,
-`serve_logs/`에 보관한다. API 키는 어떤 결과 파일에도 저장하지 않는다.
+OURS와 나란히 보는 논문용 분리 패널은
+[`../../persona_redteam/result/final197_paper_comparison_v1/README_KO.md`](../../persona_redteam/result/final197_paper_comparison_v1/README_KO.md)를
+사용한다. 외부 방법을 OURS로 표기하거나 서로 다른 response unit/query budget을 하나의
+공식 순위로 합치지 않는다.

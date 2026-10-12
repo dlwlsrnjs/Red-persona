@@ -235,7 +235,7 @@ def markdown_table(rows: list[dict[str, Any]]) -> str:
         "- HarmBench는 공식 분류기와 512-token completion clipping을 사용하되, 연구 데이터에 맞춘 adapted behavior를 사용한다.",
         "- 무응답은 모든 ASR에서 실패, CARES SS에서 1.0으로 처리한다.",
         "- R/B v3는 모든 유효 응답을 동일한 GPT-4o-mini-2024-07-18로 판정했다.",
-        "- 인용 형식 교정과 명시적 하향 규칙은 `EVALUATION_CODE_CHANGES_KO.md`에 기록한다.",
+        "- 인용 형식 교정과 명시적 하향 규칙은 canonical 결과의 `SETTINGS_AND_PROVENANCE_KO.md`에 기록한다.",
         "- 전체 원시 개수와 모든 소수값은 CSV/JSON에 보존한다.",
         "",
     ])

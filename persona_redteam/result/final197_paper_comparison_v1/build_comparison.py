@@ -582,8 +582,8 @@ def build_outputs() -> dict[str, str]:
         OURS_RESULTS,
         EXTERNAL_GOALS,
         OURS_CASES,
-        REPO_ROOT / "external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md",
-        REPO_ROOT / "external_baselines/result/PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md",
+        REPO_ROOT / "external_baselines/result/final197_external_baselines_v2/TABLES_KO.md",
+        REPO_ROOT / "external_baselines/result/final197_external_baselines_v2/AUDIT.json",
         REPO_ROOT / "persona_redteam/singleton_1011_package/result/final197_1011_singleton_gpt4o_v1/README_KO.md",
     )
     provenance = {

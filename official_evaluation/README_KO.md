@@ -197,7 +197,10 @@ python official_evaluation/aggregate_final197.py \
   --rb official_evaluation/work/final197_v3/rb.jsonl \
   --output external_baselines/result/final197_main_results.json \
   --csv external_baselines/result/final197_main_results.csv \
-  --markdown external_baselines/result/FINAL197_MAIN_RESULTS_KO.md
+  --markdown /tmp/final197_matrix_preview.md
+
+python3 external_baselines/result/final197_external_baselines_v2/build_results.py
+python3 external_baselines/result/final197_external_baselines_v2/build_results.py --check
 ```
 
 ## HarmBench를 여러 머신에서 동시에 실행

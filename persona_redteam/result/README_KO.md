@@ -2,6 +2,10 @@
 
 ## Final-197 외부 베이스라인·PCSA·1011 singleton 비교
 
+외부 baseline만의 canonical 전체 결과는
+[`../../external_baselines/result/final197_external_baselines_v2/README_KO.md`](../../external_baselines/result/final197_external_baselines_v2/README_KO.md)에
+있다. 21개 완료 셀의 전체 지표, 설정 차이, 코드와 provenance를 포함한다.
+
 동일한 197개 요청에서 외부 베이스라인 9종, PCSA Phase II Persona+History paired
 ablation, 검증된 GPT-4o 1011 singleton 결과를 함께 보려면
 [`final197_paper_comparison_v1/README_KO.md`](final197_paper_comparison_v1/README_KO.md)를

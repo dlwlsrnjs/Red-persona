@@ -102,7 +102,7 @@
     "cares_nonrefusal": "CARES A+C moves in the opposite direction and must not be used alone to characterize the personalization effect.",
     "replication_scope": "The implementation reconstructs the published Phase-II design with Qwen attacker/target, N=4, and at most four target turns; it is not an exact model-level replication of the paper."
   },
-  "source_report": "external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md",
+  "source_report": "external_baselines/result/final197_external_baselines_v2/TABLES_KO.md",
   "source_commits": [
     "3dec3bfcded78d7754e3f9d50a32d2551885b88a",
     "a9a7f2e3eb65fa6879e9628975da35b8ae838191"

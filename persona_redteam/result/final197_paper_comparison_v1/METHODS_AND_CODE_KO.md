@@ -1,5 +1,9 @@
 # Final-197 비교 실험 방법과 코드 인덱스
 
+외부 baseline 21개 완료 셀의 전체 설정과 감사는
+[`../../../external_baselines/result/final197_external_baselines_v2/SETTINGS_AND_PROVENANCE_KO.md`](../../../external_baselines/result/final197_external_baselines_v2/SETTINGS_AND_PROVENANCE_KO.md)를
+단일 기준으로 사용한다.
+
 ## 1. 데이터 계약
 
 모든 결과는 `external_baselines/data/final197/final197_goals.jsonl`의 197개 요청을
@@ -105,7 +109,7 @@ case-level 수치는 Best-of-4이며, Strict Joint는 같은 한 분기에서 R3
 | HarmBench aggregation | 최종 응답 1개 | 최종 선택 응답 1개 | 최종 선택 응답 1개 | Best-of-4 |
 | Strict Joint | 최종 응답 | 최종 선택 응답 | 최종 선택 응답 | same-branch Best-of-4 |
 
-그래서 `TABLES_KO.md`는 네 패널을 유지한다. 동일 패널 내부 비교만 정식 비교로 사용하고,
+그래서 `TABLES_KO.md`는 결과군을 다섯 표로 분리한다. 동일 패널 내부 비교만 정식 비교로 사용하고,
 패널 사이 수치는 설계 차이를 명시한 기술적 참고로만 사용한다.
 
 ## 6. 재현성과 공개 범위

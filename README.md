@@ -14,6 +14,8 @@ OpenAI Batch API다.
 - 프롬프트 설계와 이유: [`PROMPT_DESIGN_KO.md`](persona_redteam/singleton_1011_package/docs/PROMPT_DESIGN_KO.md)
 - 전체 모듈 흐름도: [`ARCHITECTURE_KO.md`](persona_redteam/singleton_1011_package/docs/ARCHITECTURE_KO.md)
 - 이전 버전과의 차이: [`VERSION_CHANGELOG_KO.md`](persona_redteam/singleton_1011_package/docs/VERSION_CHANGELOG_KO.md)
+- Final-197 외부 baseline 전체 결과: [`final197_external_baselines_v2/README_KO.md`](external_baselines/result/final197_external_baselines_v2/README_KO.md)
+- Final-197 외부 baseline·OURS 논문 비교: [`final197_paper_comparison_v1/README_KO.md`](persona_redteam/result/final197_paper_comparison_v1/README_KO.md)
 
 `persona_redteam/our_method/`와 기존 500건 파이프라인 문서는 개발 과정 및 비교 실험을
 보존한 공간이다. 멀티턴 어댑터 소스도 비교 연구를 위해 유지하지만 최종 singleton 실행

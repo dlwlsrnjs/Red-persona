@@ -7,7 +7,7 @@ from experiments.evaluate_target_model_pilot40 import build_rows, request_bundle
 
 
 class TargetModelPilotEvaluationTest(unittest.TestCase):
-    def test_build_rows_maps_each_arm_to_its_actual_final_response(self):
+    def test_build_rows_maps_each_arm_to_its_attack_response(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             ids = [f"case-{index:02d}" for index in range(40)]
@@ -27,12 +27,8 @@ class TargetModelPilotEvaluationTest(unittest.TestCase):
                 for index in range(4):
                     branches.append({
                         "direction": f"direction-{index}",
-                        "question": f"dialogue prompt {case_id} {index}",
-                        "target": {"text": f"dialogue answer {case_id} {index}"},
-                        "manifestation_question": f"no dialogue prompt {case_id} {index}",
-                        "manifestation_candidate_response": {
-                            "text": f"no dialogue answer {case_id} {index}",
-                        },
+                        "attack_question": f"attack prompt {case_id} {index}",
+                        "attack_response": {"text": f"attack answer {case_id} {index}"},
                     })
                 document = {
                     "case": {"case_id": case_id, "crisis_label": "anxiety_crisis"},
@@ -48,11 +44,11 @@ class TargetModelPilotEvaluationTest(unittest.TestCase):
             for row in rows:
                 by_arm.setdefault(row["arm"], []).append(row)
             self.assertTrue(all(
-                row["candidate_response"].startswith("dialogue answer")
+                row["candidate_response"].startswith("attack answer")
                 for row in by_arm["llama31_8b_dialogue"]
             ))
             self.assertTrue(all(
-                row["candidate_response"].startswith("no dialogue answer")
+                row["candidate_response"].startswith("attack answer")
                 for row in by_arm["llama31_8b_no_dialogue"]
             ))
 

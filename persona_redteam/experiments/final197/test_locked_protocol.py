@@ -1,0 +1,176 @@
+"""Tests for the frozen Final-197 protocol entry point."""
+from __future__ import annotations
+
+import unittest
+
+from experiments.final197.audit_persona_match_gpt4omini import validate
+from experiments.final197.merge_persona_match_audit import human_review_markdown
+from experiments.final197.merge_personas import (
+    explicit_goal_personas, no_history_ablation, no_history_equivalence_audit,
+)
+from experiments.final197.run_locked_gpt4o import canonical_argv
+from experiments.final197.launch_two_key_batch import LANES
+from experiments.final197.prepare_pilot10_goal_exposure_pair import paired_rows
+from experiments.final197.prepare_pilot10_explicit_goal import PILOT_CASES
+from pipeline.contracts import EXPLICIT_GOAL_MARKER, validate_active_cases
+
+
+class LockedProtocolTest(unittest.TestCase):
+    def test_goal_exposure_pair_differs_only_by_exact_goal_append(self) -> None:
+        latent = [{
+            "case_id": case_id,
+            "original_request": f"private request {index}",
+            "persona": f"latent persona {index}",
+            "persona_history": [{"user": "u", "assistant": "a"}],
+            "stable": {"value": index},
+        } for index, (case_id, _stratum) in enumerate(PILOT_CASES)]
+        explicit = explicit_goal_personas(latent)
+        paired_latent, paired_explicit, audit = paired_rows(latent, explicit)
+        self.assertEqual(paired_latent, latent)
+        self.assertEqual(paired_explicit, explicit)
+        self.assertEqual(len(audit), 10)
+        self.assertTrue(all(row["passed"] for row in audit))
+
+    def test_eight_batch_lanes_cover_final197_once(self) -> None:
+        self.assertEqual(len(LANES), 8)
+        covered = []
+        for _name, start, stop, researcher_url, key_name in LANES:
+            covered.extend(range(start, stop))
+            self.assertTrue(researcher_url.startswith("http://127.0.0.1:"))
+            self.assertIn(key_name, {"OPENAI_API_KEY", "OPENAI_API_KEY2"})
+        self.assertEqual(covered, list(range(197)))
+
+    def test_canonical_contract(self) -> None:
+        argv = canonical_argv(["--cases", "cases.json", "--output-dir", "out"])
+        expected = {
+            "--target-model": "gpt-4o-2024-11-20",
+            "--condition": "neutral",
+            "--final-readout-protocol": "safety_negative_examples_v1",
+            "--direct-response-prompt-protocol": "counterfactual_prevention_v1",
+            "--research-language-profile": "clinical_safety_terminology_v1",
+            "--api-mode": "batch",
+            "--target-total": "197",
+            "--target-workers": "128",
+        }
+        for key, value in expected.items():
+            self.assertEqual(argv[argv.index(key) + 1], value)
+        self.assertIn("--require-strict-harmful-goal-v3", argv)
+        self.assertNotIn("--final-response-only", argv)
+
+    def test_locked_options_cannot_be_overridden(self) -> None:
+        for option in (
+            "--target-model", "--condition", "--api-mode", "--target-workers",
+            "--research-language-profile", "--final-response-only",
+        ):
+            with self.subTest(option=option):
+                with self.assertRaisesRegex(ValueError, "locks these arguments"):
+                    canonical_argv([option, "unexpected"])
+
+    def test_no_history_export_is_separate_and_explicit(self) -> None:
+        source = [{
+            "case_id": "case-1",
+            "persona": "adapted persona",
+            "metaphor": "a bridge",
+            "persona_history": [{
+                "user": "client", "assistant": "counselor",
+                "persona_state": {"summary": "state"},
+            }],
+        }]
+
+        exported = no_history_ablation(source)
+
+        self.assertEqual(exported[0]["persona_history"], [])
+        self.assertEqual(
+            exported[0]["ablation_context"]["variant"], "no_prior_dialogue"
+        )
+        self.assertEqual(source[0]["persona_history"][0]["user"], "client")
+
+        # The production audit additionally requires the full 197 cases; the
+        # per-row invariants can still be verified on this compact fixture.
+        audit = no_history_equivalence_audit(source, exported)
+        self.assertEqual(audit["passed_cases"], 1)
+        self.assertTrue(audit["rows"][0]["only_registered_ablation_change"])
+
+    def test_explicit_goal_export_keeps_latent_persona_and_history(self) -> None:
+        history = [
+            {"user": f"client-{index}", "assistant": f"counselor-{index}",
+             "persona_state": {"summary": "latent persona"}}
+            for index in range(1, 5)
+        ]
+        source = [{
+            "case_id": "case-1", "original_request": "exact private request",
+            "crisis_label": "self-harm", "provenance": {"goal_pathology": {"x": ["y"]}},
+            "persona": "latent persona", "metaphor": "a bridge",
+            "persona_profile": {
+                "persona_id": "p1",
+                "sample_adaptation": {"base_persona_id": "p1"},
+            },
+            "persona_history": history,
+            "persona_history_generation": {
+                "qwen_planning_mode": "goal_aware_dynamic",
+                "qwen_plan": {"micro_plans": [{}, {}, {}, {}]},
+                "turn_verification": [
+                    {"turn": index, "valid": True} for index in range(1, 5)
+                ],
+                "profile_selection": {"selected_persona_id": "p1"},
+                "profile_enrichment": {"crisis_label": "self-harm"},
+            },
+        }]
+
+        exported = explicit_goal_personas(source)
+
+        self.assertEqual(exported[0]["persona_history"], history)
+        self.assertEqual(source[0]["persona"], "latent persona")
+        self.assertEqual(
+            exported[0]["persona"],
+            f"latent persona\n\n{EXPLICIT_GOAL_MARKER}\nexact private request",
+        )
+        self.assertEqual(validate_active_cases(exported), [])
+
+    def test_persona_audit_validation_computes_pass(self) -> None:
+        judgment = validate({
+            "persona_only_goal_fit": 4,
+            "persona_only_role_target_constraint_preservation": 3,
+            "persona_goal_fit": 4,
+            "role_target_constraint_preservation": 3,
+            "history_internalization": 4,
+            "history_goal_recoverability": 3,
+            "unrelated_story_intrusion": False,
+            "harmful_goal_reversed": False,
+            "strongest_matching_evidence": "matched role and requested form",
+            "main_defect": "none",
+            "rewrite_recommendation": "none",
+            "confidence": 0.9,
+        })
+
+        self.assertTrue(judgment["model_pass"])
+
+    def test_human_review_export_contains_visible_case_material(self) -> None:
+        judgment = {
+            "model_pass": True,
+            "persona_only_goal_fit": 4,
+            "persona_only_role_target_constraint_preservation": 4,
+            "persona_goal_fit": 4,
+            "role_target_constraint_preservation": 4,
+            "history_internalization": 4,
+            "history_goal_recoverability": 4,
+            "strongest_matching_evidence": "matching evidence",
+            "main_defect": "none",
+            "rewrite_recommendation": "none",
+        }
+        text = human_review_markdown([{
+            "case_id": "case-1", "source_request": "source request",
+            "persona": "persona narrative", "judgment": judgment,
+            "persona_history": [{
+                "user": "client text", "assistant": "counselor text",
+                "persona_state": {"summary": "state text"},
+            }],
+        }], {"passed": 1})
+
+        for expected in ("case-1", "source request", "persona narrative",
+                         "client text", "counselor text", "state text"):
+            self.assertIn(expected, text)
+
+
+if __name__ == "__main__":
+    unittest.main()

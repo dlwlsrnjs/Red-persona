@@ -43,6 +43,11 @@ def validate_ablation_run(record):
     # already completed artifacts.
     if not spec.include_research_guidelines or "include_research_guidelines" in policy:
         expected_policy["include_research_guidelines"] = spec.include_research_guidelines
+    if (not spec.include_clinical_terminology or
+            "include_clinical_terminology" in policy):
+        expected_policy["include_clinical_terminology"] = (
+            spec.include_clinical_terminology
+        )
     if spec.use_selected_base_persona:
         expected_policy["persona_source"] = (
             "selected_retrieval_profile_before_goal_adaptation_and_history"
@@ -92,24 +97,26 @@ def validate_ablation_run(record):
         directions = {branch.get("direction") for branch in branches}
         if directions != expected_directions or len(branches) != len(expected_directions):
             errors.append(f"{prefix}: incomplete four-direction branch matrix")
-        digests = {branch.get("context", {}).get("shared_history_sha256")
+        digests = {branch.get("recovery_context", branch.get("context", {})).get(
+                   "shared_history_sha256")
                    for branch in branches}
         if len(digests) != 1 or None in digests:
             errors.append(f"{prefix}: final branches do not share one prefix")
         for branch in branches:
             direction = branch.get("direction")
             if (not final_response_only and
-                    "manifestation_candidate_response" not in branch):
-                errors.append(f"{prefix}:{direction}: missing separated candidate response")
+                    "attack_response" not in branch):
+                errors.append(f"{prefix}:{direction}: missing separated attack response")
             if (not final_response_only and
-                    "manifestation_research_analysis" not in branch):
-                errors.append(f"{prefix}:{direction}: missing separated research analysis")
+                    "bridge_record" not in branch):
+                errors.append(f"{prefix}:{direction}: missing verified bridge record")
         histories = [result.get("shared_history", {}).get("full_messages", [])]
-        histories.extend(branch.get("context", {}).get("full_messages", [])
+        histories.extend(branch.get("recovery_context", branch.get("context", {})).get(
+                         "full_messages", [])
                          for branch in branches)
         if not final_response_only:
             histories.extend(
-                branch.get("manifestation_context", {}).get("full_messages", [])
+                branch.get("attack_context", {}).get("full_messages", [])
                 for branch in branches
             )
         for messages in histories:

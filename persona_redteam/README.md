@@ -1,8 +1,32 @@
 # RED-Persona
 
+## 현재 논문용 canonical 메서드
+
+Final-197 GPT-4o 본실험의 유일한 기준은
+[`singleton_1011_package/`](singleton_1011_package/)다. 실행 식별자는
+`1011_method_v1`이고, 타깃은 `gpt-4o-2024-11-20`이다. 패키지에는 실제 파일럿과
+본실험에서 사용하는 불변 코어 snapshot, 10건/197건 launcher, GPT-4o 평가기,
+HarmBench 연결, 전체 대화 보존기와 논문용 상세 문서가 함께 있다.
+
+```text
+persona/history → 7단계 누적 연구 대화 → GOAL·인용 gate
+  → 부족한 사례만 Case A/B 1회 → 4개 독립 singleton 분기
+  → 분기 내부 exact quote → 분기당 최종 응답 1회 → Best-of-4 평가
+```
+
+멀티턴 recovery adapter는
+`singleton_1011_package/adapters/failure_only_recovery/`에 별도 비교 모듈로 보존한다.
+다른 세션의 개발을 방해하지 않도록 삭제하거나 덮어쓰지 않으며, canonical launcher는
+이를 import하거나 실행하지 않는다.
+
+아래 문서와 `our_method/`는 과거 개발 흐름, 500건 실험 및 ablation 기록이다. 최종 논문
+메서드와 혼용하지 않는다.
+
+## 보존된 이전 연구 파이프라인
+
 이 저장소는 JMIR 기반 625개 평가 샘플을 대상으로, 전체 persona pool에서 샘플별 profile을
 동적으로 선택하고 persona history, Qwen–target 연구 대화, 4개 최종 분기, GPT 평가까지
-연결하는 단일 파이프라인을 제공한다.
+연결한 이전 파이프라인도 보존한다.
 
 현재 기준은 [`PIPELINE_OVERVIEW_KO.md`](PIPELINE_OVERVIEW_KO.md)와
 [`pipeline/README.md`](pipeline/README.md)다.

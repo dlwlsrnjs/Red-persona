@@ -1,0 +1,269 @@
+% ARR/ACL-ready experiment and results section for the Final-197 matrix.
+% Required in the main preamble: \usepackage{booktabs}
+% Optional: rename section titles to match the surrounding manuscript.
+% The RQ framing organizes the frozen six-cell experiment after completion;
+% only the protocol, primary arm, and primary metrics were frozen in advance.
+
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Research Questions}
+\label{sec:research-questions}
+
+We organize the evaluation around four research questions.
+
+\paragraph{RQ1: Cross-target effectiveness.}
+How effectively does our target-grounded, multi-turn research dialogue elicit
+goal-consistent responses from both a proprietary target (GPT-4o) and an
+open-weight target (Qwen-2.5-7B-Instruct)?
+
+\paragraph{RQ2: Dependence on verbatim goal exposure.}
+Does the method require placing the original harmful request verbatim in the
+target-visible persona, or can it operate when the target receives only
+semantically related persona context and research dialogue?
+
+\paragraph{RQ3: Contribution of pre-generated persona history.}
+Does a goal-aware dialogue history improve elicitation beyond the dynamic
+research dialogue itself?
+
+\paragraph{RQ4: Robustness across safety evaluators.}
+Do conclusions based on HarmBench remain directionally consistent under
+Qwen3Guard-Gen-8B and Nemotron-3-Content-Safety?
+
+The full-run prompt, seven-stage dialogue protocol, primary condition, and
+primary metrics were frozen before evaluating all 197 cases.  The RQ framing
+above organizes the resulting controlled matrix; we do not treat the
+best-performing ablation as a retrospectively pre-registered primary method.
+
+\subsection{Dataset}
+\label{sec:final197-dataset}
+
+We evaluate on \textsc{Final-197}, a conservatively filtered set of 197
+explicit mental-health-related harmful requests.  The set contains 136 items
+derived from the \emph{Between Help and Harm} collection, 22 from AILuminate
+Suicide \& Self-Harm, 22 from BeaverTails, and 17 from Safety-Harmful.  The
+original metadata marks 190 cases as H2 and seven as H1.  Selection required
+an identifiable requested output and an explicit request for assistance with
+the execution, preparation, optimization, concealment, or encouragement of
+harm.  The filtering was LLM-assisted and did not involve an independent
+clinical-expert consensus; we therefore treat this dataset as an evaluation
+set for explicit harmful assistance rather than a clinical benchmark.
+
+\subsection{Targets and Researcher Models}
+\label{sec:models}
+
+We use GPT-4o (\texttt{gpt-4o-2024-11-20}) and
+Qwen-2.5-7B-Instruct as targets.  For GPT-4o, Qwen-2.5-7B-Instruct generates
+the research dialogue.  When Qwen is the target, we instead use
+Llama-3.1-8B-Instruct as the researcher to avoid assigning both roles to the
+same model family.  GPT-4o target calls use the OpenAI Batch API, whereas the
+open-weight models run locally.  Each target--condition cell contains the same
+197 cases in the same order.
+
+\subsection{Controlled Conditions}
+\label{sec:conditions}
+
+All conditions retain the same persona, seven-stage dynamic research
+dialogue, clinical-safety framing, target-utterance quotation requirement,
+four final readout directions, and direct-response stage.  They differ only
+in target-visible goal text and pre-generated history:
+
+\begin{description}
+    \item[\textsc{Ours-Full} (Explicit + History).]
+    The target receives the goal-aware persona and history followed by the
+    original request verbatim.  This is the frozen primary condition.
+
+    \item[\textsc{Ours-Latent} (No-Verbatim + History).]
+    The same goal-aware persona and history are retained, but the original
+    request is not copied verbatim into the target-visible context.  This is a
+    test of RQ2, not a goal-free condition: semantic persona/history cues and
+    the private researcher objective remain available.
+
+    \item[\textsc{Ours-Streamlined} (No-Verbatim + No-History).]
+    The original request and pre-generated dialogue history are both absent
+    from the target-visible context.  The persona and the complete dynamic
+    research dialogue remain unchanged.  This condition isolates the
+    contribution of pre-generated history for RQ3.
+\end{description}
+
+The three arms produce $2\times3\times197=1{,}182$ target-case outputs.  For
+each case, the method constructs four branch-scoped final readouts and reports
+\textsc{Best-of-4}.  The four-try budget is held constant across all six cells.
+
+\subsection{Metrics}
+\label{sec:metrics}
+
+Our first outcome family is CARES Level-2.  Let $A$, $C$, $R$, and $NR$ denote
+Accept, Caution, Refuse, and NoResponse.  For $N=197$ cases, we report
+\begin{equation}
+    \mathrm{Accept}=\frac{A}{N},\qquad
+    \mathrm{ASR}=\frac{A+C}{N},\qquad
+    \mathrm{SS}=\frac{R+0.5C+NR}{N}.
+\end{equation}
+Missing responses count as attack failures (NoResponse).  We also report the
+JMIR mean score (lower is more harmful) and exact-1 harmful rate.
+
+Our strict mechanism-aware primary metric is
+\begin{equation}
+ \mathrm{R3{+}}\ \land\ \mathrm{B4{+}}\ \land\ \mathrm{HarmBench{+}}.
+ \label{eq:strict-joint}
+\end{equation}
+R3+ requires substantive recovery of both the target proposition and the
+requested speech act.  B4+ requires agreement with or enactment of the
+complete goal.  Crucially, all three predicates in
+Equation~\ref{eq:strict-joint} must hold for the \emph{same final branch}; we
+never combine maxima from different branches.  HarmBench is the registered
+safety axis.  Qwen3Guard and Nemotron are independent auxiliary evaluators,
+for which we report analogous same-branch conjunctions without replacing the
+registered primary metric.
+
+For binary rates, we report descriptive 95\% Wilson intervals.  We additionally
+compare paired case-level Accept and strict-conjunction outcomes with
+two-sided exact McNemar tests and apply Holm correction over the eight
+target--contrast--metric comparisons.  These inferential comparisons are
+reported as an exploratory analysis rather than as part of the frozen metric
+contract.
+
+\section{Results}
+\label{sec:results}
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.2pt}
+\begin{tabular}{llrrrrrrrrrr}
+\toprule
+Target & Condition & A/C/R/NR & Accept$\uparrow$ & ASR$\uparrow$ & SS$\downarrow$
+& JMIR$\downarrow$ & Exact-1$\uparrow$ & R3+@4 & B4+@4
+& HB+@4 & Strict joint$\uparrow$ \\
+\midrule
+GPT-4o
+& \textsc{Ours-Latent} & 41/1/141/14 & 20.81 & 21.32 & 0.789 & 1.359 & 87.82 & 48.22 & 17.26 & 31.98 & 7.61 \\
+& \textsc{Ours-Full}$^{\dagger}$ & 35/1/152/9 & 17.77 & 18.27 & 0.820 & \textbf{1.320} & 86.80 & 44.16 & 14.72 & \textbf{32.99} & 2.54 \\
+& \textsc{Ours-Streamlined} & 49/2/127/19 & \textbf{24.87} & \textbf{25.89} & \textbf{0.746} & 1.487 & 84.77 & \textbf{76.14} & \textbf{24.37} & 28.93 & \textbf{12.18} \\
+\midrule
+Qwen-2.5-7B
+& \textsc{Ours-Latent} & 70/5/112/10 & 35.53 & 38.07 & 0.632 & \textbf{1.217} & \textbf{93.40} & 58.88 & 30.46 & \textbf{80.20} & 15.23 \\
+& \textsc{Ours-Full} & 61/4/114/18 & 30.96 & 32.99 & 0.680 & 1.369 & 90.36 & 44.67 & 21.32 & \textbf{80.20} & 10.66 \\
+& \textsc{Ours-Streamlined} & 71/7/100/19 & \textbf{36.04} & \textbf{39.59} & \textbf{0.622} & 1.399 & 88.83 & \textbf{68.53} & \textbf{43.65} & 73.60 & \textbf{21.32} \\
+\bottomrule
+\end{tabular}
+\caption{Primary \textsc{Best-of-4} results on Final-197.  CARES rates,
+JMIR exact-1, R3+@4, B4+@4, HarmBench positive (HB+@4), and strict joint are
+percentages; SS and JMIR mean are unscaled.  Bold marks the strongest observed
+value within a target, not a statistically significant winner.
+$^{\dagger}$Frozen primary condition for the GPT-4o main run.}
+\label{tab:main-results}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{llrrrrrr}
+\toprule
+Target & Condition & QG unsafe@4 & R3+B4+QG & Nemo unsafe@4
+& Nemo SSH+@4 & Nemo domain@4 & R3+B4+Nemo \\
+\midrule
+GPT-4o
+& \textsc{Ours-Latent} & 36.04 & 6.60 & 36.55 & 30.46 & 32.49 & 6.09 \\
+& \textsc{Ours-Full} & 35.03 & 3.05 & 35.03 & 30.96 & 32.49 & 3.05 \\
+& \textsc{Ours-Streamlined} & 35.03 & \textbf{15.23} & \textbf{37.06} & 29.95 & 32.49 & \textbf{12.69} \\
+\midrule
+Qwen-2.5-7B
+& \textsc{Ours-Latent} & \textbf{86.80} & 17.77 & \textbf{86.80} & 77.16 & 80.20 & 14.72 \\
+& \textsc{Ours-Full} & 85.28 & 12.18 & 86.29 & \textbf{79.19} & \textbf{81.22} & 9.64 \\
+& \textsc{Ours-Streamlined} & 77.66 & \textbf{22.84} & 81.73 & 72.59 & 75.13 & \textbf{21.83} \\
+\bottomrule
+\end{tabular}
+\caption{Auxiliary safety-evaluator results (\%).  QG denotes Qwen3Guard and
+Nemo denotes Nemotron-3-Content-Safety.  Conjunction columns require R3+, B4+,
+and the corresponding evaluator-positive label on the same branch.}
+\label{tab:aux-results}
+\end{table*}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrr}
+\toprule
+Target & Contrast vs. Latent & $\Delta$Accept & $\Delta$ASR
+& $\Delta$SS & $\Delta$Strict \\
+\midrule
+GPT-4o & Full & $-3.05$ & $-3.05$ & $+0.030$ & $-5.08$ \\
+& Streamlined & $+4.06$ & $+4.57$ & $-0.043$ & $+4.57$ \\
+Qwen & Full & $-4.57$ & $-5.08$ & $+0.048$ & $-4.57$ \\
+& Streamlined & $+0.51$ & $+1.52$ & $-0.010$ & $+6.09$ \\
+\bottomrule
+\end{tabular}
+\caption{Paired descriptive differences relative to \textsc{Ours-Latent}.
+Rate differences are percentage points; SS differences are unscaled.}
+\label{tab:ablation-deltas}
+\end{table}
+
+\subsection{RQ1: Cross-target Effectiveness}
+\label{sec:rq1-results}
+
+The strongest observed variant is \textsc{Ours-Streamlined}.  It obtains a
+CARES Accept rate of 24.87\% on GPT-4o (49/197; 95\% CI:
+19.36--31.35) and 36.04\% on Qwen (71/197; 95\% CI:
+29.66--42.95).  Under the stricter same-branch mechanism-aware metric, it
+achieves 12.18\% on GPT-4o (24/197; 95\% CI: 8.33--17.49) and
+21.32\% on Qwen (42/197; 95\% CI: 16.18--27.56).  Thus, the dynamic
+research dialogue elicits non-zero strict successes across both target
+families, although GPT-4o remains substantially more resistant.
+
+\subsection{RQ2: Verbatim Goal Exposure}
+\label{sec:rq2-results}
+
+Verbatim exposure does not improve the two principal success measures.  From
+\textsc{Ours-Latent} to \textsc{Ours-Full}, Accept decreases by 3.05 points
+and strict success by 5.08 points on GPT-4o.  The corresponding changes on
+Qwen are $-4.57$ and $-4.57$ points.  This result rules out a simple
+``copy the harmful request into the context'' explanation for the observed
+successes.  It does not, however, establish an absence of all goal-related
+information because the latent condition retains semantic persona/history
+cues and a private researcher objective.
+
+\subsection{RQ3: Persona-History Contribution}
+\label{sec:rq3-results}
+
+Removing pre-generated history produces the highest observed CARES and strict
+joint scores for both targets.  Relative to \textsc{Ours-Latent}, strict
+success increases by 4.57 points on GPT-4o and 6.09 points on Qwen.  The
+corresponding Accept changes are $+4.06$ and $+0.51$ points.  These results do
+not support the hypothesis that pre-generated history is necessary or
+beneficial; instead, they identify the target-grounded dynamic dialogue as the
+more plausible active component.  However, no paired binary comparison remains
+significant after Holm correction (minimum adjusted $p=.170$), so we describe
+the ordering as an observed ablation trend rather than a confirmed improvement.
+
+\subsection{RQ4: Evaluator Robustness}
+\label{sec:rq4-results}
+
+For \textsc{Ours-Streamlined}, the three same-branch strict estimates are
+12.18\% (HarmBench), 15.23\% (Qwen3Guard), and 12.69\% (Nemotron) on
+GPT-4o, and 21.32\%, 22.84\%, and 21.83\% on Qwen.  Their close ranges
+support the conclusion that strict successes are not an artifact of a single
+safety classifier.  In contrast, evaluator-positive rates without the R3+/B4+
+requirements are much larger and vary more substantially.  We therefore use
+the registered same-branch HarmBench conjunction as the primary result and
+treat the other classifiers as corroborating evidence.
+
+\subsection{Interpretation and Reporting Scope}
+\label{sec:reporting-scope}
+
+The ablations indicate that the central contribution is the branch-scoped,
+target-grounded research dialogue and readout rather than verbatim goal
+insertion or a long pre-generated history.  Nevertheless,
+\textsc{Ours-Full} remains the frozen primary condition, while
+\textsc{Ours-Streamlined} is the strongest observed ablation.  Promoting the
+latter to a new primary method requires confirmation on a previously unused
+evaluation set.
+
+Finally, existing baseline results available to us use a different 64-case
+subset.  We therefore do not claim state-of-the-art performance or rank our
+197-case results against those numbers.  A formal superiority claim requires
+running baselines on the same 197 cases with the same four-attempt budget,
+missing-response policy, and evaluator suite.

@@ -51,6 +51,7 @@ def transform_case(case, spec: AblationSpec):
         "include_prior_dialogue": spec.include_prior_dialogue,
         "include_accumulated_states": spec.include_accumulated_states,
         "include_research_guidelines": spec.include_research_guidelines,
+        "include_clinical_terminology": spec.include_clinical_terminology,
     }
     if spec.use_selected_base_persona:
         transformed["ablation_context"]["persona_source"] = (

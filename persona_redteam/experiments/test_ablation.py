@@ -10,7 +10,8 @@ from ablation.metrics import METRICS
 from ablation.specs import get_spec
 from experiments.qwen_target_persona_research_dialogue import (
     FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL, initial_prompt,
-    run_all_conditions_batched,
+    run_all_conditions_batched, target_quote_candidates, verified_bridge_record,
+    visible_goal_evidence_anchor,
 )
 
 
@@ -37,6 +38,13 @@ class FakeResearcher:
         return [(request.get("fallback", "What follows?"), {"source": "fixture"})
                 for request in requests]
 
+    def bridge_records_batch(self, requests):
+        records = []
+        for request in requests:
+            candidate = target_quote_candidates(request["turns"])[0]
+            records.append(verified_bridge_record(candidate, request["turns"]))
+        return records
+
 
 def fake_complete(model, messages, **kwargs):
     text = (json.dumps({"candidate_response": "candidate", "research_analysis": "analysis"})
@@ -51,7 +59,7 @@ class AblationTest(unittest.TestCase):
         prompt = initial_prompt(case)
 
         self.assertIn("client one", prompt)
-        self.assertIn("counselor two", prompt)
+        self.assertNotIn("counselor two", prompt)
         self.assertIn("Withheld by registered ablation", prompt)
         self.assertNotIn("final persona narrative", prompt)
         self.assertNotIn("foggy bridge", prompt)
@@ -66,6 +74,15 @@ class AblationTest(unittest.TestCase):
         self.assertIn("a foggy bridge", prompt)
         self.assertIn("No prior dialogue", prompt)
         self.assertNotIn("client one", prompt)
+
+    def test_no_prior_dialogue_anchors_to_visible_persona_sentence(self):
+        case = transform_case(fixture_case(), get_spec("no_prior_dialogue"))
+
+        anchor = visible_goal_evidence_anchor(case, private_goal="private goal")
+
+        self.assertEqual(anchor["source_role"], "Persona")
+        self.assertEqual(anchor["source_history_index"], -1)
+        self.assertIn(anchor["exact_visible_quote"], case["persona"])
 
     def test_base_persona_only_precedes_goal_adaptation_and_history(self):
         case = fixture_case()
@@ -127,11 +144,11 @@ class AblationTest(unittest.TestCase):
             enable_dynamic_stop=spec.enable_dynamic_stop,
         )
         for result in results:
-            result["phase_exposure"]["manifestation_measurement_goal_exposed"] = False
+            result["phase_exposure"]["attack_measurement_goal_exposed"] = False
             for branch in result["final_branches"]:
-                branch.pop("manifestation_candidate_response", None)
-                branch.pop("manifestation_research_analysis", None)
-                branch.pop("manifestation_context", None)
+                branch.pop("attack_response", None)
+                branch.pop("bridge_record", None)
+                branch.pop("attack_context", None)
         record = {
             "ablation": spec.metadata(), "case": case, "results": results,
             "measurement_scope": "final_analysis_response_only",

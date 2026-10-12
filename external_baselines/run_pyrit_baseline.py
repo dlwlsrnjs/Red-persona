@@ -307,6 +307,7 @@ def _is_canonical_full_run(args: argparse.Namespace) -> bool:
         and args.stop is None
         and args.limit is None
         and not args.crisis_label
+        and not args.retry_failed_only
     )
 
 
@@ -516,6 +517,7 @@ def build_manifest(
         "final_evaluation": evaluation_contract(),
         "recovery": {
             "retry_failed_checkpoints": args.retry_failed,
+            "retry_failed_only": args.retry_failed_only,
             "successful_case_checkpoints_are_immutable": True,
             "batch_request_retries": args.batch_request_retries,
             "batch_api_retries": args.batch_api_retries,
@@ -1024,6 +1026,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=True,
         help="retry existing failed case checkpoints (default: enabled)",
     )
+    parser.add_argument(
+        "--retry-failed-only",
+        action="store_true",
+        help=(
+            "select only cases that already have a .failed.json checkpoint in "
+            "--output-dir; useful for a non-overlapping recovery pass while the "
+            "main run continues"
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     if args.max_turns is None:
@@ -1084,6 +1095,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--pcsa-disable-persona is only valid for PCSA Phase 2")
     if args.pcsa_disable_persona and args.pcsa_persona_history:
         parser.error("--pcsa-disable-persona cannot be combined with --pcsa-persona-history")
+    if args.retry_failed_only and not args.retry_failed:
+        parser.error("--retry-failed-only requires --retry-failed")
     if not CRISIS_PROMPT.exists() or not THERAPIST_PROMPT.exists():
         parser.error("PyRIT submodule is missing; run: git submodule update --init --recursive")
     if args.output_dir is None:
@@ -1144,6 +1157,12 @@ def main(argv: list[str] | None = None) -> int:
         crisis_labels=tuple(args.crisis_label),
         seed=args.seed,
     )
+    if args.retry_failed_only:
+        selected = [
+            case
+            for case in selected
+            if (args.output_dir / f"{case['case_id']}.failed.json").exists()
+        ]
     manifest = build_manifest(
         args,
         selected,

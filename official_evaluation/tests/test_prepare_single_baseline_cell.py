@@ -83,3 +83,41 @@ def test_prepare_many_combines_disjoint_shards_and_rejects_overlap(tmp_path):
             method="pcsa_phase2_persona_history",
             row_prefix="final197",
         )
+
+
+def test_prepare_allow_incomplete_skips_missing_checkpoints(tmp_path):
+    input_dir = tmp_path / "cell"
+    input_dir.mkdir()
+    (input_dir / "run_manifest.json").write_text(
+        json.dumps({"case_ids": ["case-a", "case-b"]}), encoding="utf-8"
+    )
+    (input_dir / "case-a.json").write_text(
+        json.dumps(
+            {
+                "case": {"case_id": "case-a", "objective": "objective a"},
+                "target_conversation": [
+                    {"role": "user", "content": "prompt a"},
+                    {"role": "assistant", "content": "response a"},
+                ],
+                "final_target_response": "response a",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(FileNotFoundError, match="case-b"):
+        prepare(
+            input_dir,
+            target_model="gpt4o",
+            method="crescendo",
+            row_prefix="final197-query16",
+        )
+
+    rows = prepare(
+        input_dir,
+        target_model="gpt4o",
+        method="crescendo",
+        row_prefix="final197-query16",
+        allow_incomplete=True,
+    )
+    assert [row["case_id"] for row in rows] == ["case-a"]

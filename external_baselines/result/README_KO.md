@@ -5,6 +5,13 @@
 완료된 외부 baseline 21개 셀의 내용, 전체 표, 설정, 해석, CSV/JSON, provenance와 재생성
 코드를 한 폴더에 정리했다.
 
+호출 상한이 기존 4--6회였던 반복형 공격을 최대 16 target query로 다시 실행한
+민감도 분석은
+[`final197_query16_matched_v1/README_KO.md`](final197_query16_matched_v1/README_KO.md)에
+분리했다. 이 폴더에는 GPT-4o/Qwen × 3개 방법의 6개 셀, 호출 수 분포, 이전 예산 대비
+HarmBench 변화, 논문용 LaTeX와 재생성 감사가 있다. 기존 canonical 행렬을 덮어쓰지 않으며
+query-budget RQ/부록용으로 사용한다.
+
 외부 공격이 실제 응답의 어느 지점에서 실패했는지는
 [`final197_external_baselines_v2/QUALITATIVE_FAILURE_ANALYSIS_KO.md`](final197_external_baselines_v2/QUALITATIVE_FAILURE_ANALYSIS_KO.md)의
 대표 3건 정성 분석에서 확인할 수 있다.

@@ -26,6 +26,9 @@ HarmBench와 PCSA/CARES를 사용하고, PCSA의 보조 분석은 별도 열/부
 5. **Goal-compliance v3 진단지표**: R3+, B3+, B4+와 Strict Joint를 별도로 보존한다.
    이는 공식 HarmBench/CARES 지표가 아니며, 복원된 private goal을 최종 답변이 실제로
    수행했는지 분석하는 저장소 고유 보조지표다.
+6. **Qwen3Guard 보조 안전축**: `Qwen/Qwen3Guard-Gen-8B`의 `Unsafe`와
+   `Unsafe 또는 Controversial` 비율을 별도 부록 지표로 계산한다. HarmBench나 CARES를
+   대체하지 않으며, 주 결과와 합성 점수로 섞지 않는다.
 
 기존 외부 500 결과를 PCSA 설정 그대로 재현하는 경로는 adversarial target을 CARES
 harm level 2로 고정한다. 반면 새 JMIR 2,046/AILuminate 100 경로는 이를 가정하지 않고
@@ -42,11 +45,13 @@ GPT judge 네 개 하위 판정은 감사 가능한 원자료로 함께 저장�
 | `classify_research_cohort.py` | GPT-4o-mini Batch 2단계(요청/분야 → CARES 위해도) 최종 선별 |
 | `annotate_harm_levels.py` | 요청으로 확인된 텍스트의 response-blind CARES Level 0–3 Batch 판정 |
 | `prepare_external500.py` | 완성된 9×2×500 외부 베이스라인을 공통 JSONL로 변환 |
+| `prepare_single_baseline_cell.py` | 한 baseline 셀을 공통 입력으로 변환; 실행 중 선평가는 `--allow-incomplete`로 완료 checkpoint만 선택 |
 | `evaluate_harmbench.py` | 공식 HarmBench 13B classifier 실행, 재시작·샤딩 지원 |
 | `evaluate_cares.py` | 공식 CARES prompt 실행 또는 기존 A/C/R 판정 재사용 |
 | `evaluate_pcsa_gpt4o_judge.py` | Figure 4 원문 prompt를 GPT-4o Batch로 실행 |
 | `evaluate_perplexity.py` | GPT-2 perplexity와 PPL>100 탐지율 계산 |
 | `evaluate_b3_behavior.py` | 기존 B0–B5 evaluator를 GPT-4o-mini Batch로 실행 |
+| `evaluate_qwen3guard.py` | Qwen3Guard-Gen-8B 보조 안전 판정, 재시작·샤딩 지원 |
 | `aggregate.py` | HarmBench ASR와 PCSA/CARES ASR·SS만 집계 |
 | `aggregate_pilot.py` | 네 관점 파일럿을 한 JSON/CSV로 엄격 집계 |
 | `merge_shards.py` | 다른 머신에서 만든 JSONL shard 병합 |
@@ -162,6 +167,16 @@ python official_evaluation/evaluate_pcsa_gpt4o_judge.py \
 ```
 
 GPT-2 perplexity와 HarmBench는 OpenAI API가 아니라 공개 가중치를 쓰는 로컬 추론이다.
+
+Qwen3Guard도 로컬 GPU에서 실행하며 공통 입력 JSONL을 그대로 받는다. 중단 후 같은
+출력 경로로 재실행하면 이미 완료된 `row_id`를 건너뛴다.
+
+```bash
+python official_evaluation/evaluate_qwen3guard.py \
+  --input official_evaluation/work/final197_query16/INPUT.jsonl \
+  --output official_evaluation/work/final197_query16/qwen3guard.jsonl \
+  --device cuda:0 --batch-size 16
+```
 
 ```bash
 python official_evaluation/evaluate_perplexity.py \

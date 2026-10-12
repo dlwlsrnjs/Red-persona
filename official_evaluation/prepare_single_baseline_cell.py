@@ -40,11 +40,14 @@ def prepare(
     target_model: str,
     method: str,
     row_prefix: str,
+    allow_incomplete: bool = False,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for case_id in load_case_ids(input_dir):
         path = input_dir / f"{case_id}.json"
         if not path.exists():
+            if allow_incomplete:
+                continue
             failure = input_dir / f"{case_id}.failed.json"
             suffix = " (failed checkpoint exists)" if failure.exists() else ""
             raise FileNotFoundError(f"missing result: {path}{suffix}")
@@ -91,6 +94,7 @@ def prepare_many(
     target_model: str,
     method: str,
     row_prefix: str,
+    allow_incomplete: bool = False,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen_case_ids: set[str] = set()
@@ -100,6 +104,7 @@ def prepare_many(
             target_model=target_model,
             method=method,
             row_prefix=row_prefix,
+            allow_incomplete=allow_incomplete,
         )
         overlap = seen_case_ids.intersection(row["case_id"] for row in shard)
         if overlap:
@@ -125,12 +130,18 @@ def main() -> int:
     parser.add_argument("--method", required=True)
     parser.add_argument("--row-prefix", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="prepare only completed checkpoints while a resumable cell is still running",
+    )
     args = parser.parse_args()
     rows = prepare_many(
         args.input_dir,
         target_model=args.target_model,
         method=args.method,
         row_prefix=args.row_prefix,
+        allow_incomplete=args.allow_incomplete,
     )
     atomic_jsonl(args.output, rows)
     print(json.dumps({"output": str(args.output.resolve()), "rows": len(rows)}))

@@ -124,6 +124,20 @@ def test_recovery_defaults_are_enabled_and_can_be_disabled():
     assert disabled.retry_failed is False
 
 
+def test_retry_failed_only_requires_retry_mode():
+    enabled = MODULE.parse_args(
+        ["--method", "direct", "--retry-failed-only", "--dry-run"]
+    )
+    assert enabled.retry_failed_only is True
+    with pytest.raises(SystemExit):
+        MODULE.parse_args(
+            [
+                "--method", "direct", "--retry-failed-only",
+                "--no-retry-failed", "--dry-run",
+            ]
+        )
+
+
 def test_checkpoint_state_reports_completed_failed_and_pending(tmp_path):
     selected = [
         {"case_id": "complete"},

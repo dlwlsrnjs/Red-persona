@@ -297,6 +297,10 @@ QWEN_ONLY=1 PILOT_CASES=10 sbatch external_baselines/run_matrix_on_gpu.sbatch
 완료된 `<case_id>.json`은 보존하고, `.failed.json` 또는 아직 결과가 없는 case만 채운다.
 재실행을 의도적으로 막을 때만 `--no-retry-failed`를 사용한다. `run_summary.json`의
 `checkpoints.is_complete`가 true이고 `failed=0`, `pending=0`이어야 해당 조합이 완결된 것이다.
+기존 `.failed.json`만 빠르게 복구할 때는 `--retry-failed-only`를 추가한다. 이 옵션은
+완료 파일이나 아직 한 번도 실행하지 않은 case를 선택하지 않으며, `--no-retry-failed`와
+함께 사용할 수 없다. 복구가 끝난 뒤에는 같은 output 디렉터리에서 일반 resume를 한 번
+실행해 197개 전체 coverage의 canonical manifest를 다시 기록한다.
 TAP이 모든 branch를 target 호출 전에 prune한 case는 인프라 실패가 아니라 공격 실패로
 분류하며 `final_evaluation.status=not_applicable_no_target_response`로 분모에 보존한다.
 특정 방법만 기존 output에 이어서 복구할 때는 다음 환경변수를 사용한다.

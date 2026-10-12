@@ -85,6 +85,16 @@ cohort를 선택하지 않았으며 case ID는 launcher에 고정되어 있다.
 수치, 모델, 해시와 산출물 경로는
 [`evidence/pilot10_gpt4o_results.json`](evidence/pilot10_gpt4o_results.json)에 고정한다.
 
+## Final-197 본실험 결과
+
+세 arm의 197건 생성과 GPT-4o CARES/JMIR·R/B, 로컬 HarmBench 평가를 완료했다.
+최종 제안 메서드 `no_verbatim`은 CARES Accept 96.45%, JMIR exact-1 96.45%,
+HarmBench @4 89.34%, 동일 분기 `R3+ ∧ B4+ ∧ HarmBench+` 63.96%를 기록했다.
+다만 `no_history` ablation이 CARES/JMIR 및 엄격 결합에서 더 높았으므로 history의
+성능 향상 효과는 지지되지 않았다. 전체 표, 방향별 결과, 해석과 검증 해시는
+[`result/final197_1011_singleton_gpt4o_v1/`](result/final197_1011_singleton_gpt4o_v1/README_KO.md)에
+고정한다.
+
 ## 폴더 구성
 
 | 경로 | 역할 |

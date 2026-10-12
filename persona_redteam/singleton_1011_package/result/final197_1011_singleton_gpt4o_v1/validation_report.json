@@ -1,0 +1,76 @@
+{
+  "version": "final197-results-validation-v1",
+  "validated_at": "2026-10-12",
+  "passed": true,
+  "matrix_id": "final197_1011_singleton_gpt4o_v1",
+  "checks": [
+    {
+      "name": "generation_case_cardinality",
+      "passed": true,
+      "evidence": "Each arm contains exactly 197 case JSON files and run_summary reports selected=197, complete=197, failed=0."
+    },
+    {
+      "name": "four_registered_branches_per_case",
+      "passed": true,
+      "evidence": "Each arm has 788 final branches for 197 unique case IDs."
+    },
+    {
+      "name": "gpt_evaluation_complete",
+      "passed": true,
+      "evidence": "CARES/JMIR and R/B records for all three arms have status=complete, 788 rows and 197 unique case IDs."
+    },
+    {
+      "name": "harmbench_complete_or_registered_unavailable",
+      "passed": true,
+      "evidence": "HarmBench has 788 rows per arm. Status counts: no_verbatim complete=788; explicit complete=761 and bridge_unavailable=27; no_history complete=785 and bridge_unavailable=3."
+    },
+    {
+      "name": "row_key_alignment",
+      "passed": true,
+      "evidence": "Sorted (case_id, condition, direction) keys have identical SHA-256 8bc95c6d15f5bbf3e969608aca5f73d852e5aca1af85093f95aedefbb751095d in every R/B and HarmBench record."
+    },
+    {
+      "name": "best_of_4_denominator",
+      "passed": true,
+      "evidence": "For every arm, CARES Best-of-4 A+C+R+NR sums to 197."
+    },
+    {
+      "name": "model_contract",
+      "passed": true,
+      "evidence": "Target and GPT evaluators are gpt-4o-2024-11-20; local classifier is cais/HarmBench-Llama-2-13b-cls."
+    },
+    {
+      "name": "same_branch_joint",
+      "passed": true,
+      "evidence": "HarmBench evaluation joins R3+, B4+ and HarmBench labels by the same case/condition/direction key before case-level @4 aggregation."
+    },
+    {
+      "name": "raw_text_excluded_from_public_result_bundle",
+      "passed": true,
+      "evidence": "The committed result folder contains aggregate metrics, provenance and hashes only."
+    }
+  ],
+  "arm_details": {
+    "no_verbatim": {
+      "generation_cases": 197,
+      "evaluation_rows": 788,
+      "sent_final_prompts": 788,
+      "bridge_unavailable": 0,
+      "cares_jmir_missing_best_of_4": 0
+    },
+    "explicit": {
+      "generation_cases": 197,
+      "evaluation_rows": 788,
+      "sent_final_prompts": 761,
+      "bridge_unavailable": 27,
+      "cares_jmir_missing_best_of_4": 6
+    },
+    "no_history": {
+      "generation_cases": 197,
+      "evaluation_rows": 788,
+      "sent_final_prompts": 785,
+      "bridge_unavailable": 3,
+      "cares_jmir_missing_best_of_4": 0
+    }
+  }
+}

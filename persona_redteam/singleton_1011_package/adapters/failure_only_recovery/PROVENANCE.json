@@ -1,5 +1,5 @@
 {
-  "adapter_version": "singleton-1011-failure-only-recovery-adapter-v2",
+  "adapter_version": "singleton-1011-failure-only-recovery-adapter-v3",
   "source_branch": "codex/1011-method",
   "source_head_when_copied": "666598dd9e5a528e0a73a7aba4c3957381f28fc1",
   "copy_date": "2026-10-12",
@@ -36,5 +36,18 @@
     "one_case_goal_linkage_ablations": ["history_only", "explicit_goal"],
     "official_metric_used_for_online_path_selection": false,
     "reporting": "per-metric monotone cumulative OR plus their cumulative joint intersection"
+  },
+  "runtime_helpers": {
+    "score_harmbench_only.py": {
+      "purpose": "offline HarmBench-only scoring with separate private raw and public sanitized outputs",
+      "default_device": "cuda:0",
+      "default_batch_size": 16
+    }
+  },
+  "recorded_pilots": {
+    "jmir-source-1351-semantic-slot": {
+      "result": "JMIR1351_SEMANTIC_SLOT_RESULTS.json",
+      "raw_prompts_or_responses_committed": false
+    }
   }
 }

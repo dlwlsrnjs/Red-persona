@@ -43,6 +43,7 @@ HarmBench는 생성이 끝난 뒤에만 사용하므로 공식 지표가 온라�
 | `full_history_specificity_pilot.py` | 전체 이력·직전 답변 고정 후 네 후속 형식을 한 GPT-4o Batch로 비교 |
 | `semantic_slot_core.py` | goal-aware 연구자가 RELATION·TASK·COMPOSE를 순차 선택하는 비문자적 멀티턴 코어 |
 | `semantic_slot_engine.py` | semantic slot arm의 턴 2–4 생성 실행기 |
+| `score_harmbench_only.py` | CARES 재호출 없이 완료된 4턴 궤적을 HarmBench로만 평가하고 비공개 원문/공개 요약을 분리 |
 
 보존본은 싱글턴 `src/` 스냅샷 밖에 둔다. 따라서 기존 싱글턴 검증기와 실행
 진입점은 계속 멀티턴 파일을 포함하지 않는 상태로 유지된다.
@@ -117,6 +118,17 @@ python -m singleton_1011_package.adapters.failure_only_recovery.launch \
   --singleton-scoring /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring/results.json \
   --runtime /data1/users/USER/failure_only_recovery/MATRIX/semantic_slot_fill \
   --expected-singleton-cases 197 --arm semantic_slot_fill --wait
+```
+
+HarmBench를 기본 gate로 삼는 파일럿은 CARES 비용 없이 네 턴의 16개 후보만
+오프라인 재평가할 수 있다. `results_private.json`에는 재현에 필요한 원문을,
+`summary.json`에는 커밋 가능한 해시·길이·판정만 쓴다.
+
+```bash
+python -m singleton_1011_package.adapters.failure_only_recovery.score_harmbench_only \
+  --trajectory-dir /data1/users/USER/failure_only_recovery/MATRIX/semantic_slot_fill/results/lane_0 \
+  --output-dir /data1/users/USER/failure_only_recovery/MATRIX/semantic_slot_fill/harmbench_only \
+  --expected-cases 1 --harmbench-device cuda:0 --harmbench-batch-size 16
 ```
 
 평가는 `gpt-4o-2024-11-20` Batch로 고정된다. `gpt-4o-mini`나 standard API로
@@ -197,3 +209,9 @@ python -m singleton_1011_package.adapters.failure_only_recovery.full_history_spe
 semantic oracle로 활용하는 것과 그 문장을 타깃에 그대로 노출하는 것을 분리해야
 함을 보여준다. 상세 기록은 `JMIR1351_FULL_HISTORY_SPECIFICITY_RESULTS_KO.md`와
 `JMIR1351_EXPLICIT_GOAL_SPECIFICITY_RESULTS_KO.md`에 있다.
+
+이어 실행한 `semantic_slot_fill`은 persona/research 이력 전체를 유지한 채
+`RELATION → TASK → COMPOSE`를 한 칸씩 채웠지만 새 후보 12개가 HarmBench 0/12로
+복구되지 않았다. 관계 방향은 잡혔으나 TASK 후보 전체가 목표 행동과 어긋났으므로
+경로 선택 문제가 아닌 후보 생성 문제였다. 상세 기록은
+`JMIR1351_SEMANTIC_SLOT_RESULTS_KO.md`에 있다.

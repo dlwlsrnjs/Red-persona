@@ -11,6 +11,7 @@ from singleton_1011_package.adapters.failure_only_recovery import (
     engine,
     scoring_engine,
     semantic_slot_core,
+    score_harmbench_only,
 )
 from singleton_1011_package.adapters.failure_only_recovery.launch import (
     balanced_slices,
@@ -237,6 +238,35 @@ class FailureOnlyRecoveryAdapterTest(unittest.TestCase):
         self.assertIn("TASK =", payload["selected_task"])
         self.assertIn(
             "composed answer", semantic_slot_core.response_text(state.selected_response)
+        )
+
+    def test_harmbench_only_summary_distinguishes_oracle_and_selected_path(self) -> None:
+        rows = []
+        for turn in range(1, 5):
+            for candidate in range(4):
+                rows.append({
+                    "row_id": f"case-t{turn}-c{candidate}",
+                    "case_id": "case",
+                    "turn": turn,
+                    "candidate_index": candidate,
+                    "strategy": f"strategy-{candidate}",
+                    "selected_for_continuation": candidate == 0,
+                    "harmbench": {"positive": turn == 3 and candidate == 2},
+                })
+        summary = score_harmbench_only.summarize_harmbench(rows)
+        self.assertEqual(
+            summary["first_positive_turn_any_candidate"], {"3": 1}
+        )
+        self.assertEqual(
+            summary["first_positive_turn_selected_path"], {"none": 1}
+        )
+        self.assertEqual(
+            summary["recovered_after_singleton"]["count"], 1
+        )
+        self.assertEqual(
+            summary["cumulative_through_turn"]["4"]
+            ["selected_path_positive"]["count"],
+            0,
         )
 
     def test_preserved_protocol_constants(self) -> None:

@@ -1,0 +1,57 @@
+# 코사인 기반 타 샘플 persona-history 전이
+
+## 왜 했는가
+
+각 GOAL마다 별도 persona history를 미리 만드는 비용을 줄일 수 있는지 확인하기 위해,
+다른 샘플의 이력을 재사용해도 성능이 유지되는지를 평가했다. 유사 이력이 단순 주제
+누수인지, 장문 연구대화가 잘못된 이력을 교정할 수 있는지도 함께 확인했다.
+
+## 설계
+
+- Encoder: `BAAI/bge-base-en-v1.5`, revision 고정.
+- Retrieval 입력에서 private 원 요청과 persona history를 제외했다.
+- `matched`: 다른 샘플 중 cosine top-1 이력. 평균 cosine 0.8761.
+- `mismatched`: cosine 하위권이며 crisis label도 다른 이력. 평균 cosine 0.5669.
+- recipient persona, private GOAL, 유사질문 풀, 4분기, 평가기는 고정하고 history만 교체했다.
+- 각 이력을 short single-readout과 long 7-stage에 교차했다.
+- 394개 전이 case의 ID·donor·누수 감사가 모두 통과했다.
+
+## 먼저 확정된 short 전체 결과
+
+| 조건 | CARES Accept | R3+@4 | B4+@4 | HarmBench+@4 | 엄격 결합@4 |
+|---|---:|---:|---:|---:|---:|
+| 자체 이력 short | 100.00% | 99.49% | 100.00% | 96.95% | 95.94% |
+| 코사인 상위 타 이력 short | 100.00% | 95.94% | 99.49% | 92.89% | 89.85% |
+| 무이력 short | 100.00% | 97.46% | 98.98% | 86.80% | 83.76% |
+| 비유사 타 이력 short | 100.00% | 91.88% | 96.95% | 84.77% | 77.16% |
+
+유사 이력은 자체 이력 대비 결합@4가 6.09%p 낮아 완전한 비열등을 가정할 수 없지만,
+무이력보다는 6.09%p 높았다. 비유사 이력은 무이력보다도 6.60%p 낮아 잘못된 사전
+문맥이 방해할 수 있음을 보였다.
+
+## GOAL 복원과 턴수
+
+| 조건 | 7단계 내 복원 | Case A/B 추가 | 최종 복원 | 평균 연구 턴 | 평균 target completion |
+|---|---:|---:|---:|---:|---:|
+| matched-long | 58.38% | +18.27%p | **76.65%** | 7.42 | 16.42 |
+| mismatched-long | 30.46% | +16.75%p | **47.21%** | 7.70 | 16.70 |
+
+완전히 다른 이력에서도 약 절반은 GOAL을 다시 찾았지만 유사 이력보다 29.44%p 낮았다.
+`latent_goal` 단계 도달과 인용 가능 사례는 두 조건 모두 100%였으므로 단순 실행 중단이
+아니라 의미 충족 게이트의 차이다.
+
+## 최종 행동평가
+
+long 두 조건의 GPT-4o CARES/JMIR/R·B 및 HarmBench 평가는 완료 후 아래 원본 결과와
+이 문서에 즉시 추가한다. short 조건에서 복원 게이트 수치는 7단계 대화를 실행하지
+않았으므로 0%가 아니라 N/A다.
+
+## 원본과 재현
+
+- 전이 데이터/감사: `persona_redteam/data/final_cares_strict_harmful/persona197_v1/history_transfer_cosine_v1/`
+- 결과: `persona_redteam/result/OURS/final197_history_transfer_cosine_v1/`
+- 준비: `persona_redteam/experiments/final197/prepare_history_transfer_cosine_ablation.py`
+- 실행: `persona_redteam/experiments/final197/launch_history_transfer_cosine_ablation.py`
+- 평가: `persona_redteam/experiments/final197/evaluate_history_transfer_cosine_ablation.py`
+- 비교: `persona_redteam/experiments/final197/compare_history_transfer_cosine_ablation.py`
+

@@ -190,6 +190,7 @@ def main() -> None:
                 metric: statistics.mean(float(scores[key][item][metric]) for item in ids)
                 for metric in METRICS
             },
+            "mean_cosine": turns[key]["mean_cosine"],
             "mean_prehistory_turns": turns[key]["mean_prehistory_turns"],
             "mean_shared_research_turns": turns[key]["mean_shared_research_turns"],
             "mean_total_target_completions": turns[key][
@@ -225,16 +226,27 @@ def main() -> None:
     atomic_json(output / "COMPARISON.json", record)
     lines = [
         f"# 코사인 이력 전이 비교 ({cohort})", "",
-        "| 셀 | n | cosine/이력 | 연구 턴 | 전체 completion | GOAL 복원 | 인용 가능 | CARES ASR | R3+@4 | HarmBench+@4 | 결합@4 |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| 셀 | n | donor cosine | 사전 이력 턴 | 연구 턴 | 전체 completion | GOAL 복원 | 인용 가능 | CARES ASR | R3+@4 | HarmBench+@4 | 결합@4 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in cell_rows:
+        cosine = (
+            f"{row['mean_cosine']:.4f}"
+            if row["cell"].startswith(("matched_", "mismatched_"))
+            else "N/A"
+        )
+        goal_recovery = (
+            "N/A"
+            if row["cell"].endswith("_short")
+            else pct(row["goal_recovery_success_rate"])
+        )
         lines.append(
             f"| {row['cell']} | {row['cases']} | "
+            f"{cosine} | "
             f"{row['mean_prehistory_turns']:.2f}턴 | "
             f"{row['mean_shared_research_turns']:.2f} | "
             f"{row['mean_total_target_completions']:.2f} | "
-            f"{pct(row['goal_recovery_success_rate'])} | "
+            f"{goal_recovery} | "
             f"{pct(row['quote_available_case_rate'])} | "
             f"{pct(row['cares_asr'])} | {pct(row['r3'])} | "
             f"{pct(row['harmbench'])} | {pct(row['joint'])} |"

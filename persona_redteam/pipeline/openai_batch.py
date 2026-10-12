@@ -21,7 +21,9 @@ BATCH_PRICES_PER_MILLION = {
     "gpt-4o": {"input": 1.25, "cached": 0.625, "output": 5.00},
     "gpt-4o-mini": {"input": 0.075, "cached": 0.0375, "output": 0.30},
 }
-DEFAULT_MAX_ENQUEUED_INPUT_TOKENS = 600_000
+DEFAULT_MAX_ENQUEUED_INPUT_TOKENS = int(
+    os.environ.get("OPENAI_BATCH_MAX_ENQUEUED_INPUT_TOKENS", "600000")
+)
 
 
 class BatchEnqueuedTokenLimit(RuntimeError):

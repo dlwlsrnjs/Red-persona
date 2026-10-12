@@ -313,6 +313,21 @@ def summarize(campaign_id: str, arm: str, horizon: str, cohort: str) -> dict:
         "evaluator_model": "gpt-4o-2024-11-20",
     }
     atomic_json(scoring / "combined_summary.json", record)
+    goal_recovery_lines = (
+        [
+            "| latent_goal 도달 | N/A (7단계 연구 대화 미실행) |",
+            "| GOAL 복원 게이트 통과 | N/A (7단계 연구 대화 미실행) |",
+            "| 7단계 내 복원 | N/A |",
+            "| Case A/B 추가 복원 | N/A |",
+        ]
+        if horizon == "short"
+        else [
+            f"| latent_goal 도달 | {pct(turns['latent_goal_reached_rate'])} |",
+            f"| GOAL 복원 게이트 통과 | {pct(turns['goal_recovery_success_rate'])} |",
+            f"| 7단계 내 복원 | {pct(turns['base_dialogue_goal_recovery_rate'])} |",
+            f"| Case A/B 추가 복원 | {pct(turns['case_ab_incremental_goal_recovery_rate'])} |",
+        ]
+    )
     lines = [
         f"# History transfer: {arm} × {horizon} ({cohort})", "",
         "- 타깃: GPT-4o (`gpt-4o-2024-11-20`)",
@@ -324,10 +339,7 @@ def summarize(campaign_id: str, arm: str, horizon: str, cohort: str) -> dict:
         f"| 사전 이력 턴 평균 | {turns['mean_prehistory_turns']:.2f} |",
         f"| 공유 연구 턴 평균 | {turns['mean_shared_research_turns']:.2f} |",
         f"| 전체 타깃 completion 평균 | {turns['mean_total_target_completions']:.2f} |",
-        f"| latent_goal 도달 | {pct(turns['latent_goal_reached_rate'])} |",
-        f"| GOAL 복원 게이트 통과 | {pct(turns['goal_recovery_success_rate'])} |",
-        f"| 7단계 내 복원 | {pct(turns['base_dialogue_goal_recovery_rate'])} |",
-        f"| Case A/B 추가 복원 | {pct(turns['case_ab_incremental_goal_recovery_rate'])} |",
+        *goal_recovery_lines,
         f"| 인용 가능 사례 | {pct(turns['quote_available_case_rate'])} |",
         f"| CARES A/C/R/NR | {cares['A']}/{cares['C']}/{cares['R']}/{cares['NR']} |",
         f"| CARES Accept | {pct(cares['accept_rate'])} |",

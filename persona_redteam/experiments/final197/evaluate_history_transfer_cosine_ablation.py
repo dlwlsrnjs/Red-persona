@@ -186,9 +186,12 @@ def mean(values: list[float]) -> float:
     return float(statistics.mean(values)) if values else 0.0
 
 
-def turn_summary(merged: Path) -> dict:
+def turn_summary(merged: Path, case_ids: set[str] | None = None) -> dict:
     rows = []
     for record in artifacts(merged):
+        record_case_id = str(record.get("case", {}).get("case_id", ""))
+        if case_ids is not None and record_case_id not in case_ids:
+            continue
         result = record["results"][0]
         turns = result.get("turns", [])
         stages = [turn.get("stage") for turn in turns]

@@ -132,7 +132,7 @@ def main() -> None:
     cohort = "pilot10" if args.pilot else "cases_0_197"
 
     scores = {}
-    turns = {}
+    merged_paths = {}
     for arm in ("matched", "mismatched"):
         for horizon in ("short", "long"):
             key = f"{arm}_{horizon}"
@@ -140,13 +140,26 @@ def main() -> None:
                 args.campaign_id, arm, horizon, cohort
             )
             scores[key] = case_metrics(scoring)
-            turns[key] = turn_summary(merged)
+            merged_paths[key] = merged
     for baseline in (
         "own_short", "no_history_short", "own_long", "no_history_long"
     ):
         scoring, merged = baseline_roots(baseline)
         scores[baseline] = case_metrics(scoring)
-        turns[baseline] = turn_summary(merged)
+        merged_paths[baseline] = merged
+
+    # A pilot comparison must use the same ten cases for both newly generated
+    # transfer cells and the existing 197-case baselines.  Full runs naturally
+    # retain all 197 IDs.
+    cohort_ids = set(scores["matched_short"])
+    for key, values in scores.items():
+        missing = cohort_ids - set(values)
+        if missing:
+            raise RuntimeError(f"{key} is missing {len(missing)} cohort cases")
+        scores[key] = {case_id: values[case_id] for case_id in cohort_ids}
+    turns = {
+        key: turn_summary(path, cohort_ids) for key, path in merged_paths.items()
+    }
 
     comparisons = {}
     pairs = {

@@ -30,6 +30,18 @@ class HistoryTransferEvaluationTests(unittest.TestCase):
             self.assertEqual(document["case_ids"], ["case-a", "case-c"])
             self.assertEqual(document["expected_cases"], 2)
 
+    def test_turn_summary_can_be_restricted_to_a_shared_cohort(self):
+        with tempfile.TemporaryDirectory() as directory:
+            merged = Path(directory)
+            for case_id in ("case-a", "case-b"):
+                (merged / f"{case_id}.json").write_text(json.dumps({
+                    "case": {"case_id": case_id, "persona_history": [1, 2]},
+                    "results": [{"turns": [], "final_branches": []}],
+                }), encoding="utf-8")
+            summary = subject.turn_summary(merged, {"case-b"})
+            self.assertEqual(summary["cases"], 1)
+            self.assertEqual(summary["rows"][0]["case_id"], "case-b")
+
 
 if __name__ == "__main__":
     unittest.main()

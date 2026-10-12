@@ -43,9 +43,15 @@ def load(path: Path) -> dict:
 
 
 def merge(campaign_id: str, target: str) -> Path:
-    _, result, merged, _ = roots(campaign_id, target)
-    lanes = 8 if TARGETS[target]["transport"] == "openai_batch" else 4
-    lane_dirs = [result / f"lane_{index}" for index in range(lanes)]
+    campaign, result, merged, _ = roots(campaign_id, target)
+    manifest = load(campaign / "launch_manifest.json")
+    jobs = manifest.get("jobs")
+    if not isinstance(jobs, list) or not jobs:
+        raise RuntimeError("launch manifest does not contain any lane jobs")
+    lane_numbers = sorted(int(job["lane"]) for job in jobs)
+    if lane_numbers != list(range(len(lane_numbers))):
+        raise RuntimeError(f"launch manifest has non-contiguous lanes: {lane_numbers}")
+    lane_dirs = [result / f"lane_{index}" for index in lane_numbers]
     missing = [path / "run_summary.json" for path in lane_dirs
                if not (path / "run_summary.json").is_file()]
     if missing:

@@ -33,7 +33,14 @@ def validate_1011_run_record(record: dict[str, Any]) -> list[str]:
             prior = turns[-1].get("question_audit", {}).get(
                 "prior_goal_convergence_audit", {}
             )
-            if prior.get("latest_target_goal_close") is not False:
+            prior_coverage = (
+                turns[-2].get("goal_coverage_audit", {})
+                if len(turns) >= 2 else {}
+            )
+            if (
+                prior.get("latest_target_goal_close") is True
+                and prior_coverage.get("sufficient") is True
+            ):
                 errors.append(f"{prefix}: Case-A/Case-B recovery was not gate-triggered")
             if turns[-1].get("case_ab_gate_passed") not in (True, False):
                 errors.append(f"{prefix}: missing post-comparison gate result")

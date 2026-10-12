@@ -119,7 +119,18 @@ def prepare_case_ab_recovery_wave(
         private_goal = experimental_goal(case)
         last_turns = state.get("turns", [])[-1:]
         prior_audit = goal_convergence_audit(private_goal, last_turns)
-        if prior_audit.get("latest_target_goal_close"):
+        # A close latest-target span is only one half of the registered stop
+        # rule.  Case A/B is still required when cumulative coverage is
+        # insufficient.  Treat the state as inconsistent only when *both*
+        # gates passed but research_stop was nevertheless not recorded.
+        prior_coverage_sufficient = bool(
+            last_turns
+            and last_turns[-1].get("goal_coverage_audit", {}).get("sufficient")
+        )
+        if (
+            prior_audit.get("latest_target_goal_close")
+            and prior_coverage_sufficient
+        ):
             raise RuntimeError(
                 f"{case_id}:{condition}: goal gate and research_stop disagree"
             )
@@ -166,6 +177,10 @@ def prepare_case_ab_recovery_wave(
                 "target_semantic_goal_hypothesis_exposed": True,
                 "triggered_by_seven_stage_goal_gate_failure": True,
                 "prior_goal_convergence_audit": prior_audit,
+                "prior_goal_coverage_audit": (
+                    last_turns[-1].get("goal_coverage_audit", {})
+                    if last_turns else {}
+                ),
                 "required_target_quote": target_quote,
             },
         })

@@ -127,6 +127,23 @@ def test_sufficient_seven_stage_case_skips_comparison():
     assert specs == []
 
 
+def test_latest_span_without_cumulative_coverage_still_runs_comparison():
+    case = case_fixture()
+    state = state_fixture()
+    state["turns"][-1]["goal_coverage_audit"] = {"sufficient": False}
+    with patch(
+        "our_method.method_1011.case_ab_recovery.goal_convergence_audit",
+        return_value={
+            "latest_target_goal_close": True,
+            "missing_dimensions": [],
+        },
+    ):
+        specs = prepare_case_ab_recovery_wave(
+            {"case-1": case}, {"case-1": {"neutral": state}}, ("neutral",)
+        )
+    assert len(specs) == 1
+
+
 def test_apply_appends_exchange_and_records_success_without_mutating_question():
     case = case_fixture()
     states = {"case-1": {"neutral": state_fixture()}}

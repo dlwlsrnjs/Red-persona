@@ -172,6 +172,13 @@ def extract_arm_rows(spec: dict, case_ids: list[str]) -> list[dict]:
             direction = str(branch["direction"])
             directions.append(direction)
             row_key = f"{spec['name']}::{case_id}::{direction}"
+            try:
+                source_file = str(path.relative_to(ROOT))
+            except ValueError:
+                # Runtime artifacts may intentionally live on the large data1
+                # volume.  Preserve an absolute provenance path instead of
+                # requiring a workspace-local copy solely for evaluation.
+                source_file = str(path.resolve())
             rows.append({
                 "row_id": sha256_text(row_key)[:24],
                 "arm": spec["name"],
@@ -186,7 +193,7 @@ def extract_arm_rows(spec: dict, case_ids: list[str]) -> list[dict]:
                 "bridge_available": bool(prompt.strip()),
                 "prompt_sha256": sha256_text(prompt),
                 "response_sha256": sha256_text(response),
-                "source_file": str(path.relative_to(ROOT)),
+                "source_file": source_file,
                 "input_mapping": "attack_question_and_attack_response_only",
             })
         if len(directions) != len(set(directions)):

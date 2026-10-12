@@ -92,6 +92,71 @@ PAPER_BUDGET_POLICY: dict[str, Any] = {
     },
 }
 
+# Query-budget sensitivity analysis. OURS' adaptive final attack has four
+# rounds with four candidates per round, hence at most 16 target calls. This
+# profile preserves each baseline's native breadth while giving every
+# iterative family at most the same 16-call ceiling. Single-turn controls
+# remain structurally single-turn.
+QUERY16_METHOD_PROFILES: dict[str, tuple[str, ...]] = {
+    "direct": (),
+    "skeleton_key": (),
+    "many_shot": ("--many-shot-examples", "8"),
+    "red_teaming": ("--max-turns", "16"),
+    "pair": ("--max-turns", "3", "--pair-streams", "5"),
+    "tap": (
+        "--max-turns",
+        "4",
+        "--tree-width",
+        "2",
+        "--branching-factor",
+        "2",
+    ),
+    "crescendo": ("--max-turns", "14", "--max-backtracks", "2"),
+    "therapist_crescendo": (
+        "--max-turns",
+        "14",
+        "--max-backtracks",
+        "2",
+    ),
+    "pcsa_phase2": ("--max-turns", "4", "--pcsa-candidates", "4"),
+}
+
+QUERY16_BUDGET_POLICY: dict[str, Any] = {
+    "name": "red-persona-query16-matched-v1",
+    "comparison_role": "ours_matched_target_call_budget",
+    "early_stopping": True,
+    "max_dialogue_turns": 16,
+    "methods": {
+        "direct": {"max_target_calls": 1},
+        "skeleton_key": {"max_target_calls": 1},
+        "many_shot": {"max_target_calls": 1, "examples": 8},
+        "red_teaming": {"turns": 16, "max_target_calls": 16},
+        "pair": {"iterations": 3, "streams": 5, "max_target_calls": 15},
+        "tap": {
+            "depth": 4,
+            "width": 2,
+            "branching_factor": 2,
+            "max_target_calls": 14,
+        },
+        "crescendo": {"turns": 14, "max_backtracks": 2, "max_target_calls": 16},
+        "therapist_crescendo": {
+            "turns": 14,
+            "max_backtracks": 2,
+            "max_target_calls": 16,
+        },
+        "pcsa_phase2": {
+            "turns": 4,
+            "candidates_per_turn": 4,
+            "max_target_calls": 16,
+        },
+    },
+}
+
+BUDGET_PROFILES: dict[str, tuple[dict[str, tuple[str, ...]], dict[str, Any]]] = {
+    "paper": (METHOD_PROFILES, PAPER_BUDGET_POLICY),
+    "query16": (QUERY16_METHOD_PROFILES, QUERY16_BUDGET_POLICY),
+}
+
 
 @dataclass(frozen=True)
 class EndpointConfig:
@@ -221,8 +286,11 @@ def build_jobs(
     pcsa_persona_history_path: Path | None = None,
     case_start: int = 0,
     qwen_endpoints: tuple[str, ...] = (),
+    method_profiles: dict[str, tuple[str, ...]] | None = None,
+    budget_policy_name: str = "red-persona-paper-v1",
 ) -> list[MatrixJob]:
     jobs: list[MatrixJob] = []
+    profiles = method_profiles or METHOD_PROFILES
     qwen_pool = qwen_endpoints or (adversary.endpoint,)
     qwen_assignment_index = 0
     for target in targets:
@@ -245,6 +313,8 @@ def build_jobs(
                 str(RUNNER),
                 "--method",
                 method,
+                "--budget-policy-name",
+                budget_policy_name,
                 "--input",
                 str(input_path),
                 "--cohort-index",
@@ -273,7 +343,7 @@ def build_jobs(
                 adversary.api_key_env,
                 "--sync-case-concurrency",
                 str(target.sync_case_concurrency),
-                *METHOD_PROFILES[method],
+                *profiles[method],
             ]
             if target.reasoning_effort is not None:
                 command.extend(("--target-reasoning-effort", target.reasoning_effort))
@@ -456,6 +526,15 @@ async def execute_jobs(
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--budget-profile",
+        choices=tuple(BUDGET_PROFILES),
+        default="paper",
+        help=(
+            "paper keeps the registered dialogue-turn settings; query16 is a "
+            "separately labelled OURS-matched 16-target-call analysis"
+        ),
+    )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--cohort-index", type=Path, default=DEFAULT_COHORT_INDEX)
     parser.add_argument("--persona-map", type=Path, default=DEFAULT_PERSONA_MAP)
@@ -475,7 +554,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="zero-based official cohort offset for a resumable cost shard",
     )
     parser.add_argument("--full-500", action="store_true")
+    parser.add_argument(
+        "--full-cohort",
+        action="store_true",
+        help="run every row in the supplied cohort index, including Final-197",
+    )
     parser.add_argument("--max-concurrent-jobs", type=int, default=18)
+    parser.add_argument(
+        "--adaptive-batch-case-concurrency",
+        type=int,
+        help=(
+            "override the configured number of concurrently active cases for "
+            "adaptive OpenAI Batch jobs"
+        ),
+    )
     parser.add_argument("--job-retries", type=int, default=2)
     parser.add_argument(
         "--target-name",
@@ -523,10 +615,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--pilot-cases must be at least 1")
     if args.case_start < 0:
         parser.error("--case-start must be non-negative")
-    if args.full_500 and args.case_start:
-        parser.error("--full-500 cannot be combined with --case-start")
+    if args.full_500 and args.full_cohort:
+        parser.error("--full-500 and --full-cohort are mutually exclusive")
+    if (args.full_500 or args.full_cohort) and args.case_start:
+        parser.error("full-cohort modes cannot be combined with --case-start")
     if not 1 <= args.max_concurrent_jobs <= 18:
         parser.error("--max-concurrent-jobs must be between 1 and 18")
+    if (
+        args.adaptive_batch_case_concurrency is not None
+        and not 1 <= args.adaptive_batch_case_concurrency <= 500
+    ):
+        parser.error("--adaptive-batch-case-concurrency must be between 1 and 500")
     if not 0 <= args.job_retries <= 5:
         parser.error("--job-retries must be between 0 and 5")
     if args.run_label and not re.fullmatch(r"[A-Za-z0-9_.-]+", args.run_label):
@@ -555,6 +654,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     targets, adversary, pcsa_evaluator, methods = load_matrix_config(args.config)
+    method_profiles, budget_policy = BUDGET_PROFILES[args.budget_profile]
+    if args.adaptive_batch_case_concurrency is not None:
+        targets = [
+            replace(
+                target,
+                adaptive_batch_case_concurrency=args.adaptive_batch_case_concurrency,
+            )
+            if target.transport == "openai_batch"
+            else target
+            for target in targets
+        ]
+        if pcsa_evaluator.transport == "openai_batch":
+            pcsa_evaluator = replace(
+                pcsa_evaluator,
+                adaptive_batch_case_concurrency=args.adaptive_batch_case_concurrency,
+            )
     if args.target_name:
         requested_targets = set(args.target_name)
         configured_targets = {target.name for target in targets}
@@ -580,7 +695,7 @@ def main(argv: list[str] | None = None) -> int:
             f"--full-500 requires {EXPECTED_FULL_CASE_COUNT} official cases; "
             f"found {cohort_count}"
         )
-    pilot_cases = None if args.full_500 else args.pilot_cases
+    pilot_cases = None if (args.full_500 or args.full_cohort) else args.pilot_cases
     if args.case_start >= cohort_count:
         raise ValueError(
             f"--case-start {args.case_start} is outside the {cohort_count}-case cohort"
@@ -603,6 +718,8 @@ def main(argv: list[str] | None = None) -> int:
         pcsa_persona_history_path=args.pcsa_persona_history,
         case_start=args.case_start,
         qwen_endpoints=tuple(args.qwen_endpoint),
+        method_profiles=method_profiles,
+        budget_policy_name=budget_policy["name"],
     )
     configured_pairs = {(job.target_name, job.method) for job in jobs}
     unknown_exclusions = args.exclude_job - configured_pairs
@@ -658,7 +775,8 @@ def main(argv: list[str] | None = None) -> int:
             "job_retries_after_initial_attempt": args.job_retries,
             "batch_partial_failures_retry_only_unresolved_custom_ids": True,
         },
-        "call_budget_policy": PAPER_BUDGET_POLICY,
+        "budget_profile": args.budget_profile,
+        "call_budget_policy": budget_policy,
         "qwen_replica_pool": {
             "assignment": "round_robin_by_qwen_consuming_matrix_job",
             "endpoints": args.qwen_endpoint or [adversary.endpoint],
@@ -685,7 +803,11 @@ def main(argv: list[str] | None = None) -> int:
                 if args.pcsa_persona_history
                 else "fixed_red_persona_profile_and_pathology_route"
             ),
-            "max_turns": 4,
+            "max_turns": (
+                budget_policy["methods"]["pcsa_phase2"]["turns"]
+                if "pcsa_phase2" in methods
+                else None
+            ),
             "candidates_per_turn": 4,
         },
         "final_evaluation": {

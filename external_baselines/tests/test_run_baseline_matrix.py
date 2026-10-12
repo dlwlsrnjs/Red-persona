@@ -129,6 +129,55 @@ def test_paper_call_budget_policy_has_expected_target_ceilings():
     }
 
 
+def test_query16_profile_preserves_method_breadth_and_records_call_ceilings():
+    profiles = MODULE.QUERY16_METHOD_PROFILES
+    policy = MODULE.QUERY16_BUDGET_POLICY
+    assert profiles["red_teaming"] == ("--max-turns", "16")
+    assert profiles["pair"] == (
+        "--max-turns", "3", "--pair-streams", "5"
+    )
+    assert profiles["tap"] == (
+        "--max-turns", "4", "--tree-width", "2", "--branching-factor", "2"
+    )
+    assert profiles["pcsa_phase2"] == (
+        "--max-turns", "4", "--pcsa-candidates", "4"
+    )
+    assert {
+        method: settings["max_target_calls"]
+        for method, settings in policy["methods"].items()
+    } == {
+        "direct": 1,
+        "skeleton_key": 1,
+        "many_shot": 1,
+        "red_teaming": 16,
+        "pair": 15,
+        "tap": 14,
+        "crescendo": 16,
+        "therapist_crescendo": 16,
+        "pcsa_phase2": 16,
+    }
+
+
+def test_query16_dry_run_is_explicit_and_does_not_change_paper_default(capsys):
+    assert MODULE.main(
+        [
+            "--dry-run",
+            "--budget-profile", "query16",
+            "--target-name", "gpt4o",
+            "--method", "red_teaming",
+            "--method", "pcsa_phase2",
+        ]
+    ) == 0
+    value = json.loads(capsys.readouterr().out)
+    assert value["budget_profile"] == "query16"
+    assert value["call_budget_policy"] == MODULE.QUERY16_BUDGET_POLICY
+    assert value["pcsa_phase2"]["max_turns"] == 4
+    assert all(
+        MODULE.QUERY16_BUDGET_POLICY["name"] in job["command"]
+        for job in value["jobs"]
+    )
+
+
 def test_dry_run_has_18_concurrent_jobs_and_pcsa_phase2(capsys):
     assert MODULE.main(["--dry-run"]) == 0
     value = json.loads(capsys.readouterr().out)
@@ -191,6 +240,42 @@ def test_matrix_supports_nonoverlapping_cost_shards(capsys):
     assert value["dataset"]["cases_per_job"] == 125
     assert all("--start" in job["command"] for job in value["jobs"])
     assert all(job["target"] == "gpt4o" for job in value["jobs"])
+
+
+def test_full_cohort_supports_final197_without_legacy_full500_name(capsys):
+    asset_root = MODULE.BASELINE_DIR / "data" / "final197"
+    assert MODULE.main(
+        [
+            "--dry-run",
+            "--full-cohort",
+            "--input", str(asset_root / "final197_goals.jsonl"),
+            "--cohort-index", str(asset_root / "final197_cohort.jsonl"),
+            "--persona-map", str(asset_root / "final197_persona_assignments.jsonl"),
+            "--pathology-routes", str(asset_root / "final197_pathology_routes.jsonl"),
+            "--target-name", "gpt4o",
+            "--method", "red_teaming",
+        ]
+    ) == 0
+    value = json.loads(capsys.readouterr().out)
+    assert value["dataset"]["cohort_available_count"] == 197
+    assert value["dataset"]["cases_per_job"] == 197
+    assert value["dataset"]["case_stop_exclusive"] == 197
+    assert "--limit" not in value["jobs"][0]["command"]
+
+
+def test_adaptive_batch_concurrency_can_be_raised_for_fast_full_runs(capsys):
+    assert MODULE.main(
+        [
+            "--dry-run",
+            "--target-name", "gpt4o",
+            "--method", "red_teaming",
+            "--adaptive-batch-case-concurrency", "128",
+        ]
+    ) == 0
+    value = json.loads(capsys.readouterr().out)
+    command = value["jobs"][0]["command"]
+    assert command[command.index("--batch-case-concurrency") + 1] == "128"
+    assert value["targets"][0]["adaptive_batch_case_concurrency"] == 128
 
 
 def test_matrix_can_filter_to_qwen_methods_without_pcsa_or_openai(capsys, monkeypatch):

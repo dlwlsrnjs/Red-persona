@@ -191,6 +191,28 @@ Crescendo는 4 turns와 최대 2 backtracks로 target 최대 6회다. Direct, Sk
 Many-shot은 각각 target 1회이며 Many-shot은 8 examples를 사용한다. PCSA 중간
 evaluator는 논문 설정과 같은 GPT-4o-mini다.
 
+### OURS와 맞춘 16-query 민감도 분석
+
+OURS의 적응형 최종 공격은 최대 4개 대화 라운드에서 라운드마다 4개 후보를 평가하므로,
+사례당 target 호출 상한은 16이다. `--budget-profile query16`은 이를 **16 대화 턴**으로
+오해하지 않고, 각 반복형 baseline의 고유 breadth를 보존하면서 사례당 target 호출을
+16 이하로 맞춘 별도 분석이다. 상한은 RedTeaming 16, PAIR 15(5 streams × 3), TAP
+14(width 2, branching 2, depth 4), Crescendo와 Therapist Crescendo 각각 16(14 turns +
+2 backtracks), PCSA 16(4 candidates × 4)이다. 조기 성공 시 즉시 종료하며 실제 호출 수와
+ASR/query를 함께 보고한다. Direct, Skeleton Key, Many-shot은 구조상 single-turn이므로
+기존 결과를 대조군으로 재사용한다.
+
+PAIR, TAP, PCSA는 기존 설정이 이미 14--16 호출이므로 결과를 그대로 재사용한다. 기존
+상한이 4--6회였던 RedTeaming, Crescendo, Therapist Crescendo만 Final-197의 GPT-4o 및
+Qwen target에서 다음 실행기로 다시 생성한다. API 키는 파일이나 명령행에 기록하지 않고
+환경변수로만 전달한다. 모든 Batch wave, 공격 대화, 최종 응답, 실패 및 재시도 manifest가
+output 아래에 남는다.
+
+```bash
+export OPENAI_API_KEY='...'
+bash external_baselines/run_query16_gpt4o_qwen_final197.sh
+```
+
 각 실행의 `manifest.json`에는 `call_budget_per_case`가 저장되고 matrix manifest에는 전체
 `call_budget_policy`가 저장된다. 여기에는 target뿐 아니라 attacker, 내부 control
 evaluator, PCSA evaluator의 이론상 최대 호출 수도 분리되어 있어 ASR과 ASR/query를 함께

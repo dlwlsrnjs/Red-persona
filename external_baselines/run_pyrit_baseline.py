@@ -314,7 +314,7 @@ def call_budget(args: argparse.Namespace) -> dict[str, Any]:
     """Return deterministic per-case call ceilings implied by the CLI settings."""
     method = args.method
     budget: dict[str, Any] = {
-        "policy": "red-persona-paper-v1",
+        "policy": args.budget_policy_name,
         "early_stopping": method in MULTI_TURN_METHODS,
         "max_dialogue_turns": args.max_turns if method in MULTI_TURN_METHODS else 1,
         "max_target_calls": 1,
@@ -938,6 +938,11 @@ def checkpoint_state(
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--method", choices=METHODS, required=True)
+    parser.add_argument(
+        "--budget-policy-name",
+        default="red-persona-paper-v1",
+        help="provenance label for the selected per-method call budget",
+    )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--cohort-index", type=Path, default=DEFAULT_COHORT_INDEX)
     parser.add_argument("--persona-map", type=Path, default=DEFAULT_PERSONA_MAP)

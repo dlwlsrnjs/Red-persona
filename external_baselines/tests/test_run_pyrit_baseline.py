@@ -45,6 +45,18 @@ def test_pcsa_uses_method_specific_four_turn_default():
     assert MODULE.parse_args(["--method", "pair", "--dry-run"]).max_turns == 10
 
 
+def test_call_budget_records_explicit_stress_profile_name():
+    args = MODULE.parse_args(
+        [
+            "--method", "red_teaming",
+            "--max-turns", "16",
+            "--budget-policy-name", "red-persona-query16-matched-v1",
+            "--dry-run",
+        ]
+    )
+    assert MODULE.call_budget(args)["policy"] == "red-persona-query16-matched-v1"
+
+
 def test_load_pcsa_persona_history_contexts(tmp_path):
     path = tmp_path / "personas.json"
     path.write_text(

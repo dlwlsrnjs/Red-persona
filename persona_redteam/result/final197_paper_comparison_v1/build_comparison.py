@@ -66,6 +66,7 @@ CODE_PATHS = (
     "official_evaluation/prepare_single_baseline_cell.py",
     "official_evaluation/run_pcsa_persona_history_pilot_eval.sbatch",
     "official_evaluation/run_pcsa_persona_history_final197_eval.sbatch",
+    "official_evaluation/run_pcsa_persona_history_gpt4o_final197_eval.sh",
     "official_evaluation/run_harmbench_pinned_pair.sbatch",
     "official_evaluation/evaluate_harmbench.py",
     "official_evaluation/evaluate_cares.py",

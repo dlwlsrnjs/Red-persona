@@ -59,6 +59,7 @@ source history의 counselor 응답은 attacker style에 넣지 않고, source hi
 - [`../../../external_baselines/run_pcsa_persona_history_gpt4o_final197_sharded.sh`](../../../external_baselines/run_pcsa_persona_history_gpt4o_final197_sharded.sh): 여러 로컬 Qwen attacker endpoint에 197건을 disjoint shard로 분배하는 실행기
 - [`../../../official_evaluation/prepare_single_baseline_cell.py`](../../../official_evaluation/prepare_single_baseline_cell.py): 두 shard를 동일 197행 평가 입력으로 변환
 - [`../../../official_evaluation/run_pcsa_persona_history_final197_eval.sbatch`](../../../official_evaluation/run_pcsa_persona_history_final197_eval.sbatch): CARES, PCSA GPT-4o judge, R/B, HarmBench와 Strict Joint
+- [`../../../official_evaluation/run_pcsa_persona_history_gpt4o_final197_eval.sh`](../../../official_evaluation/run_pcsa_persona_history_gpt4o_final197_eval.sh): GPT-4o 추가 셀을 GPT-4o CARES Batch, GPT-4o PCSA judge Batch, R/B Batch와 pinned HarmBench로 평가
 - [`../../../official_evaluation/run_harmbench_pinned_pair.sbatch`](../../../official_evaluation/run_harmbench_pinned_pair.sbatch): 두 조건의 같은 HarmBench snapshot 재판정
 
 PCSA 관련 회귀 테스트:
@@ -72,7 +73,9 @@ GPT-4o 추가 셀은 target을 `gpt-4o-2024-11-20`, 중간 평가자를
 `gpt-4o-mini-2024-07-18`로 pin한다. 두 OpenAI role 모두 `openai_batch` transport만
 허용하고 Qwen2.5-7B attacker만 로컬 GPU endpoint를 사용한다. 개별 Batch 입력·ID·상태·
 출력·오류는 각 shard의 `_openai_batches/{target,pcsa_evaluator}/wave-*`에 남아 중단 후
-동일 명령으로 case checkpoint를 재개할 수 있다.
+동일 명령으로 case checkpoint를 재개할 수 있다. 이 추가 셀의 최종 CARES 판정은 사용자
+요청에 따라 `gpt-4o-2024-11-20` Batch를 사용하며, 기존 외부 baseline의 GPT-4o-mini
+CARES와 evaluator가 다르다는 사실을 결과표에 별도로 표시한다.
 
 ## 4. OURS 1011 singleton
 

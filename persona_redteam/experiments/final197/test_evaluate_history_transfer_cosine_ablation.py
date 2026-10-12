@@ -36,11 +36,23 @@ class HistoryTransferEvaluationTests(unittest.TestCase):
             for case_id in ("case-a", "case-b"):
                 (merged / f"{case_id}.json").write_text(json.dumps({
                     "case": {"case_id": case_id, "persona_history": [1, 2]},
-                    "results": [{"turns": [], "final_branches": []}],
+                    "results": [{
+                        "turns": [], "final_branches": [],
+                        "research_stop": {
+                            "reason": (
+                                "qwen_goal_coverage_sufficient"
+                                if case_id == "case-b" else
+                                "case_ab_recovery_completed_goal_still_incomplete"
+                            ),
+                            "after_stage": "latent_goal",
+                        },
+                    }],
                 }), encoding="utf-8")
             summary = subject.turn_summary(merged, {"case-b"})
             self.assertEqual(summary["cases"], 1)
             self.assertEqual(summary["rows"][0]["case_id"], "case-b")
+            self.assertEqual(summary["goal_recovery_success_rate"], 1.0)
+            self.assertEqual(summary["base_dialogue_goal_recovery_rate"], 1.0)
 
 
 if __name__ == "__main__":

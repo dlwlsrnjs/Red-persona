@@ -195,6 +195,12 @@ def main() -> None:
                 "mean_total_target_completions"
             ],
             "latent_goal_reached_rate": turns[key]["latent_goal_reached_rate"],
+            "goal_recovery_success_rate": turns[key][
+                "goal_recovery_success_rate"
+            ],
+            "case_ab_incremental_goal_recovery_rate": turns[key][
+                "case_ab_incremental_goal_recovery_rate"
+            ],
             "quote_available_case_rate": turns[key]["quote_available_case_rate"],
         })
 
@@ -218,8 +224,8 @@ def main() -> None:
     atomic_json(output / "COMPARISON.json", record)
     lines = [
         f"# 코사인 이력 전이 비교 ({cohort})", "",
-        "| 셀 | n | cosine/이력 | 연구 턴 | 전체 completion | 인용 가능 | CARES ASR | R3+@4 | HarmBench+@4 | 결합@4 |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| 셀 | n | cosine/이력 | 연구 턴 | 전체 completion | GOAL 복원 | 인용 가능 | CARES ASR | R3+@4 | HarmBench+@4 | 결합@4 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in cell_rows:
         lines.append(
@@ -227,6 +233,7 @@ def main() -> None:
             f"{row['mean_prehistory_turns']:.2f}턴 | "
             f"{row['mean_shared_research_turns']:.2f} | "
             f"{row['mean_total_target_completions']:.2f} | "
+            f"{pct(row['goal_recovery_success_rate'])} | "
             f"{pct(row['quote_available_case_rate'])} | "
             f"{pct(row['cares_asr'])} | {pct(row['r3'])} | "
             f"{pct(row['harmbench'])} | {pct(row['joint'])} |"

@@ -13,6 +13,10 @@ import sys
 
 from experiments.final197.credentials import credential
 from experiments.merge_run_shards import merge_shards
+from our_method.method_1011.case_ab_recovery import (
+    CASE_AB_INCOMPLETE_REASON,
+    CASE_AB_SUCCESS_REASON,
+)
 from pipeline.runtime_io import atomic_json
 
 
@@ -205,6 +209,10 @@ def turn_summary(merged: Path, case_ids: set[str] | None = None) -> dict:
         case = record.get("case", {})
         transfer = case.get("history_transfer", {})
         cosine = transfer.get("cosine")
+        research_stop = result.get("research_stop", {})
+        stop_reason = str(research_stop.get("reason", ""))
+        base_goal_recovered = stop_reason == "qwen_goal_coverage_sufficient"
+        case_ab_goal_recovered = stop_reason == CASE_AB_SUCCESS_REASON
         rows.append({
             "case_id": case["case_id"],
             "cosine": None if cosine is None else float(cosine),
@@ -216,6 +224,14 @@ def turn_summary(merged: Path, case_ids: set[str] | None = None) -> dict:
                 str(stage).startswith("case_ab_goal_recovery") for stage in stages
             ),
             "reached_latent_goal": "latent_goal" in stages,
+            "goal_recovery_succeeded": (
+                base_goal_recovered or case_ab_goal_recovered
+            ),
+            "base_dialogue_goal_recovered": base_goal_recovered,
+            "case_ab_goal_recovered": case_ab_goal_recovered,
+            "goal_recovery_incomplete": stop_reason == CASE_AB_INCOMPLETE_REASON,
+            "research_stop_reason": stop_reason,
+            "research_stop_after_stage": research_stop.get("after_stage"),
             "branch_readout_turns": readouts,
             "direct_response_turns": direct,
             "available_quote_branches": available,
@@ -236,6 +252,18 @@ def turn_summary(merged: Path, case_ids: set[str] | None = None) -> dict:
         ]),
         "latent_goal_reached_rate": mean([
             row["reached_latent_goal"] for row in rows
+        ]),
+        "goal_recovery_success_rate": mean([
+            row["goal_recovery_succeeded"] for row in rows
+        ]),
+        "base_dialogue_goal_recovery_rate": mean([
+            row["base_dialogue_goal_recovered"] for row in rows
+        ]),
+        "case_ab_incremental_goal_recovery_rate": mean([
+            row["case_ab_goal_recovered"] for row in rows
+        ]),
+        "goal_recovery_incomplete_rate": mean([
+            row["goal_recovery_incomplete"] for row in rows
         ]),
         "mean_branch_readout_turns": mean([
             row["branch_readout_turns"] for row in rows
@@ -297,6 +325,9 @@ def summarize(campaign_id: str, arm: str, horizon: str, cohort: str) -> dict:
         f"| 공유 연구 턴 평균 | {turns['mean_shared_research_turns']:.2f} |",
         f"| 전체 타깃 completion 평균 | {turns['mean_total_target_completions']:.2f} |",
         f"| latent_goal 도달 | {pct(turns['latent_goal_reached_rate'])} |",
+        f"| GOAL 복원 게이트 통과 | {pct(turns['goal_recovery_success_rate'])} |",
+        f"| 7단계 내 복원 | {pct(turns['base_dialogue_goal_recovery_rate'])} |",
+        f"| Case A/B 추가 복원 | {pct(turns['case_ab_incremental_goal_recovery_rate'])} |",
         f"| 인용 가능 사례 | {pct(turns['quote_available_case_rate'])} |",
         f"| CARES A/C/R/NR | {cares['A']}/{cares['C']}/{cares['R']}/{cares['NR']} |",
         f"| CARES Accept | {pct(cares['accept_rate'])} |",

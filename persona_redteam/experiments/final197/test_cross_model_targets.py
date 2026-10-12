@@ -17,6 +17,10 @@ class CrossModelTargetTests(unittest.TestCase):
             TARGETS["mistral_small_3_2_24b"]["transport"], "local_vllm"
         )
         self.assertEqual(TARGETS["phi4"]["transport"], "local_vllm")
+        self.assertEqual(
+            TARGETS["llama3_1_8b_instruct"]["model"],
+            "meta-llama/Llama-3.1-8B-Instruct",
+        )
 
     def test_gpt5_reasoning_request_omits_temperature(self):
         request = chat_request(

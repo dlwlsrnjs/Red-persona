@@ -44,6 +44,10 @@ TARGETS = {
         "model": "UKPLab/Llama3-G2C",
         "transport": "local_vllm",
     },
+    "llama3_1_8b_instruct": {
+        "model": "meta-llama/Llama-3.1-8B-Instruct",
+        "transport": "local_vllm",
+    },
     "gemma4_26b_a4b_it": {
         "model": "google/gemma-4-26B-A4B-it",
         "transport": "local_vllm",

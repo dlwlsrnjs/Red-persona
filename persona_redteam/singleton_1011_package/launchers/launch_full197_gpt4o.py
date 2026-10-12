@@ -82,7 +82,8 @@ def command(
         "--cases", str(cases), "--selection-path", str(selection),
         "--selection-key", "case_ids", "--target-total", "197",
         "--campaign-dir", str(campaign), "--output-dir", str(output),
-        "--max-budget-usd", "60", "--poll-seconds", "20",
+        "--max-budget-usd", "60", "--poll-seconds", "10",
+        "--target-workers", "128", "--researcher-workers", "128",
     ]
     if researcher_url:
         value.extend(("--researcher-base-url", researcher_url))
@@ -195,6 +196,8 @@ def main() -> None:
         "transport": "openai_batch_api", "attack_mode": "singleton_best_of_4",
         "registered_cases": str(registered), "execution_cases": str(execution_cases),
         "selection": str(selection), "credentials_persisted": False,
+        "target_workers_per_lane": 128,
+        "researcher_workers_per_lane": 128,
         "lanes": launched,
     }
     atomic_json(campaign_root / "launch_manifest.json", manifest)

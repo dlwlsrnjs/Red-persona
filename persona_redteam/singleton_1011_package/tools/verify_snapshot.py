@@ -10,7 +10,7 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 PERSONA_ROOT = PACKAGE_ROOT.parent
 SNAPSHOT_ROOT = PACKAGE_ROOT / "src"
-EVIDENCE_PATH = PACKAGE_ROOT / "evidence" / "verified_metrics.json"
+EVIDENCE_PATH = PACKAGE_ROOT / "evidence" / "pilot10_gpt4o_results.json"
 FORBIDDEN_SNAPSHOT_NAMES = {
     "adaptive_attack.py",
     "run_attack_turn_ablation.py",
@@ -42,26 +42,32 @@ def verify_snapshot(*, check_external_evidence: bool = True) -> list[str]:
             failures.append(f"snapshot differs from original: {relative}")
 
     evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
-    if evidence.get("method_commit") != "b87b175aa1340f1d16a945a36a094341c01a2e25":
-        failures.append("unexpected method commit")
-    if evidence.get("multiturn_code_included") is not False:
-        failures.append("evidence does not exclude multiturn")
-    cares = evidence.get("cares", {})
+    generation = evidence.get("generation", {})
+    if generation.get("target_model") != "gpt-4o-2024-11-20":
+        failures.append("pilot target is not GPT-4o")
+    if generation.get("method_protocol") != "1011_method_v1":
+        failures.append("unexpected method protocol")
+    if generation.get("max_goal_convergence_turns") != 0:
+        failures.append("pilot is not singleton-only")
+    if generation.get("sent_final_prompt_records") != 40:
+        failures.append("pilot does not preserve all 40 final prompts")
+    cares = evidence.get("cares_best_of_4", {})
     if cares.get("evaluator_model") != "gpt-4o-2024-11-20":
         failures.append("CARES evaluator is not GPT-4o")
-    if (cares.get("A"), cares.get("n")) != (23, 23):
-        failures.append("CARES reference metric is not 23/23 Accept")
-    harmbench = evidence.get("harmbench", {})
-    if (harmbench.get("positive_cases"), harmbench.get("cases")) != (22, 23):
-        failures.append("HarmBench reference metric is not 22/23")
+    if (cares.get("A"), cares.get("n")) != (9, 10):
+        failures.append("CARES pilot metric is not 9/10 Accept")
+    harmbench = evidence.get("harmbench_best_of_4", {})
+    if harmbench.get("unconditional_asr") != 0.8:
+        failures.append("HarmBench pilot metric is not 0.8")
+    if harmbench.get("same_branch_R3_B4_HarmBench_joint_success") != 0.6:
+        failures.append("same-branch joint pilot metric is not 0.6")
 
     if check_external_evidence:
-        for section in ("cares", "harmbench", "generation_manifest"):
-            item = evidence[section]
-            path = Path(item["source"])
+        for item in evidence.get("external_artifacts", []):
+            path = Path(item["path"])
             if not path.is_file():
                 failures.append(f"external evidence missing: {path}")
-            elif sha256(path) != item["source_sha256"]:
+            elif sha256(path) != item["sha256"]:
                 failures.append(f"external evidence hash mismatch: {path}")
     return failures
 
@@ -77,13 +83,18 @@ def main() -> None:
     failures = verify_snapshot(
         check_external_evidence=not args.skip_external_evidence
     )
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    external_artifacts = evidence.get("external_artifacts", [])
     result = {
         "status": "failed" if failures else "ok",
         "snapshot_files": sum(
             1 for path in SNAPSHOT_ROOT.rglob("*")
             if path.is_file() and path.suffix != ".pyc"
         ),
-        "external_evidence_checked": not args.skip_external_evidence,
+        "external_artifact_count": len(external_artifacts),
+        "external_evidence_checked": bool(
+            external_artifacts and not args.skip_external_evidence
+        ),
         "failures": failures,
     }
     print(json.dumps(result, ensure_ascii=False, indent=2))

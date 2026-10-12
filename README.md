@@ -1,7 +1,28 @@
 # RED-Persona
 
-현재 저장소에는 JMIR 기반 공식 500개 평가를 위한 seedless Qwen–Lexi–target 파이프라인과
-동일한 500개에 적용하는 single-turn/multi-turn jailbreak baseline을 유지한다.
+## 논문 최종 구현
+
+Final-197의 GPT-4o 본실험에 사용하는 canonical 구현은
+[`persona_redteam/singleton_1011_package/`](persona_redteam/singleton_1011_package/)다.
+최종 메서드는 `1011_method_v1`의 **singleton Best-of-4**이며, 고정된 7단계 연구 대화,
+조건부 Case A/B 질문 1회, 네 독립 최종 분기와 분기별 정확 인용으로 구성된다. 타깃은
+`gpt-4o-2024-11-20`, 연구 질문 생성기는 `Qwen/Qwen2.5-7B-Instruct`, 타깃 전송은
+OpenAI Batch API다.
+
+- 최종 실행·결과·저장 계약: [`singleton_1011_package/README_KO.md`](persona_redteam/singleton_1011_package/README_KO.md)
+- 논문용 Methods 명세: [`FINAL_METHOD_PAPER_SPEC_KO.md`](persona_redteam/singleton_1011_package/docs/FINAL_METHOD_PAPER_SPEC_KO.md)
+- 프롬프트 설계와 이유: [`PROMPT_DESIGN_KO.md`](persona_redteam/singleton_1011_package/docs/PROMPT_DESIGN_KO.md)
+- 전체 모듈 흐름도: [`ARCHITECTURE_KO.md`](persona_redteam/singleton_1011_package/docs/ARCHITECTURE_KO.md)
+- 이전 버전과의 차이: [`VERSION_CHANGELOG_KO.md`](persona_redteam/singleton_1011_package/docs/VERSION_CHANGELOG_KO.md)
+
+`persona_redteam/our_method/`와 기존 500건 파이프라인 문서는 개발 과정 및 비교 실험을
+보존한 공간이다. 멀티턴 어댑터 소스도 비교 연구를 위해 유지하지만 최종 singleton 실행
+경로에는 연결하지 않는다. 따라서 논문 재현에는 위 final package만 기준으로 사용한다.
+
+## 이전 파이프라인과 보존 자료
+
+이 저장소에는 JMIR 기반 공식 500개 평가를 위한 seedless Qwen–Lexi–target 파이프라인과
+동일한 500개에 적용하는 single-turn/multi-turn jailbreak baseline도 보존한다.
 
 - 프로젝트 설명: [`persona_redteam/README.md`](persona_redteam/README.md)
 - 전체 흐름: [`persona_redteam/PIPELINE_OVERVIEW_KO.md`](persona_redteam/PIPELINE_OVERVIEW_KO.md)

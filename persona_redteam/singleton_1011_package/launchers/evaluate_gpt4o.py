@@ -22,20 +22,24 @@ def main() -> None:
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--wait", action="store_true")
     args = parser.parse_args()
-    args.output_dir.mkdir(parents=True, exist_ok=True)
+    run_dir = args.run_dir.resolve()
+    selection = args.selection.resolve()
+    baselines = args.baselines.resolve()
+    output_dir = args.output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
     common = ["--api-mode", "batch", "--expected-cases", str(args.expected_cases),
               "--workers", "128", "--max-budget-usd", "60", "--poll-seconds", "20"]
     jobs = [
         ("cares_jmir", "OPENAI_API_KEY", [
             sys.executable, "-m", "experiments.evaluate_final_cares_pilot64",
-            "--run-dir", str(args.run_dir), "--selection", str(args.selection),
-            "--baselines", str(args.baselines), "--output-dir", str(args.output_dir / "cares_jmir"),
+            "--run-dir", str(run_dir), "--selection", str(selection),
+            "--baselines", str(baselines), "--output-dir", str(output_dir / "cares_jmir"),
             "--target-model", "gpt-4o-2024-11-20", "--evaluator-model", "gpt-4o-2024-11-20",
             *common,
         ]),
         ("recovery_behavior", "OPENAI_API_KEY2", [
             sys.executable, "-m", "experiments.evaluate_recovery_behavior_batch",
-            "--run-dir", str(args.run_dir), "--output", str(args.output_dir / "recovery_behavior.json"),
+            "--run-dir", str(run_dir), "--output", str(output_dir / "recovery_behavior.json"),
             "--model", "gpt-4o-2024-11-20", *common,
         ]),
     ]
@@ -49,7 +53,7 @@ def main() -> None:
         return
     processes = []
     for name, key_name, command in jobs:
-        log = (args.output_dir / f"{name}.log").open("ab", buffering=0)
+        log = (output_dir / f"{name}.log").open("ab", buffering=0)
         process = subprocess.Popen(command, cwd=SOURCE_ROOT, env=subprocess_env(key_name),
                                    stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         log.close()
@@ -64,4 +68,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

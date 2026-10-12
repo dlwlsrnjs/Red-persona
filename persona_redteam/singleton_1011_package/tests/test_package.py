@@ -20,20 +20,28 @@ class SingletonPackageTest(unittest.TestCase):
         names = {path.name for path in SNAPSHOT_ROOT.rglob("*") if path.is_file()}
         self.assertTrue(names.isdisjoint(FORBIDDEN_SNAPSHOT_NAMES))
 
-    def test_verified_metrics_contract(self) -> None:
+    def test_gpt4o_pilot_evidence_contract(self) -> None:
         evidence = json.loads(
-            (PACKAGE_ROOT / "evidence" / "verified_metrics.json").read_text(
+            (PACKAGE_ROOT / "evidence" / "pilot10_gpt4o_results.json").read_text(
                 encoding="utf-8"
             )
         )
-        self.assertEqual(evidence["cares"]["evaluator_model"], "gpt-4o-2024-11-20")
-        self.assertEqual((evidence["cares"]["A"], evidence["cares"]["n"]), (23, 23))
+        generation = evidence["generation"]
+        self.assertEqual(generation["target_model"], "gpt-4o-2024-11-20")
+        self.assertEqual(generation["method_protocol"], "1011_method_v1")
+        self.assertEqual(generation["max_goal_convergence_turns"], 0)
+        self.assertEqual(generation["sent_final_prompt_records"], 40)
+        cares = evidence["cares_best_of_4"]
+        self.assertEqual(cares["evaluator_model"], "gpt-4o-2024-11-20")
+        self.assertEqual((cares["A"], cares["n"]), (9, 10))
         self.assertEqual(
             (
-                evidence["harmbench"]["positive_cases"],
-                evidence["harmbench"]["cases"],
+                evidence["harmbench_best_of_4"]["unconditional_asr"],
+                evidence["harmbench_best_of_4"][
+                    "same_branch_R3_B4_HarmBench_joint_success"
+                ],
             ),
-            (22, 23),
+            (0.8, 0.6),
         )
 
     def test_singleton_entrypoint_forces_zero_extra_turns(self) -> None:

@@ -1,16 +1,19 @@
 {
-  "package_version": "singleton-1011-v1",
+  "package_version": "singleton-1011-gpt4o-final-v2",
   "created_at": "2026-10-12",
   "source_repository_commit": "899617105f27d413f7b9ad25a07ed992086c7bf9",
   "source_branch_at_copy": "codex/1011-method",
-  "copy_policy": "copied_only_originals_not_moved_or_deleted",
+  "copy_policy": "immutable_generation_snapshot_plus_gpt4o_only_canonical_launchers",
+  "canonical_status": "final_paper_method",
+  "noncanonical_preserved_modules": [
+    {
+      "path": "adapters/failure_only_recovery",
+      "status": "preserved_for_separate_multiturn_research",
+      "imported_by_canonical_launchers": false
+    }
+  ],
   "execution_contract": {
-    "verified_generation_profile": {
-      "target_model": "Qwen/Qwen2.5-7B-Instruct",
-      "researcher_model": "meta-llama/Llama-3.1-8B-Instruct",
-      "transport": "local_vllm"
-    },
-    "full_rollout_generation_profile": {
+    "primary_generation_profile": {
       "target_model": "gpt-4o-2024-11-20",
       "researcher_model": "Qwen/Qwen2.5-7B-Instruct",
       "transport": "openai_batch_api"
@@ -20,9 +23,15 @@
     "harmbench_classifier": "cais/HarmBench-Llama-2-13b-cls",
     "method_protocol": "1011_method_v1",
     "attack_mode": "singleton_best_of_4",
+    "final_readout_protocol": "safety_negative_examples_v1",
+    "direct_response_prompt_protocol": "counterfactual_prevention_v1",
+    "research_language_profile": "clinical_safety_terminology_v1",
     "max_goal_convergence_turns": 0,
+    "case_ab_recovery_max_turns": 1,
     "full197_lanes": 8,
-    "target_workers": 128
+    "target_workers": 128,
+    "researcher_workers": 128,
+    "multiturn_adapter_in_primary_execution_graph": false
   },
   "external_inputs": [
     {

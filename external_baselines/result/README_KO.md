@@ -9,6 +9,12 @@
 [`final197_external_baselines_v2/QUALITATIVE_FAILURE_ANALYSIS_KO.md`](final197_external_baselines_v2/QUALITATIVE_FAILURE_ANALYSIS_KO.md)의
 대표 3건 정성 분석에서 확인할 수 있다.
 
+각 기법의 멀티턴 제어 흐름과 PCSA–Jargon–1011의 차이는
+[`final197_external_baselines_v2/METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md`](final197_external_baselines_v2/METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md),
+안전정렬 유지와 경계 통과의 직접 사례는
+[`final197_external_baselines_v2/DIRECT_SAMPLE_CASEBOOK_KO.md`](final197_external_baselines_v2/DIRECT_SAMPLE_CASEBOOK_KO.md)에
+분리했다.
+
 ## Canonical source aggregate
 
 아래 파일은 통합 패키지를 재생성하는 검증된 기계 source다.

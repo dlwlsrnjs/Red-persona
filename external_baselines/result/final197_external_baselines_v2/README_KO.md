@@ -19,6 +19,8 @@
 | [`SETTINGS_AND_PROVENANCE_KO.md`](SETTINGS_AND_PROVENANCE_KO.md) | 실행 설정, 모델·판정기·전송 방식, 호출 예산, 코드 위치 |
 | [`RESULTS_INTERPRETATION_KO.md`](RESULTS_INTERPRETATION_KO.md) | 결과가 지지하는 주장과 제한, 논문 서술안 |
 | [`QUALITATIVE_FAILURE_ANALYSIS_KO.md`](QUALITATIVE_FAILURE_ANALYSIS_KO.md) | 외부 공격이 실패한 위치를 보여주는 대표 3건 정성 분석 |
+| [`METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md`](METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md) | 9개 외부 기법의 턴별 제어 흐름·실패 지도와 PCSA–Jargon–1011 비교 |
+| [`DIRECT_SAMPLE_CASEBOOK_KO.md`](DIRECT_SAMPLE_CASEBOOK_KO.md) | 안전정렬 유지와 경계 통과의 실제 PCSA·Jargon·1011 사례 |
 | [`all_results.json`](all_results.json) | 21개 셀의 정규화된 전체 count/rate와 비교 계약 |
 | [`all_results.csv`](all_results.csv) | 통계·도표 작성용 평탄화 결과 |
 | [`AUDIT.json`](AUDIT.json) | source/code SHA-256, coverage, 원 커밋, 제외·대체 기록 |

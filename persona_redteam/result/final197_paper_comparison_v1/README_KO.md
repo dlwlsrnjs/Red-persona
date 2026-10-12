@@ -31,6 +31,11 @@
 통합했다. 이 비교 패키지는 그 기계 판독 source와 OURS 결과를 함께 정규화하되, 서로 다른
 실험 패널을 공식 순위로 합치지 않는다.
 
+논문 Methods와 정성 분석에는 다음 두 문서를 함께 사용한다.
+
+- [외부 9개 기법의 턴 구조·실패 지도와 PCSA–Jargon–1011 비교](../../../external_baselines/result/final197_external_baselines_v2/METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md)
+- [안전정렬 유지와 경계 통과의 직접 PCSA·Jargon·1011 사례](../../../external_baselines/result/final197_external_baselines_v2/DIRECT_SAMPLE_CASEBOOK_KO.md)
+
 ## 핵심 결론
 
 - PCSA Phase II에서 Persona+History는 No-Persona보다 HarmBench를

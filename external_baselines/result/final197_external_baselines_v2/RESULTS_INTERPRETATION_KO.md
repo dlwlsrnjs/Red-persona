@@ -2,6 +2,10 @@
 
 대표 실패 3건의 응답 수준 분석은
 [`QUALITATIVE_FAILURE_ANALYSIS_KO.md`](QUALITATIVE_FAILURE_ANALYSIS_KO.md)에 분리했다.
+각 기법의 실제 멀티턴 제어 흐름과 PCSA–Jargon–1011의 구조 차이는
+[`METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md`](METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md),
+안전정렬 유지와 경계 통과의 직접 사례는
+[`DIRECT_SAMPLE_CASEBOOK_KO.md`](DIRECT_SAMPLE_CASEBOOK_KO.md)에 분리했다.
 
 ## 1. 기존 9종 비교
 

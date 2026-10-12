@@ -1,5 +1,11 @@
 # Final-197 결과 해석 및 논문 서술안
 
+방법별 멀티턴 제어 흐름과 PCSA–Jargon–현재 1011의 구조적 차이는
+[`../../../external_baselines/result/final197_external_baselines_v2/METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md`](../../../external_baselines/result/final197_external_baselines_v2/METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md),
+실패·성공 양쪽의 직접 사례는
+[`../../../external_baselines/result/final197_external_baselines_v2/DIRECT_SAMPLE_CASEBOOK_KO.md`](../../../external_baselines/result/final197_external_baselines_v2/DIRECT_SAMPLE_CASEBOOK_KO.md)를
+함께 본다.
+
 ## 1. 먼저 고정해야 할 분석 단위
 
 네 결과군은 기반 요청 197개가 동일하지만 출력 선택 방식은 다르다.

@@ -1,5 +1,10 @@
 # 외부 baseline 실패의 정성 분석 — 대표 3건
 
+기법별 멀티턴 구조와 PCSA–Jargon–1011의 차이는
+[`METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md`](METHOD_TURN_STRUCTURE_AND_FAILURE_MAP_KO.md),
+실패와 성공 양쪽의 직접 발췌는
+[`DIRECT_SAMPLE_CASEBOOK_KO.md`](DIRECT_SAMPLE_CASEBOOK_KO.md)를 함께 본다.
+
 ## 결론
 
 Final-197의 GPT-4o target 결과는 외부 baseline이 단순한 표현 변경뿐 아니라 반복 공격을

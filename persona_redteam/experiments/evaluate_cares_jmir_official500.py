@@ -145,6 +145,9 @@ def source_files(spec: dict, case_ids: list[str]) -> dict[str, Path]:
 
 def extract_arm_rows(spec: dict, case_ids: list[str]) -> list[dict]:
     files = source_files(spec, case_ids)
+    expected_branches = int(spec.get("expected_branches", 4))
+    if expected_branches < 1:
+        raise ValueError("expected_branches must be positive")
     rows = []
     for case_id in case_ids:
         path = files[case_id]
@@ -159,8 +162,11 @@ def extract_arm_rows(spec: dict, case_ids: list[str]) -> list[dict]:
         if len(results) != 1:
             raise ValueError(f"{path}: expected one neutral result")
         branches = results[0]["final_branches"]
-        if len(branches) != 4:
-            raise ValueError(f"{path}: expected four final branches")
+        if len(branches) != expected_branches:
+            raise ValueError(
+                f"{path}: expected {expected_branches} final branches, "
+                f"found {len(branches)}"
+            )
         directions = []
         for branch in branches:
             try:

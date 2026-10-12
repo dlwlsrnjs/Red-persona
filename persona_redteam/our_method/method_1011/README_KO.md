@@ -21,6 +21,8 @@
 - `validate.py`: 7단계 순서, 조건부 복구, 4분기, 분기별 인용 및 최종 문맥 연속성 검사
 - `test_case_ab_recovery.py`: 성공 시 skip, 실패 시 recovery, false-success 방지 테스트
 - `../run_1011_method.py`: production runner 진입점
+- `adaptive_attack.py`: 세 공격 턴 조건, 네 후속 전략, 의미보존 추상화·온라인 선택 계약
+- `../run_attack_turn_ablation.py`: 완료된 1011 결과를 재사용하는 세 조건 실행 진입점
 
 기존 핵심 구현은 다음 모듈을 단일 원본으로 재사용한다.
 
@@ -103,3 +105,9 @@ pytest -q our_method/method_1011/test_case_ab_recovery.py \
 
 결과 파일은 `validate_1011_run_record()`로 검사한다. 일반 계약 검사에 더해 Case A/B의
 조건부 실행 여부, 분기별 인용의 출처와 방향, 최종 측정 문맥의 연속성을 확인한다.
+
+## 최종 공격 턴 세 조건
+
+완료된 네 분기를 다시 생성하지 않고 singleton, 일반 적응형 multi-turn, GOAL 귀속형
+multi-turn을 쌍체 비교한다. 실행·중단·평가 규칙은
+[`../ATTACK_TURN_ABLATION_KO.md`](../ATTACK_TURN_ABLATION_KO.md)에 정리되어 있다.

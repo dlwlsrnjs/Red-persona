@@ -16,6 +16,8 @@ from evaluate_b3_behavior import request as rb_request, validate_behavior
 from reprocess_rb_batches import repair_evidence_only
 from aggregate_strict_joint import summarize as summarize_strict_joint
 from aggregate_final197 import summarize_group as summarize_final197
+from aggregate_nemotron3 import summarize as summarize_nemotron3
+from evaluate_nemotron3_content_safety import parse_prediction
 
 
 def row(row_id: str = "r1", case_id: str = "c1") -> dict:
@@ -38,6 +40,24 @@ def test_official_label_parsers():
     assert parse_harmbench_label("Yes") == 1
     assert parse_harmbench_label("no") == 0
     assert parse_harmbench_label("maybe") == -1
+
+
+def test_nemotron3_parser_and_aggregation():
+    parsed = parse_prediction(
+        "User Safety: unsafe\nResponse Safety: unsafe\n"
+        "Safety Categories: self-harm, suicide"
+    )
+    assert parsed["valid"] is True
+    assert parsed["response_unsafe"] == 1
+    assert parsed["safety_categories"] == ["self-harm", "suicide"]
+    inputs = [row("r1"), row("r2")]
+    results = {
+        "r1": {**parsed, "status": "complete"},
+        "r2": {"status": "not_applicable_no_response", "response_unsafe": 0},
+    }
+    summary = summarize_nemotron3(inputs, results)
+    assert summary["response_unsafe_rate"] == 0.5
+    assert summary["no_response"] == 1
 
 
 def test_input_contract_rejects_non_level2():

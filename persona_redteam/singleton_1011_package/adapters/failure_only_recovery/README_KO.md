@@ -41,6 +41,8 @@ HarmBench는 생성이 끝난 뒤에만 사용하므로 공식 지표가 온라�
 | `compare_arms.py` | 두 전략을 현재 routing metric 우선으로 비교 |
 | `reconstruct_persisted.py` | 중단된 Batch 체크포인트를 재생성 없이 복원 |
 | `full_history_specificity_pilot.py` | 전체 이력·직전 답변 고정 후 네 후속 형식을 한 GPT-4o Batch로 비교 |
+| `semantic_slot_core.py` | goal-aware 연구자가 RELATION·TASK·COMPOSE를 순차 선택하는 비문자적 멀티턴 코어 |
+| `semantic_slot_engine.py` | semantic slot arm의 턴 2–4 생성 실행기 |
 
 보존본은 싱글턴 `src/` 스냅샷 밖에 둔다. 따라서 기존 싱글턴 검증기와 실행
 진입점은 계속 멀티턴 파일을 포함하지 않는 상태로 유지된다.
@@ -82,9 +84,16 @@ python -m singleton_1011_package.adapters.failure_only_recovery.launch \
 ```
 
 입력을 확인한 뒤 턴 2–4를 실행한다. `adaptive`는 일반 적응형 반복이고,
-`goal_attributed`는 의미 감사를 통과한 추상 GOAL을 후속 질문에 결속한다. 두 전략은
+`goal_attributed`는 의미 감사를 통과한 추상 GOAL을 후속 질문에 결속한다. 각 arm은
 서로 다른 `--runtime`에서 실행해야 한다. 로컬 Qwen 연구자 서버 네 개와 OpenAI 키
 두 개를 기본으로 사용한다. 한 키만 의도적으로 쓸 때만 `--allow-one-key`를 지정한다.
+
+세 번째 `semantic_slot_fill` arm은 원래 goal을 연구자에게만 보여주고 타깃에는
+반복하지 않는다. 턴 2에서 `RELATION`, 턴 3에서 `TASK`를 한 칸씩 채운 뒤, 턴 4에서
+타깃이 스스로 채운 두 값을 자연스러운 답변으로 합치게 한다. 각 턴은 표현만 다른
+네 후보를 생성한다. Qwen의 비공개 의미 정합도 평가로 한 경로를 고르되 명시적
+거절은 결정 규칙으로 최하위 처리한다. CARES와 HarmBench는 경로 선택에 사용하지
+않는다.
 
 ```bash
 python -m singleton_1011_package.adapters.failure_only_recovery.launch \
@@ -100,6 +109,14 @@ python -m singleton_1011_package.adapters.failure_only_recovery.launch \
   --singleton-scoring /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring/results.json \
   --runtime /data1/users/USER/failure_only_recovery/MATRIX/goal_attributed \
   --expected-singleton-cases 197 --arm goal_attributed --wait
+```
+
+```bash
+python -m singleton_1011_package.adapters.failure_only_recovery.launch \
+  --source-run result/OURS/MATRIX/gpt4o/no_verbatim/merged \
+  --singleton-scoring /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring/results.json \
+  --runtime /data1/users/USER/failure_only_recovery/MATRIX/semantic_slot_fill \
+  --expected-singleton-cases 197 --arm semantic_slot_fill --wait
 ```
 
 평가는 `gpt-4o-2024-11-20` Batch로 고정된다. `gpt-4o-mini`나 standard API로

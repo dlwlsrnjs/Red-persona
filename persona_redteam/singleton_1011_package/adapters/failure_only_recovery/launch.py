@@ -1,4 +1,4 @@
-"""Launch turns 2-4 when a singleton case fails either locked metric.
+"""Launch turns 2-4 for cases that fail the selected locked routing metric.
 
 This is an adapter over the preserved ``engine`` copied from the existing
 ``our_method.run_nonaccept_max4_pilot`` implementation.  The singleton snapshot
@@ -39,6 +39,7 @@ from .integrity import require_preserved_sources  # noqa: E402
 TARGET_MODEL = "gpt-4o-2024-11-20"
 RESEARCHER_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 RESEARCHER_REVISION = "a09a35458c702b33eeacc393d103063234e8bc28"
+ARMS = ("adaptive", "goal_attributed", "semantic_slot_fill")
 DEFAULT_RESEARCHER_URLS = (
     "http://127.0.0.1:8000/v1",
     "http://127.0.0.1:8001/v1",
@@ -76,10 +77,15 @@ def engine_command(
     arm: str = "adaptive",
 ) -> list[str]:
     start, stop = bounds
+    engine_module = (
+        "singleton_1011_package.adapters.failure_only_recovery.semantic_slot_engine"
+        if arm == "semantic_slot_fill" else
+        "singleton_1011_package.adapters.failure_only_recovery.engine"
+    )
     return [
         sys.executable,
         "-m",
-        "singleton_1011_package.adapters.failure_only_recovery.engine",
+        engine_module,
         "--input-dir",
         str(source_run),
         "--selection-path",
@@ -131,6 +137,8 @@ def validate_engine() -> None:
         ADAPTER_DIR / "adaptive_core.py",
         ADAPTER_DIR / "attack_turn_core.py",
         ADAPTER_DIR / "engine.py",
+        ADAPTER_DIR / "semantic_slot_core.py",
+        ADAPTER_DIR / "semantic_slot_engine.py",
     )
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -217,7 +225,7 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "--arm", choices=("adaptive", "goal_attributed"), default="adaptive"
+        "--arm", choices=ARMS, default="adaptive"
     )
     parser.add_argument("--researcher-url", action="append", dest="researcher_urls")
     parser.add_argument("--lanes", type=int, default=4)

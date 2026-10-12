@@ -32,7 +32,7 @@
     "additional_turns": [2, 3, 4],
     "candidates_per_additional_turn": 4,
     "failure_gate": "default: retry when all four singleton candidates are HarmBench-negative; optional joint CARES-and-HarmBench ablation",
-    "strategy_arms": ["adaptive", "goal_attributed"],
+    "strategy_arms": ["adaptive", "goal_attributed", "semantic_slot_fill"],
     "one_case_goal_linkage_ablations": ["history_only", "explicit_goal"],
     "official_metric_used_for_online_path_selection": false,
     "reporting": "per-metric monotone cumulative OR plus their cumulative joint intersection"

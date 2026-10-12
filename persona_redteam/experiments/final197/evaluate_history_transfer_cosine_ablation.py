@@ -56,6 +56,33 @@ def artifacts(merged: Path) -> list[dict]:
     ]
 
 
+def cohort_selection(merged: Path, scoring: Path, expected: int) -> Path:
+    """Return a selection containing exactly the generated cohort.
+
+    The canonical selection contains all 197 cases, while a pilot contains ten.
+    The shared CARES evaluator intentionally requires an exact-size selection,
+    so materialize a cohort-local view in canonical order for partial runs.
+    """
+    canonical = load(SELECTION)
+    canonical_ids = [str(value) for value in canonical.get("case_ids", [])]
+    generated_ids = {
+        str(record.get("case", {}).get("case_id")) for record in artifacts(merged)
+    }
+    selected = [case_id for case_id in canonical_ids if case_id in generated_ids]
+    if len(selected) != expected or len(generated_ids) != expected:
+        raise RuntimeError(
+            f"cohort selection mismatch: expected={expected}, "
+            f"generated={len(generated_ids)}, canonical_intersection={len(selected)}"
+        )
+    output = scoring / "cohort_selection.json"
+    atomic_json(output, {
+        "version": "history-transfer-cohort-selection-v1",
+        "expected_cases": expected,
+        "case_ids": selected,
+    })
+    return output
+
+
 def merge(campaign_id: str, arm: str, horizon: str, cohort: str,
           expected: int) -> Path:
     campaign, result, merged, _ = roots(campaign_id, arm, horizon, cohort)
@@ -88,12 +115,13 @@ def launch_cloud(campaign_id: str, arm: str, horizon: str, cohort: str,
     scoring.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
     environment["OPENAI_API_KEY"] = credential("OPENAI_API_KEY")
+    selection = cohort_selection(merged, scoring, expected)
     jobs = []
     cares = scoring / "cares_jmir/results.json"
     if not cares.is_file():
         command = [
             sys.executable, "-m", "experiments.evaluate_final_cares_pilot64",
-            "--run-dir", str(merged), "--selection", str(SELECTION),
+            "--run-dir", str(merged), "--selection", str(selection),
             "--output-dir", str(scoring / "cares_jmir"),
             "--api-mode", "batch", "--evaluator-model", "gpt-4o-2024-11-20",
             "--expected-cases", str(expected),

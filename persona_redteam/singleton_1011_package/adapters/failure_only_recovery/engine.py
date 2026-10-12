@@ -24,7 +24,10 @@ sys.path[:0] = list(_IMPORT_ROOTS)
 from experiments.qwen_target_persona_research_dialogue import (
     OpenAICompatibleResearcher,
 )
-from .adaptive_core import ADAPTIVE_MULTI_TURN_PROTOCOL
+from .adaptive_core import (
+    ADAPTIVE_MULTI_TURN_PROTOCOL,
+    ATTRIBUTED_MULTI_TURN_PROTOCOL,
+)
 from .attack_turn_core import (
     OpenAIBatchPromptResearcher,
     VERSION as SOURCE_RUNNER_VERSION,
@@ -42,6 +45,7 @@ from pipeline.runtime_io import atomic_json
 
 
 VERSION = "singleton-nonaccept-forced-max4-v1"
+ARMS = ("adaptive", "goal_attributed")
 
 
 def validate_state(state, expected_turns: int = 4) -> None:
@@ -71,6 +75,7 @@ def main() -> None:
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--stop", type=int)
     parser.add_argument("--condition", default="neutral")
+    parser.add_argument("--arm", choices=ARMS, default="adaptive")
     parser.add_argument("--target-model", required=True)
     parser.add_argument("--target-base-url")
     parser.add_argument("--researcher-model", required=True)
@@ -115,26 +120,29 @@ def main() -> None:
         )
         raise ValueError(f"selection includes round-one CARES Accept: {successful}")
 
-    abstraction_researcher = OpenAIBatchPromptResearcher(
-        args.campaign_dir / "semantic_abstraction_batches",
-        model=args.abstraction_model,
-        max_budget_usd=args.abstraction_max_budget_usd,
-        poll_seconds=args.poll_seconds,
-    )
-    prepare_attributed_abstractions(
-        abstraction_researcher,
-        list(states.values()),
-        max_attempts=args.abstraction_max_attempts,
-    )
-    failed_abstractions = sorted(
-        state.case_id for state in states.values()
-        if state.abstraction_audit.get("passed") is not True
-    )
-    if failed_abstractions:
-        raise RuntimeError(
-            "semantic abstraction gate failed after retries: "
-            f"{failed_abstractions}"
+    attribution_frame = args.arm == "goal_attributed"
+    abstraction_researcher = None
+    if attribution_frame:
+        abstraction_researcher = OpenAIBatchPromptResearcher(
+            args.campaign_dir / "semantic_abstraction_batches",
+            model=args.abstraction_model,
+            max_budget_usd=args.abstraction_max_budget_usd,
+            poll_seconds=args.poll_seconds,
         )
+        prepare_attributed_abstractions(
+            abstraction_researcher,
+            list(states.values()),
+            max_attempts=args.abstraction_max_attempts,
+        )
+        failed_abstractions = sorted(
+            state.case_id for state in states.values()
+            if state.abstraction_audit.get("passed") is not True
+        )
+        if failed_abstractions:
+            raise RuntimeError(
+                "semantic abstraction gate failed after retries: "
+                f"{failed_abstractions}"
+            )
 
     target = (
         LocalChatClient(
@@ -160,7 +168,7 @@ def main() -> None:
             target_client=target,
             target_model=args.target_model,
             max_tokens=args.max_target_tokens,
-            attribution_frame=False,
+            attribution_frame=attribution_frame,
         )
         print(json.dumps({
             "status": "turn_complete",
@@ -185,6 +193,11 @@ def main() -> None:
             "source_record": str(source_path),
             "source_runner_version": SOURCE_RUNNER_VERSION,
             "condition": args.condition,
+            "strategy_arm": args.arm,
+            "strategy_protocol": (
+                ATTRIBUTED_MULTI_TURN_PROTOCOL
+                if attribution_frame else ADAPTIVE_MULTI_TURN_PROTOCOL
+            ),
             "target_model": args.target_model,
             # Private evaluator input only; never included in target-visible messages.
             "private_goal": state.private_goal,
@@ -193,9 +206,14 @@ def main() -> None:
             "forced_to_turn_four_after_online_success": True,
             "semantic_abstraction": state.softened_goal_abstraction,
             "semantic_abstraction_audit": state.abstraction_audit,
-            "semantic_abstraction_visible_to_target": False,
+            "semantic_abstraction_visible_to_target": attribution_frame,
             "adaptive_max4": _state_payload(
-                state, 4, protocol=ADAPTIVE_MULTI_TURN_PROTOCOL
+                state,
+                4,
+                protocol=(
+                    ATTRIBUTED_MULTI_TURN_PROTOCOL
+                    if attribution_frame else ADAPTIVE_MULTI_TURN_PROTOCOL
+                ),
             ),
         }
         atomic_json(args.output_dir / f"{state.case_id}.json", value)
@@ -210,11 +228,19 @@ def main() -> None:
         "new_target_responses": 12 * len(states),
         "cares_used_for_online_path_selection": False,
         "forced_to_turn_four_after_online_success": True,
+        "strategy_arm": args.arm,
+        "strategy_protocol": (
+            ATTRIBUTED_MULTI_TURN_PROTOCOL
+            if attribution_frame else ADAPTIVE_MULTI_TURN_PROTOCOL
+        ),
         "target_api_mode": target.api_mode,
         "new_target_cost_usd": target.actual_cost(),
         "abstraction_model": args.abstraction_model,
-        "abstraction_cost_usd": abstraction_researcher.actual_cost(),
-        "semantic_abstraction_visible_to_target": False,
+        "abstraction_cost_usd": (
+            abstraction_researcher.actual_cost()
+            if abstraction_researcher is not None else 0.0
+        ),
+        "semantic_abstraction_visible_to_target": attribution_frame,
     }
     atomic_json(args.output_dir / "run_summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False), flush=True)

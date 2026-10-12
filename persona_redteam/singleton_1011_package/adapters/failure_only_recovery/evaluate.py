@@ -56,6 +56,12 @@ def main() -> None:
     trajectories = args.runtime / "merged" / "trajectories"
     output = args.runtime / "scoring" / "cares_gpt4o_harmbench"
     selection = json.loads(selection_path.read_text(encoding="utf-8"))
+    generation_summary = json.loads(
+        (args.runtime / "merged" / "run_summary.json").read_text(encoding="utf-8")
+    )
+    strategy_arm = generation_summary.get("strategy_arm")
+    if strategy_arm not in {"adaptive", "goal_attributed"}:
+        raise ValueError(f"unrecognized recovery strategy arm: {strategy_arm!r}")
     failures = int(selection["failure_cases"])
     if failures < 1:
         raise ValueError("the singleton cohort has no failures to evaluate")
@@ -134,6 +140,7 @@ def main() -> None:
         "cares_evaluator_model": EVALUATOR_MODEL,
         "cares_api_mode": "openai_batch",
         "failure_only": True,
+        "strategy_arm": strategy_arm,
         "round_one_successes_frozen": True,
         "official_metric_used_for_online_path_selection": False,
         "selection": selection,

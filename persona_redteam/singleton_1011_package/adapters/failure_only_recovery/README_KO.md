@@ -26,12 +26,14 @@ HarmBench는 생성이 끝난 뒤에만 사용하므로 공식 지표가 온라�
 |---|---|
 | `contracts.py` | 싱글턴 성공 동결, 실패 cohort 작성, 단조 누적 지표 |
 | `credentials.py` | 환경변수/로컬 `.env` 키 로드(값 저장·출력 없음) |
-| `launch.py` | 기존 실패만 턴 2–4로 보내고 lane 병합 |
+| `score_singleton.py` | 싱글턴을 GPT-4o CARES와 HarmBench로 잠금 평가 |
+| `launch.py` | 기존 실패만 선택한 전략의 턴 2–4로 보내고 lane 병합 |
 | `engine.py` | 이전 `run_nonaccept_max4_pilot.py` 보존본 |
 | `adaptive_core.py` | 이전 네 전략·추상골·비공개 선택 코어 보존본 |
 | `attack_turn_core.py` | 이전 적응형 턴 실행 코어 보존본 |
 | `evaluate.py` | GPT-4o Batch CARES + HarmBench 실행 및 전체 cohort 집계 |
 | `scoring_engine.py` | 이전 누적 CARES/HarmBench 평가 구현 보존본 |
+| `compare_arms.py` | 두 전략을 CARES 우선, HarmBench 동점해소로 비교 |
 | `reconstruct_persisted.py` | 중단된 Batch 체크포인트를 재생성 없이 복원 |
 
 보존본은 싱글턴 `src/` 스냅샷 밖에 둔다. 따라서 기존 싱글턴 검증기와 실행
@@ -44,6 +46,16 @@ HarmBench는 생성이 끝난 뒤에만 사용하므로 공식 지표가 온라�
 - `--source-run`: 사례별 싱글턴 JSON이 있는 병합 디렉터리
 - `--singleton-scoring`: 같은 질문·응답 쌍을 GPT-4o CARES로 평가한 JSON
 
+아직 GPT-4o CARES 판정이 없다면 먼저 싱글턴 네 후보를 평가한다.
+
+```bash
+python -m singleton_1011_package.adapters.failure_only_recovery.score_singleton \
+  --run-dir result/OURS/MATRIX/gpt4o/no_verbatim/merged \
+  --selection data/evaluations/MATRIX/gpt4o/no_verbatim/selection.json \
+  --output-dir /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring \
+  --expected-cases 197 --harmbench-device cuda:0
+```
+
 먼저 실패 partition만 확인한다. 이 단계에는 모델 호출이 없다.
 이때 실패 사례의 네 질문·응답 SHA-256도 `--source-run`의 싱글턴 JSON과
 `--singleton-scoring` 사이에서 전부 대조한다. 서로 다른 실행의 평가 파일을
@@ -54,21 +66,30 @@ HarmBench는 생성이 끝난 뒤에만 사용하므로 공식 지표가 온라�
 cd persona_redteam
 python -m singleton_1011_package.adapters.failure_only_recovery.launch \
   --source-run result/OURS/MATRIX/gpt4o/no_verbatim/merged \
-  --singleton-scoring data/evaluations/MATRIX/gpt4o/no_verbatim/scoring/cares/results.json \
-  --runtime /data1/users/USER/failure_only_recovery/MATRIX \
-  --expected-singleton-cases 197 --prepare-only
+  --singleton-scoring /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring/results.json \
+  --runtime /data1/users/USER/failure_only_recovery/MATRIX/adaptive \
+  --expected-singleton-cases 197 --arm adaptive --prepare-only
 ```
 
-입력을 확인한 뒤 턴 2–4를 실행한다. 로컬 Qwen 연구자 서버 네 개와 OpenAI 키
-두 개를 기본으로 사용한다. 한 키만 의도적으로 쓸 때만 `--allow-one-key`를
-지정한다.
+입력을 확인한 뒤 턴 2–4를 실행한다. `adaptive`는 일반 적응형 반복이고,
+`goal_attributed`는 의미 감사를 통과한 추상 GOAL을 후속 질문에 결속한다. 두 전략은
+서로 다른 `--runtime`에서 실행해야 한다. 로컬 Qwen 연구자 서버 네 개와 OpenAI 키
+두 개를 기본으로 사용한다. 한 키만 의도적으로 쓸 때만 `--allow-one-key`를 지정한다.
 
 ```bash
 python -m singleton_1011_package.adapters.failure_only_recovery.launch \
   --source-run result/OURS/MATRIX/gpt4o/no_verbatim/merged \
-  --singleton-scoring data/evaluations/MATRIX/gpt4o/no_verbatim/scoring/cares/results.json \
-  --runtime /data1/users/USER/failure_only_recovery/MATRIX \
-  --expected-singleton-cases 197 --wait
+  --singleton-scoring /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring/results.json \
+  --runtime /data1/users/USER/failure_only_recovery/MATRIX/adaptive \
+  --expected-singleton-cases 197 --arm adaptive --wait
+```
+
+```bash
+python -m singleton_1011_package.adapters.failure_only_recovery.launch \
+  --source-run result/OURS/MATRIX/gpt4o/no_verbatim/merged \
+  --singleton-scoring /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring/results.json \
+  --runtime /data1/users/USER/failure_only_recovery/MATRIX/goal_attributed \
+  --expected-singleton-cases 197 --arm goal_attributed --wait
 ```
 
 평가는 `gpt-4o-2024-11-20` Batch로 고정된다. `gpt-4o-mini`나 standard API로
@@ -77,9 +98,19 @@ python -m singleton_1011_package.adapters.failure_only_recovery.launch \
 
 ```bash
 python -m singleton_1011_package.adapters.failure_only_recovery.evaluate \
-  --runtime /data1/users/USER/failure_only_recovery/MATRIX \
-  --singleton-harmbench data/evaluations/MATRIX/gpt4o/no_verbatim/scoring/harmbench.json \
+  --runtime /data1/users/USER/failure_only_recovery/MATRIX/adaptive \
+  --singleton-harmbench /data1/users/USER/failure_only_recovery/MATRIX/singleton_scoring/results.json \
   --harmbench-device cuda:0
+```
+
+두 runtime을 각각 평가한 뒤 사전 고정 기준으로 비교한다. 턴 4 누적 CARES Accept
+사례 수를 우선하고, 동률일 때만 누적 HarmBench 양성 사례 수를 사용한다.
+
+```bash
+python -m singleton_1011_package.adapters.failure_only_recovery.compare_arms \
+  --adaptive /data1/users/USER/failure_only_recovery/MATRIX/adaptive/final_cumulative_results.json \
+  --goal-attributed /data1/users/USER/failure_only_recovery/MATRIX/goal_attributed/final_cumulative_results.json \
+  --output /data1/users/USER/failure_only_recovery/MATRIX/comparison.json
 ```
 
 최종 산출물은 `RUNTIME/final_cumulative_results.json`이다. 턴 1의 값은 원래

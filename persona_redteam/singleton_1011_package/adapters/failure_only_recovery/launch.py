@@ -71,6 +71,7 @@ def engine_command(
     condition: str,
     target_budget: float,
     abstraction_budget: float,
+    arm: str = "adaptive",
 ) -> list[str]:
     start, stop = bounds
     return [
@@ -93,6 +94,8 @@ def engine_command(
         str(stop),
         "--condition",
         condition,
+        "--arm",
+        arm,
         "--target-model",
         TARGET_MODEL,
         "--researcher-model",
@@ -135,7 +138,13 @@ def validate_engine() -> None:
         )
 
 
-def merge_lanes(runtime: Path, case_ids: list[str], lane_count: int) -> dict[str, Any]:
+def merge_lanes(
+    runtime: Path,
+    case_ids: list[str],
+    lane_count: int,
+    *,
+    arm: str,
+) -> dict[str, Any]:
     destination = runtime / "merged" / "trajectories"
     destination.mkdir(parents=True, exist_ok=True)
     found: dict[str, tuple[Path, dict[str, Any]]] = {}
@@ -151,6 +160,8 @@ def merge_lanes(runtime: Path, case_ids: list[str], lane_count: int) -> dict[str
             case_id = str(value.get("case", {}).get("case_id", ""))
             if value.get("target_model") != TARGET_MODEL:
                 raise ValueError(f"{case_id}: recovery target is not GPT-4o")
+            if value.get("strategy_arm") != arm:
+                raise ValueError(f"{case_id}: recovery strategy arm mismatch")
             adaptive = value.get("adaptive_max4", {})
             if adaptive.get("executed_turns") != 4:
                 raise ValueError(f"{case_id}: recovery did not reach turn four")
@@ -181,6 +192,7 @@ def merge_lanes(runtime: Path, case_ids: list[str], lane_count: int) -> dict[str
         "new_target_responses": 12 * len(found),
         "official_metric_used_for_path_selection": False,
         "forced_to_turn_four": True,
+        "strategy_arm": arm,
     }
     atomic_json(runtime / "merged" / "run_summary.json", summary)
     return summary
@@ -193,6 +205,9 @@ def main() -> None:
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--expected-singleton-cases", type=int)
     parser.add_argument("--condition", default="neutral")
+    parser.add_argument(
+        "--arm", choices=("adaptive", "goal_attributed"), default="adaptive"
+    )
     parser.add_argument("--researcher-url", action="append", dest="researcher_urls")
     parser.add_argument("--lanes", type=int, default=4)
     parser.add_argument("--only-lane", type=int)
@@ -237,7 +252,7 @@ def main() -> None:
         return
     if args.merge_only:
         print(json.dumps(
-            merge_lanes(args.runtime, case_ids, len(slices)),
+            merge_lanes(args.runtime, case_ids, len(slices), arm=args.arm),
             ensure_ascii=False,
             indent=2,
         ))
@@ -273,6 +288,7 @@ def main() -> None:
             condition=args.condition,
             target_budget=args.target_budget_per_lane,
             abstraction_budget=args.abstraction_budget_per_lane,
+            arm=args.arm,
         )
         environment = os.environ.copy()
         environment["OPENAI_API_KEY"] = keys[lane % len(keys)]
@@ -312,6 +328,7 @@ def main() -> None:
         "target_model": TARGET_MODEL,
         "researcher_model": RESEARCHER_MODEL,
         "new_turns": [2, 3, 4],
+        "strategy_arm": args.arm,
         "candidates_per_turn": 4,
         "lanes": launched,
         "credentials_persisted": False,
@@ -328,7 +345,9 @@ def main() -> None:
     if failures:
         atomic_json(args.runtime / "generation_failures.json", failures)
         raise RuntimeError(f"recovery lanes failed: {failures}")
-    summary = merge_lanes(args.runtime, case_ids, len(slices))
+    summary = merge_lanes(
+        args.runtime, case_ids, len(slices), arm=args.arm
+    )
     atomic_json(args.runtime / "completion.json", {
         "version": ADAPTER_VERSION,
         "completed_at": datetime.now(timezone.utc).isoformat(),

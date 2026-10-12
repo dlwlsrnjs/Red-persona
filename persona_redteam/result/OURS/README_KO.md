@@ -15,6 +15,8 @@
 - `RESULTS_KO.md`: 위 내용을 한 파일에서 보는 통합 보고서
 - `INTERPRETATION_CORRECTION_KO.md`: 기존 수치를 harmful ASR로 읽을 수 없는 이유
 - `SOURCE_REQUEST_STRATIFIED_RESULTS_KO.md`: `is_request × source h-level` 무호출 재분석
+- `final197_research_mediation_depth_gpt4o_v1/`: Final-197에서 완료한
+  `7-stage / single-readout / direct-final-only × history 유무` 본실험 결과와 감사
 - `../../experiments/run_ours_official500.py`: canonical 설정을 강제로 잠그는 실행 진입점
 
 기존 v1 OURS는 `neutral + jargon_history_bridge_v1 + four directions`다. `oracle_hint`,

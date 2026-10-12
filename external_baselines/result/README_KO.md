@@ -18,6 +18,10 @@ RED-Persona 본 방법의 결과와 합치거나 외부 기법을 OURS로 표기
   누락·무효 0건 감사 요약
 - [`EVALUATION_CODE_CHANGES_KO.md`](EVALUATION_CODE_CHANGES_KO.md): 평가 코드 변경점과
   재판정·인용 교정 내역
+- [`PCSA_PERSONA_ABLATION_FINAL197_KO.md`](PCSA_PERSONA_ABLATION_FINAL197_KO.md):
+  PCSA Phase II의 Persona+History 대 No-Persona 동일 197건 paired ablation
+- [`pcsa_persona_ablation_final197.json`](pcsa_persona_ablation_final197.json):
+  위 paired ablation의 기계 판독 가능 count·rate·McNemar 결과
 
 ## GPT-6 Luna · Llama 추가 실험
 

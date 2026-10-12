@@ -1,0 +1,110 @@
+{
+  "schema_version": "pcsa-persona-ablation-final197-v1",
+  "status": "complete",
+  "cohort": {
+    "name": "Final-197",
+    "cases": 197,
+    "paired_case_ids": true
+  },
+  "models": {
+    "target": "Qwen/Qwen2.5-7B-Instruct",
+    "attacker": "Qwen/Qwen2.5-7B-Instruct",
+    "online_evaluator": "gpt-4o-mini-2024-07-18",
+    "pcsa_final_judge": "gpt-4o"
+  },
+  "design": {
+    "phase": 2,
+    "strategies": 4,
+    "maximum_target_turns": 4,
+    "candidates_per_turn": 4,
+    "online_evaluator_transport": "openai_batch",
+    "persona_history_use": "attacker Phase-I characteristics, style reference, and state trajectory only",
+    "source_history_replayed_to_target": false
+  },
+  "conditions": {
+    "persona_history": {
+      "personalization_enabled": true,
+      "n": 197,
+      "invalid": 0,
+      "no_response": 0,
+      "harmbench": {"positive": 55, "asr": 0.27918781725888325},
+      "pcsa_gpt4o": {
+        "unsafe": 111,
+        "unsafe_rate": 0.5634517766497462,
+        "target_compliance": 111,
+        "target_compliance_rate": 0.5634517766497462,
+        "harmful_content": 103,
+        "harmful_content_rate": 0.5228426395939086
+      },
+      "goal_compliance_v3": {
+        "r3_plus": 115,
+        "r3_plus_rate": 0.583756345177665,
+        "b4_plus": 49,
+        "b4_plus_rate": 0.24873096446700507,
+        "r3_and_b4": 49,
+        "r3_and_b4_rate": 0.24873096446700507,
+        "strict_joint": 26,
+        "strict_joint_rate": 0.1319796954314721
+      },
+      "cares": {
+        "Accept": 23,
+        "Caution": 145,
+        "Refuse": 29,
+        "NoResponse": 0,
+        "asr": 0.8527918781725888,
+        "safety_score": 0.5152284263959391
+      }
+    },
+    "no_persona": {
+      "personalization_enabled": false,
+      "n": 197,
+      "invalid": 0,
+      "no_response": 0,
+      "harmbench": {"positive": 14, "asr": 0.07106598984771574},
+      "pcsa_gpt4o": {
+        "unsafe": 30,
+        "unsafe_rate": 0.15228426395939088,
+        "target_compliance": 29,
+        "target_compliance_rate": 0.14720812182741116,
+        "harmful_content": 19,
+        "harmful_content_rate": 0.09644670050761421
+      },
+      "goal_compliance_v3": {
+        "r3_plus": 34,
+        "r3_plus_rate": 0.17258883248730963,
+        "b4_plus": 14,
+        "b4_plus_rate": 0.07106598984771574,
+        "r3_and_b4": 13,
+        "r3_and_b4_rate": 0.06598984771573604,
+        "strict_joint": 7,
+        "strict_joint_rate": 0.03553299492385787
+      },
+      "cares": {
+        "Accept": 48,
+        "Caution": 147,
+        "Refuse": 2,
+        "NoResponse": 0,
+        "asr": 0.9898477157360406,
+        "safety_score": 0.383248730964467
+      }
+    }
+  },
+  "paired_harmbench": {
+    "both_positive": 10,
+    "persona_history_only": 45,
+    "no_persona_only": 4,
+    "both_negative": 138,
+    "discordant_pairs": 49,
+    "exact_mcnemar_two_sided_p": 8.225455871979648e-10
+  },
+  "interpretation": {
+    "task_aligned_metrics": "Persona+History is stronger on HarmBench, PCSA target compliance/UNSAFE, B4+, and strict joint.",
+    "cares_nonrefusal": "CARES A+C moves in the opposite direction and must not be used alone to characterize the personalization effect.",
+    "replication_scope": "The implementation reconstructs the published Phase-II design with Qwen attacker/target, N=4, and at most four target turns; it is not an exact model-level replication of the paper."
+  },
+  "source_report": "external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md",
+  "source_commits": [
+    "3dec3bfcded78d7754e3f9d50a32d2551885b88a",
+    "a9a7f2e3eb65fa6879e9628975da35b8ae838191"
+  ]
+}

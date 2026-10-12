@@ -1,0 +1,153 @@
+{
+  "built_on": "2026-10-12",
+  "code_artifacts": {
+    "external_baselines/pcsa_phase2.py": {
+      "bytes": 18148,
+      "sha256": "3afab75bbebdc278ef14327d277cbba2f0cf1833e0962d15410785d27051e77a"
+    },
+    "external_baselines/run_baseline_matrix.py": {
+      "bytes": 28337,
+      "sha256": "2d0ca5feeaf6b71652ba738fe90f9e9823fcd2553dfa9ee5e4ef821abb1b2e70"
+    },
+    "external_baselines/run_pcsa_persona_history_final197.sbatch": {
+      "bytes": 3831,
+      "sha256": "ef86afdea6ee11165e7d953600582036ae395422035db6b95371863311279507"
+    },
+    "external_baselines/run_pcsa_persona_history_gpt4o_final197.sh": {
+      "bytes": 2699,
+      "sha256": "0f7eaf1e55f1b07924c06889b177a77fa7d550cefba67d8dd44d37c309021331"
+    },
+    "external_baselines/run_pcsa_persona_history_gpt4o_final197_sharded.sh": {
+      "bytes": 1924,
+      "sha256": "fcfba65f10fb227c278012d86218cdc8c0d98234d54acc6ea774add5ceaf999c"
+    },
+    "external_baselines/run_pcsa_persona_history_pilot.sbatch": {
+      "bytes": 2945,
+      "sha256": "441f30489bc41ed04b5d4a55693a197bb6b079f9fdd5e9fd9cb4330394de0518"
+    },
+    "external_baselines/run_pyrit_baseline.py": {
+      "bytes": 49193,
+      "sha256": "40420c49ae857d63d6be7109f476c07361a3baa3f63a190209b8125dc2b4e964"
+    },
+    "external_baselines/tests/test_pcsa_phase2.py": {
+      "bytes": 8633,
+      "sha256": "0751691ad91d6b61fc5f47501744ada3b49254b45a719445a66854d5597eda05"
+    },
+    "external_baselines/tests/test_run_baseline_matrix.py": {
+      "bytes": 9928,
+      "sha256": "8b4cbc0dc22346bcc72b9e9dc9ba135ae9877fb8193ab36a115f20b6dc023f5c"
+    },
+    "external_baselines/tests/test_run_pyrit_baseline.py": {
+      "bytes": 14733,
+      "sha256": "5a4b2153cbc6af9af2eef73f8e33d9e3a31b2c80e76c713043717bec984fccba"
+    },
+    "official_evaluation/evaluate_b3_behavior.py": {
+      "bytes": 15787,
+      "sha256": "3d1ab9d43ae90fc9220b1edb0849737444b6c880486e210e178ea40adb98d08b"
+    },
+    "official_evaluation/evaluate_cares.py": {
+      "bytes": 13826,
+      "sha256": "979644f55193832ef09a9d1a316377e5fb20fc3acd42113830cd744df014b702"
+    },
+    "official_evaluation/evaluate_harmbench.py": {
+      "bytes": 8247,
+      "sha256": "a973d985abbed3a5dd1d2517865afc5b4ca3c67552e9450b2313f67d8aacb7f0"
+    },
+    "official_evaluation/evaluate_pcsa_gpt4o_judge.py": {
+      "bytes": 14892,
+      "sha256": "33e52b21f827563b37a470883276bd40684303424b916485ad043a2d409d86ac"
+    },
+    "official_evaluation/prepare_single_baseline_cell.py": {
+      "bytes": 5035,
+      "sha256": "8164e9111f04dd3963faaba40e1e094dfa0b82217cadb5212dd601d182f01989"
+    },
+    "official_evaluation/run_harmbench_pinned_pair.sbatch": {
+      "bytes": 776,
+      "sha256": "f8ad2a17551e8e4233f0efa70b0750e6e570bc9d19629b86fe0c1b0419f15bb1"
+    },
+    "official_evaluation/run_pcsa_persona_history_final197_eval.sbatch": {
+      "bytes": 4120,
+      "sha256": "acf17c6b505d1b7996930cf40ec49bd25cc0532c227ef458f490d2ebc1ef5401"
+    },
+    "official_evaluation/run_pcsa_persona_history_pilot_eval.sbatch": {
+      "bytes": 3569,
+      "sha256": "b531bcbc09cbac1b53da3fafc2ac00eee5be76264c2820cd6d769b6e8977459e"
+    },
+    "persona_redteam/result/final197_paper_comparison_v1/build_comparison.py": {
+      "bytes": 22932,
+      "sha256": "f708a50687715bd58c9ad77515d60e9960f3aec975b44969c46cf1a7e17b5dd4"
+    },
+    "persona_redteam/singleton_1011_package/docs/SINGLETON_PROTOCOL_KO.md": {
+      "bytes": 5980,
+      "sha256": "c8a6fdd5aea4b7aeb9ce5c92027717bb13ed41903c9286a8fcc88d640c2a9dda"
+    },
+    "persona_redteam/singleton_1011_package/launchers/evaluate_gpt4o.py": {
+      "bytes": 3104,
+      "sha256": "b144bd1150a8b647c91ab22ecc0a1db20f50dabd97fab1608769aa3ae75585af"
+    },
+    "persona_redteam/singleton_1011_package/launchers/evaluate_harmbench.py": {
+      "bytes": 311,
+      "sha256": "340f7bbbabcacdedc74daf182247539a51ecc5cc034ebe506b0b4cad2dac348e"
+    },
+    "persona_redteam/singleton_1011_package/launchers/finalize_full197_gpt4o.py": {
+      "bytes": 6309,
+      "sha256": "65fc7115422cd21596830e9ca93ca66489839bbbe518b0c5fdefc7bf2be2ea57"
+    },
+    "persona_redteam/singleton_1011_package/launchers/finalize_harmbench_full197.py": {
+      "bytes": 5896,
+      "sha256": "e5dcec5ab540ff5c458415388b29f7565255286d095ae3b6c90a7372810d659e"
+    },
+    "persona_redteam/singleton_1011_package/launchers/launch_full197_gpt4o.py": {
+      "bytes": 9445,
+      "sha256": "f1d7fa0de20e7356b93a02d68d588d0597c58cc23c135ec5947b4ba45f0f06d1"
+    },
+    "persona_redteam/singleton_1011_package/launchers/run_singleton.py": {
+      "bytes": 2373,
+      "sha256": "fa6fb979a8e49db6a04135484518ca84b36a2db650116086fcd280777d95ecfd"
+    }
+  },
+  "cohort_audit": {
+    "case_id_order_equal": true,
+    "case_id_set_equal": true,
+    "external_cases": 197,
+    "ours_cases": 197,
+    "request_sha256_matches": 197
+  },
+  "schema_version": "final197-paper-comparison-provenance-v1",
+  "source_artifacts": {
+    "external_baselines/data/final197/final197_goals.jsonl": {
+      "bytes": 99993,
+      "sha256": "c588e8f8dbb08ff6a263b944d0d1c1e1a8f32037436142ed46cfea84660e535e"
+    },
+    "external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md": {
+      "bytes": 3654,
+      "sha256": "6ec8a981c5faf1eed575e12c29196ff47a62a4b6cb34ffa8d4316ef081eb4498"
+    },
+    "external_baselines/result/final197_main_results.json": {
+      "bytes": 24540,
+      "sha256": "be126baddd9137f7288629c5a9c253006874a4ca88174b3a43d7f7f2c903f693"
+    },
+    "external_baselines/result/pcsa_persona_ablation_final197.json": {
+      "bytes": 3595,
+      "sha256": "ac06f74630171faed73122ecb9c792ce54fd0e7f4916f1a3d412d4362a01abba"
+    },
+    "persona_redteam/our_method/data/FINAL197_PERSONAS_WITH_HISTORY_NO_VERBATIM_GOAL.json": {
+      "bytes": 915889,
+      "sha256": "298896bb771b54429f2a2318847c0efc6beec1968f6fc8a5ae8f4735876dced0"
+    },
+    "persona_redteam/singleton_1011_package/result/final197_1011_singleton_gpt4o_v1/README_KO.md": {
+      "bytes": 5607,
+      "sha256": "7c1f04e3444adfbe2b8eb4d45633f205f55c5d9257182049238b5f1395a3cd4d"
+    },
+    "persona_redteam/singleton_1011_package/result/final197_1011_singleton_gpt4o_v1/summary.json": {
+      "bytes": 5035,
+      "sha256": "8dd0d732cd8eabe60171fb487d84b7836c96248ed4d71129879fbc9f2efea1f1"
+    }
+  },
+  "upstream_commits": {
+    "external_final197_results": "859247cc946e28bfe994c5b361a8a72e9e4446d6",
+    "ours_final197_verified_results": "abc70fe",
+    "pcsa_persona_ablation_final_audit": "a9a7f2e3eb65fa6879e9628975da35b8ae838191",
+    "pcsa_persona_ablation_result": "3dec3bfcded78d7754e3f9d50a32d2551885b88a"
+  }
+}

@@ -1,5 +1,14 @@
 # RED-Persona 논문용 주요 결과
 
+## Final-197 외부 베이스라인·PCSA·1011 singleton 비교
+
+동일한 197개 요청에서 외부 베이스라인 9종, PCSA Phase II Persona+History paired
+ablation, 검증된 GPT-4o 1011 singleton 결과를 함께 보려면
+[`final197_paper_comparison_v1/README_KO.md`](final197_paper_comparison_v1/README_KO.md)를
+사용한다. 기계 판독 CSV/JSON, 논문용 표와 해석, 실제 실행·평가 코드 인덱스 및 SHA-256
+provenance를 포함한다. 아래 Official-500 canonical OURS 결과와는 cohort 및 연구 계약이
+다르므로 혼합하지 않는다.
+
 ## Canonical OURS
 
 논문에서 OURS로 인용할 설정과 통합 결과는 [`OURS/RESULTS_KO.md`](OURS/RESULTS_KO.md)를

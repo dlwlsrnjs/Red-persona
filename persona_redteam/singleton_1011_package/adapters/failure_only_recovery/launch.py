@@ -1,4 +1,4 @@
-"""Launch turns 2-4 only for strict CARES failures from a singleton run.
+"""Launch turns 2-4 when a singleton case fails either locked metric.
 
 This is an adapter over the preserved ``engine`` copied from the existing
 ``our_method.run_nonaccept_max4_pilot`` implementation.  The singleton snapshot
@@ -26,6 +26,8 @@ sys.path[:0] = list(_IMPORT_ROOTS)
 
 from .contracts import (  # noqa: E402
     ADAPTER_VERSION,
+    DEFAULT_ROUTING_METRIC,
+    ROUTING_METRICS,
     atomic_json,
     build_failure_cohort,
     validate_failure_source_run,
@@ -206,6 +208,15 @@ def main() -> None:
     parser.add_argument("--expected-singleton-cases", type=int)
     parser.add_argument("--condition", default="neutral")
     parser.add_argument(
+        "--routing-metric",
+        choices=ROUTING_METRICS,
+        default=DEFAULT_ROUTING_METRIC,
+        help=(
+            "failure gate; default 'both' retries a case when CARES or "
+            "HarmBench fails"
+        ),
+    )
+    parser.add_argument(
         "--arm", choices=("adaptive", "goal_attributed"), default="adaptive"
     )
     parser.add_argument("--researcher-url", action="append", dest="researcher_urls")
@@ -226,6 +237,7 @@ def main() -> None:
         adapter_input,
         target_model=TARGET_MODEL,
         expected_cases=args.expected_singleton_cases,
+        routing_metric=args.routing_metric,
     )
     case_ids = list(map(str, selection["failure_case_ids"]))
     round_one_path = adapter_input / "round_one_failures.json"
@@ -324,6 +336,7 @@ def main() -> None:
         "launched_at": datetime.now(timezone.utc).isoformat(),
         "source_run": str(args.source_run.resolve()),
         "singleton_scoring": str(args.singleton_scoring.resolve()),
+        "routing_metric": args.routing_metric,
         "selection": selection,
         "target_model": TARGET_MODEL,
         "researcher_model": RESEARCHER_MODEL,

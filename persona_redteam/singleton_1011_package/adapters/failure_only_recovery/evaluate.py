@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -43,6 +44,7 @@ def validate_recovery_evaluator(record: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", type=Path, required=True)
+    parser.add_argument("--singleton-scoring", type=Path)
     parser.add_argument("--singleton-harmbench", type=Path)
     parser.add_argument("--harmbench-model")
     parser.add_argument("--harmbench-device", default="cuda:0")
@@ -51,6 +53,11 @@ def main() -> None:
     parser.add_argument("--poll-seconds", type=int, default=10)
     parser.add_argument("--summarize-only", action="store_true")
     args = parser.parse_args()
+    if args.singleton_scoring and args.singleton_harmbench:
+        parser.error(
+            "use --singleton-scoring; --singleton-harmbench is only a "
+            "backward-compatible alias"
+        )
     require_preserved_sources()
     selection_path = args.runtime / "adapter_input" / "selection.json"
     trajectories = args.runtime / "merged" / "trajectories"
@@ -121,18 +128,35 @@ def main() -> None:
             raise SystemExit(completed.returncode)
     recovery = json.loads(results_path.read_text(encoding="utf-8"))
     validate_recovery_evaluator(recovery)
-    singleton_harmbench_rows = None
-    if args.singleton_harmbench:
-        singleton_harmbench = json.loads(
-            args.singleton_harmbench.read_text(encoding="utf-8")
+    explicit_singleton = args.singleton_scoring or args.singleton_harmbench
+    singleton_path = (
+        explicit_singleton
+        if explicit_singleton is not None else
+        Path(str(selection.get("source_scoring", "")))
+    )
+    singleton_scoring_rows = None
+    if str(singleton_path) and singleton_path.is_file():
+        expected_hash = str(selection.get("source_scoring_sha256", ""))
+        actual_hash = hashlib.sha256(singleton_path.read_bytes()).hexdigest()
+        if expected_hash and actual_hash != expected_hash:
+            raise ValueError(
+                "singleton scoring hash does not match the routing artifact"
+            )
+        singleton_scoring = json.loads(
+            singleton_path.read_text(encoding="utf-8")
         )
-        singleton_harmbench_rows = singleton_harmbench.get("rows")
-        if not isinstance(singleton_harmbench_rows, list):
-            raise ValueError("singleton HarmBench artifact has no rows")
+        singleton_scoring_rows = singleton_scoring.get("rows")
+        if not isinstance(singleton_scoring_rows, list):
+            raise ValueError("singleton scoring artifact has no rows")
+    elif selection.get("routing_metric") in {"both", "harmbench"}:
+        raise FileNotFoundError(
+            "the HarmBench-aware routing summary requires its original "
+            "singleton scoring artifact; pass --singleton-scoring"
+        )
     summary = cumulative_full_cohort_summary(
         selection,
         recovery,
-        singleton_harmbench_rows=singleton_harmbench_rows,
+        singleton_scoring_rows=singleton_scoring_rows,
     )
     record = {
         "version": ADAPTER_VERSION,
@@ -146,9 +170,9 @@ def main() -> None:
         "selection": selection,
         "summary": summary,
         "recovery_results": str(results_path.resolve()),
-        "singleton_harmbench": (
-            str(args.singleton_harmbench.resolve())
-            if args.singleton_harmbench else None
+        "singleton_scoring": (
+            str(singleton_path.resolve()) if singleton_scoring_rows is not None
+            else None
         ),
         "status": "complete",
     }

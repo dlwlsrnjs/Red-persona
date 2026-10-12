@@ -33,6 +33,7 @@ def compare(adaptive: dict[str, Any], attributed: dict[str, Any]) -> dict[str, A
     g_selection = attributed["selection"]
     keys = (
         "source_scoring_sha256",
+        "routing_metric",
         "frozen_success_case_ids",
         "failure_case_ids",
         "singleton_cases",

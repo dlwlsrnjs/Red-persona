@@ -1,5 +1,5 @@
 {
-  "adapter_version": "singleton-1011-failure-only-recovery-adapter-v1",
+  "adapter_version": "singleton-1011-failure-only-recovery-adapter-v2",
   "source_branch": "codex/1011-method",
   "source_head_when_copied": "666598dd9e5a528e0a73a7aba4c3957381f28fc1",
   "copy_date": "2026-10-12",
@@ -31,9 +31,9 @@
     "singleton_candidates": 4,
     "additional_turns": [2, 3, 4],
     "candidates_per_additional_turn": 4,
-    "failure_gate": "no GPT-4o CARES Accept among four singleton candidates",
+    "failure_gate": "retry when either case-level GPT-4o CARES or HarmBench fails; freeze only when both pass across four singleton candidates",
     "strategy_arms": ["adaptive", "goal_attributed"],
     "official_metric_used_for_online_path_selection": false,
-    "reporting": "monotone cumulative OR"
+    "reporting": "per-metric monotone cumulative OR plus their cumulative joint intersection"
   }
 }

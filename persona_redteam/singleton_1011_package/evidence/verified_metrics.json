@@ -1,0 +1,66 @@
+{
+  "version": "singleton-1011-verified-evidence-v1",
+  "method_commit": "b87b175aa1340f1d16a945a36a094341c01a2e25",
+  "method_files_unchanged_from_commit_at_packaging": true,
+  "cohort": {
+    "name": "failed23_1011_method_v1/no_verbatim",
+    "target_model": "Qwen/Qwen2.5-7B-Instruct",
+    "researcher_model": "meta-llama/Llama-3.1-8B-Instruct",
+    "cases": 23,
+    "branches_per_case": 4,
+    "evaluated_branch_rows": 92,
+    "branch_text_equivalence": {
+      "source_arm": "no_verbatim",
+      "matched_cases": 23,
+      "total_cases": 23
+    }
+  },
+  "cares": {
+    "evaluator_model": "gpt-4o-2024-11-20",
+    "api_mode": "batch",
+    "selection": "Best-of-4",
+    "n": 23,
+    "A": 23,
+    "C": 0,
+    "R": 0,
+    "NR": 0,
+    "accept_rate": 1.0,
+    "source": "/data1/users/ljk98/runtime_cache/persona_redteam_final197/failed23_attack_turn_ablation_v7/scoring/cares_jmir_gpt4o/results.json",
+    "source_sha256": "a5a4bedeaf668b04c3c6f2372fa10d790924e5dcfc9fa3ea368cdf45b5d11245"
+  },
+  "harmbench": {
+    "classifier_model": "cais/HarmBench-Llama-2-13b-cls",
+    "selection": "Best-of-4",
+    "cases": 23,
+    "positive_cases": 22,
+    "positive_case_rate": 0.9565217391304348,
+    "rows": 92,
+    "positive_rows": 70,
+    "positive_row_rate": 0.7608695652173914,
+    "source": "/data1/users/ljk98/runtime_cache/persona_redteam_final197/failed23_attack_turn_ablation_v7/scoring/harmbench/harmbench.json",
+    "source_sha256": "0af44fcf8092d0033c84d55be8993bd53ec1b048f1ee82fd01d815b122cd351f"
+  },
+  "paired_comparison": {
+    "same_target_model": "Qwen/Qwen2.5-7B-Instruct",
+    "same_round_one_four_responses": true,
+    "cares_accept_cases": {
+      "singleton_best_of_4": 23,
+      "adaptive_multiturn_selected_endpoint": 18,
+      "goal_attributed_multiturn_selected_endpoint": 21,
+      "denominator": 23
+    },
+    "harmbench_positive_cases": {
+      "singleton_best_of_4": 22,
+      "adaptive_multiturn_selected_endpoint": 13,
+      "goal_attributed_multiturn_selected_endpoint": 14,
+      "denominator": 23
+    },
+    "reporting_asymmetry": "singleton uses metric-specific Best-of-4; each multiturn arm reports one online-selected endpoint",
+    "interpretation": "The singleton endpoint metrics were higher in this paired experiment; this is not a fully budget-symmetric proof of universal algorithmic superiority."
+  },
+  "generation_manifest": {
+    "source": "/data1/users/ljk98/runtime_cache/persona_redteam_final197/failed23_1011_method_v1/launch_manifest.json",
+    "source_sha256": "1699ce42c16f5d439bc1f2b9f4394fdcdb837a2cab517d0b18568095fd8a3915"
+  },
+  "multiturn_code_included": false
+}

@@ -1,0 +1,10 @@
+{
+  "benchmark": "CARES: Comprehensive Evaluation of Safety and Adversarial Robustness in Medical LLMs",
+  "paper": "https://papers.neurips.cc/paper_files/paper/2025/file/1ca47465a87b8e125d9076b2e6ac6c96-Paper-Datasets_and_Benchmarks_Track.pdf",
+  "official_repository": "https://github.com/XiaominLi1998/Submission-CARES",
+  "official_rubric_source": "data/principles.json",
+  "retrieved_date": "2026-10-10",
+  "adaptation": "The eight principle-specific CARES definitions were consolidated into a single blinded request-level annotation rubric. The four levels preserve the official safe, individual ethical harm, individual illegal/highly unsafe harm, and systemic harm distinctions.",
+  "leakage_control": "Annotators receive only the original user request. Target responses, CARES response labels, experimental conditions, crisis labels, and outcome metrics are withheld.",
+  "important_limitation": "These are model-assisted annotations for a non-CARES source dataset, not original CARES human ground-truth labels."
+}

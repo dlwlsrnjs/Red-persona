@@ -1,0 +1,95 @@
+{
+  "package_version": "singleton-1011-v1",
+  "created_at": "2026-10-12",
+  "source_repository_commit": "899617105f27d413f7b9ad25a07ed992086c7bf9",
+  "source_branch_at_copy": "codex/1011-method",
+  "copy_policy": "copied_only_originals_not_moved_or_deleted",
+  "execution_contract": {
+    "verified_generation_profile": {
+      "target_model": "Qwen/Qwen2.5-7B-Instruct",
+      "researcher_model": "meta-llama/Llama-3.1-8B-Instruct",
+      "transport": "local_vllm"
+    },
+    "full_rollout_generation_profile": {
+      "target_model": "gpt-4o-2024-11-20",
+      "researcher_model": "Qwen/Qwen2.5-7B-Instruct",
+      "transport": "openai_batch_api"
+    },
+    "cares_evaluator_model": "gpt-4o-2024-11-20",
+    "cares_transport": "openai_batch_api",
+    "harmbench_classifier": "cais/HarmBench-Llama-2-13b-cls",
+    "method_protocol": "1011_method_v1",
+    "attack_mode": "singleton_best_of_4",
+    "max_goal_convergence_turns": 0,
+    "full197_lanes": 8,
+    "target_workers": 128
+  },
+  "external_inputs": [
+    {
+      "arm": "no_verbatim",
+      "path": "data/final_cares_strict_harmful/persona197_v1/contrastive_goal_question_pool_gpt4o_v5_fixed_comparison/persona_cases_NATURAL_ABSTRACT_GOAL_WITH_HISTORY.json",
+      "sha256": "023e58e86f00b0e9925df960e8509114e46e86ad0a23a60ce5d75013a6403026"
+    },
+    {
+      "arm": "explicit",
+      "path": "data/final_cares_strict_harmful/persona197_v1/contrastive_goal_question_pool_gpt4o_v5_fixed_comparison/persona_cases_NATURAL_ABSTRACT_PLUS_EXPLICIT_GOAL.json",
+      "sha256": "53f053f122379643a5d1871b48f3c316cfca46d281018ccc3dcc49e1f3190d01"
+    },
+    {
+      "arm": "no_history",
+      "path": "data/final_cares_strict_harmful/persona197_v1/contrastive_goal_question_pool_gpt4o_v5_fixed_comparison/persona_cases_NATURAL_ABSTRACT_GOAL_NO_HISTORY_ABLATION.json",
+      "sha256": "c3b4d5d57ab090e38b929873ad9a539d3c52f259d871648395406959bbdd8e41"
+    }
+  ],
+  "excluded_paths": [
+    "src/our_method/method_1011/adaptive_attack.py",
+    "src/our_method/run_attack_turn_ablation.py",
+    "src/our_method/run_nonaccept_max4_pilot.py",
+    "src/experiments/evaluate_nonaccept_max4_cares_harmbench.py",
+    "src/experiments/final197/launch_gpt4o_singleton_nonaccept8_max4.py",
+    "src/experiments/final197/launch_gpt4o_singleton_nonaccept8_evaluation.py"
+  ],
+  "snapshot_files": {
+    "src/ablation/__init__.py": "fbb0fedcbc8ca0b630a2a0dffbc36791dd08a5cfa03ef218cd6a9d44586b431a",
+    "src/ablation/context.py": "55e66ed00d211c57f4d6e253d2e29aff0be2eee7476ff80d1d29673d5ce6fb2c",
+    "src/ablation/specs.py": "23cd3a20205b9b698f8a86788f93d7557c7aa3a44f01a5046a2662b2e2ac3d7e",
+    "src/evaluation/prompts/behavioral_risk_case_research_guidelines.md": "98076c0e80fc83c7feb12acc7d68f123843eae08186da388e52b87e3c078f717",
+    "src/evaluation/prompts/cares_harm_level_annotator.txt": "4f8bae6d10b6b40ff88d0f2d8b7ff3df02fb05371d0fb13b53da74eeeb4f2579",
+    "src/evaluation/prompts/cares_harm_level_provenance.json": "da59749e34b11f41fd5a09441523a025aaf26c6f458f4f9689301c534575f93d",
+    "src/evaluation/prompts/cares_official_provenance.json": "6925254ebf3c9d38c0666764526708b7bdf4c0093ff920bec50256ac49a7dfe8",
+    "src/evaluation/prompts/cares_official_response_evaluator.txt": "e6aaf94303a1bd0ed89c355eb4a4d7f210d48fbbca48c2f41bfe5f9c17b2d6d1",
+    "src/evaluation/prompts/jmir_official_protocol.csv": "73609a3e5ec3bbb0299680d2b67b1a136279012ec6704ee6ecdd77d6cc764f3e",
+    "src/evaluation/prompts/jmir_official_provenance.json": "0c122a0f85b3af474eddd322b440108aec4e3762915c66a0c5489cc98bdb57a9",
+    "src/evaluation/prompts/jmir_official_response_evaluator.txt": "01384af23113dc46995e268bd4aa6dc07c3d8392506351bc8546f0bd766f6d1e",
+    "src/evaluation/prompts/persona_co_research_recovery_evaluator.txt": "888763b5cb208696f0de93a0fe66518805a18cc3e43d8a0824070416c7f8f72c",
+    "src/evaluation/prompts/research_prompt_banks_en.json": "8ddd19382286907e5b73b8689d48b65538a937ddf40ec2f683e9ee0e9233ad90",
+    "src/experiments/evaluate_cares_jmir_official500.py": "2731f050f89cf58384c1cd0349e3fea88d279e2e294efc4b7deae7b720e423fb",
+    "src/experiments/evaluate_cares_official.py": "5180fafa38d3e9ac8c9ef3cf6772b1a64935a062f564d114370bc59d1cb44092",
+    "src/experiments/evaluate_final_cares_pilot64.py": "58ecc049b0676eb998fd9817a00d2853fe9eedf5aaa0b18d237155fa60cef542",
+    "src/experiments/evaluate_harmbench_direct_response.py": "36f9710bcb9da9b5209179f692af19c2f5fa0fa7b221bea30207c41f2485e726",
+    "src/experiments/evaluate_persona_co_research.py": "33dac7927e8e3eedd9dfb03263afe369480a5cf56613404c2ca09258562ef909",
+    "src/experiments/evaluate_recovery_behavior_batch.py": "80ebd516885ab43993b3a99c2bc63ce4a6b764cb4295f2f5d67caf9d2b0dfa2a",
+    "src/experiments/goal_contract_v2.py": "2aafad694317d974f75f50df5050a811d60123446dd94324f18762d0f71e1338",
+    "src/experiments/merge_run_shards.py": "48df24eee0fba2f9d7e9f37e5c23e6da696819a06cf89276afd8663d37683683",
+    "src/experiments/qwen_target_persona_research_dialogue.py": "60018da30d5b9f8be95c4c0d1cdb3a9ace3549ddb878300387852ff9bf0654dd",
+    "src/experiments/run_jmir_persona_batch_api.py": "a9be49680c1477c9531b7f15990f4e1962c0f41171657cf752a84058077ebfe4",
+    "src/experiments/test_pipeline_contracts.py": "252b8e4e96358cc9ff0fa4e306b129f61c5d7997d682acfb8a3e411288478433",
+    "src/experiments/test_qwen_target_persona_research_dialogue.py": "da92f2d0b74fc70cb435616ff52d1a11cc049604c256cf3349d6ac64f149b014",
+    "src/our_method/__init__.py": "a15b4c239c6ed01858c6e5cfed0b0337a73c61e43f679584da87527d60c3963f",
+    "src/our_method/method_1011/__init__.py": "7bed74f08472c03b824d91c2a1a5291caf1c22c8768c331bfdec2a6b3bc3a87d",
+    "src/our_method/method_1011/case_ab_recovery.py": "a7be6f5a876c214b06e3251c2e25a9efab908b75c1c8c20b475d64889dd1135b",
+    "src/our_method/method_1011/test_case_ab_recovery.py": "10a14ed40aecec8183293c2ce7d5fbb8ef60d560cbdfeada1741dcbc6368f262",
+    "src/our_method/method_1011/validate.py": "747a2fecb448c0b1fac1c9540a0fd8e36ca45788fcf805b5a645e67df1eaf853",
+    "src/our_method/run_1011_method.py": "fda26fccb21cf31f1471854ad9f71debd1d2e985db1f676f1e67147f487b9d24",
+    "src/pipeline/__init__.py": "187c88650ead692063514a9e9cde38fcb9f8762a01078f1936ccb197298fae15",
+    "src/pipeline/contracts.py": "bbc133d61295cea8bfeb17bbd10a76eb76f44ef57fd47f85b2691f881678df22",
+    "src/pipeline/history_planning.py": "224d883d16a4625302ba5bf319675598804e97ceb2a6621a69c3afa6b3fafb6c",
+    "src/pipeline/local_chat.py": "143fd81e0749a66825420b32052a7e9f50e4abc013d96dba6a173127ab2989e4",
+    "src/pipeline/official_selection.py": "6f8c4230265537ce42dc53ede5e225e1a1449deaaec624731b35823eb2572916",
+    "src/pipeline/openai_batch.py": "74ac759f3e714e36892d74c30b39375eeecd98b455fe60ba7167ff1016454409",
+    "src/pipeline/openai_chat.py": "f0436c39d8946477d2b790eeb715fb263089c58704881e11af9c6d07a1a0b87c",
+    "src/pipeline/persona_history.py": "e5746c185db14b48fe4f7d7e84c4cfcef28289e37cefb4badd28e8911d5b4394",
+    "src/pipeline/research_context.py": "951202504058539acce53e416f5d91ff878f6f208b1b6051bfed8f5848531e32",
+    "src/pipeline/runtime_io.py": "1132a9902c6e1d17a0535dec2a9bd3049921dca2889e79e99bcdf727385d6f69"
+  }
+}

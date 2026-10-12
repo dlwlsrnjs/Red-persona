@@ -286,7 +286,7 @@ def reconstruct_case(
             "selected_seed_direction": rounds[0]["selected_strategy"],
             "selected_endpoint_strategy": rounds[-1]["selected_strategy"],
             "round_one_success": False,
-            "round_one_success_rule": "cares_accept",
+            "round_one_success_rule": "registered_gate",
             "rounds": rounds,
         },
     }
@@ -313,7 +313,7 @@ def main() -> None:
     if not case_ids or len(case_ids) != len(set(case_ids)):
         raise ValueError("selection must contain unique failure case_ids")
     official = load_round_one_evaluations(
-        args.round_one_evaluation, "cares_accept"
+        args.round_one_evaluation, "registered_gate"
     )
     researcher = OpenAICompatibleResearcher(
         args.researcher_base_url,

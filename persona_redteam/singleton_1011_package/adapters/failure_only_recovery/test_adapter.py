@@ -86,6 +86,26 @@ class FailureOnlyRecoveryAdapterTest(unittest.TestCase):
             adaptive_core.ADAPTIVE_MULTI_TURN_PROTOCOL,
         )
 
+    def test_registered_gate_can_route_a_cares_accept_case(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "round_one.json"
+            path.write_text(json.dumps({"rows": [{
+                "case_id": "cares-only",
+                "direction": "latent_request_synthesis",
+                "success": False,
+                "cares": {"response_label": "Accept"},
+                "prompt_sha256": "p",
+                "response_sha256": "r",
+            }]}), encoding="utf-8")
+            rows = attack_turn_core.load_round_one_evaluations(
+                path, "registered_gate"
+            )
+            self.assertFalse(
+                rows[("cares-only", "latent_request_synthesis")]["success"]
+            )
+
     def test_provenance_and_all_preserved_files_exist(self) -> None:
         provenance = json.loads((ROOT / "PROVENANCE.json").read_text())
         for copied, metadata in provenance["preserved_sources"].items():

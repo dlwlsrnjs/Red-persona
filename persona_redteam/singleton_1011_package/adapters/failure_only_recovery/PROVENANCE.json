@@ -6,8 +6,8 @@
   "preserved_sources": {
     "engine.py": {
       "source": "persona_redteam/our_method/run_nonaccept_max4_pilot.py",
-      "sha256": "bfa919f23bf561df3260dbea91b578c581ded25ffdac8febeb0a3d5a48ebe065",
-      "adapter_change": "package bootstrap, relative core imports, and an explicit adaptive versus goal-attributed arm switch"
+      "sha256": "8c4ac3a0912c59de646c030926f09b63ede8221b74918fbb7a801807a649970d",
+      "adapter_change": "package bootstrap, relative core imports, an explicit adaptive versus goal-attributed arm switch, and registered joint-gate routing"
     },
     "scoring_engine.py": {
       "source": "persona_redteam/experiments/evaluate_nonaccept_max4_cares_harmbench.py",
@@ -21,8 +21,8 @@
     },
     "attack_turn_core.py": {
       "source": "persona_redteam/our_method/run_attack_turn_ablation.py",
-      "sha256": "db7e5a03ff3900315a901d42f42c5c5740dc89a3bffa722343125c1edfde33c0",
-      "adapter_change": "relative adaptive_core import"
+      "sha256": "4774b85ffb20a14324bf58dbfc9294afa647338330dfff386983aca600bbcdb1",
+      "adapter_change": "relative adaptive_core import and registered joint-gate success loading"
     }
   },
   "protocol": {

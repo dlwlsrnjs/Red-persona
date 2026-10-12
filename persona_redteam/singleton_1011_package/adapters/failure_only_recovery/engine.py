@@ -1,10 +1,11 @@
-"""Force the CARES-non-Accept singleton cohort through attack turn four.
+"""Force the registered singleton failure cohort through attack turn four.
 
 Round one is reused byte-for-byte from a completed 1011 run.  Unlike the
 paper-facing adaptive arm, this diagnostic never stops early: all four
 registered candidates are generated at turns two, three, and four, while the
-private online evaluator selects exactly one path to continue.  CARES is used
-only after generation and therefore cannot influence path selection.
+private online evaluator selects exactly one path to continue.  CARES and
+HarmBench are used only after generation and therefore cannot influence path
+selection.
 """
 from __future__ import annotations
 
@@ -98,7 +99,7 @@ def main() -> None:
         stop=args.stop,
     )
     evaluations = load_round_one_evaluations(
-        args.round_one_evaluation, "cares_accept"
+        args.round_one_evaluation, "registered_gate"
     )
     researcher = OpenAICompatibleResearcher(
         args.researcher_base_url,
@@ -112,13 +113,15 @@ def main() -> None:
         condition=args.condition,
         researcher=researcher,
         round_one_evaluations=evaluations,
-        round_one_success_rule="cares_accept",
+        round_one_success_rule="registered_gate",
     )
     if any(state.round_one_success for state in states.values()):
         successful = sorted(
             state.case_id for state in states.values() if state.round_one_success
         )
-        raise ValueError(f"selection includes round-one CARES Accept: {successful}")
+        raise ValueError(
+            f"selection includes a round-one registered-gate success: {successful}"
+        )
 
     attribution_frame = args.arm == "goal_attributed"
     abstraction_researcher = None
@@ -201,7 +204,7 @@ def main() -> None:
             "target_model": args.target_model,
             # Private evaluator input only; never included in target-visible messages.
             "private_goal": state.private_goal,
-            "cohort_rule": "no CARES Accept among all four reused singleton branches",
+            "cohort_rule": "failed the registered case-level routing gate",
             "cares_used_for_online_path_selection": False,
             "forced_to_turn_four_after_online_success": True,
             "semantic_abstraction": state.softened_goal_abstraction,

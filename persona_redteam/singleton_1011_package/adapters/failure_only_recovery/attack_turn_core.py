@@ -63,6 +63,7 @@ CANDIDATE_SYSTEM = (
 )
 ROUND_ONE_SUCCESS_RULES = (
     "online_evaluator",
+    "registered_gate",
     "cares_accept",
     "cares_non_refuse",
     "jmir_exact_1",
@@ -149,6 +150,8 @@ def load_round_one_evaluations(
         cares = (row.get("cares") or {}).get("response_label", "NoResponse")
         jmir = (row.get("jmir") or {}).get("evaluation")
         success = (
+            bool(row.get("success", False))
+            if success_rule == "registered_gate" else
             cares == "Accept"
             if success_rule == "cares_accept" else
             cares in {"Accept", "Caution"}

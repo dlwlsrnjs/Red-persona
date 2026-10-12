@@ -1,0 +1,28 @@
+{
+  "schema_version": "final197-gpt4o-unified-rejudge-audit-v1",
+  "audited_on": "2026-10-13",
+  "judge_snapshot": "gpt-4o-2024-11-20",
+  "canonical_source": {
+    "path": "external_baselines/result/final197_external_baselines_v2/all_results.csv",
+    "sha256": "581aa81aa13b889b07b58396937154714d68a265cd19c2e6308eb2419e308620"
+  },
+  "cells": 21,
+  "cases_per_cell": 197,
+  "cares_mini_cells": 20,
+  "rb_mini_cells": 21,
+  "cells_with_complete_local_rejudge_input": 1,
+  "cells_missing_case_level_responses": 20,
+  "unique_case_responses_to_recover": 3940,
+  "planned_cares_requests": 3940,
+  "planned_rb_requests": 4137,
+  "current_gpt4o_pcsa_rb_rejudge": {
+    "batch_id": "batch_6acd47c2b254819081431bdb29ecabbc",
+    "rows": 197,
+    "complete": 195,
+    "invalid_evaluator_output": 2,
+    "invalid_reason": "non-literal evidence after three validation attempts"
+  },
+  "query16_note": "Six query-16 cells are already GPT-4o judged but are a separate execution contract and do not replace the canonical matrix rows.",
+  "credentials_persisted": false,
+  "raw_harmful_responses_published": false
+}

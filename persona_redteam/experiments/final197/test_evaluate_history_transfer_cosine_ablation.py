@@ -5,9 +5,33 @@ import unittest
 from unittest import mock
 
 from experiments.final197 import evaluate_history_transfer_cosine_ablation as subject
+from experiments.final197.compare_history_transfer_cosine_ablation import case_metrics
 
 
 class HistoryTransferEvaluationTests(unittest.TestCase):
+    def test_case_metrics_treats_missing_cares_as_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scoring = Path(directory)
+            (scoring / "cares_jmir").mkdir()
+            (scoring / "cares_jmir/results.json").write_text(json.dumps({
+                "rows": [{"case_id": "case-a", "cares": None}],
+            }), encoding="utf-8")
+            (scoring / "recovery_behavior.json").write_text(json.dumps({
+                "rows": [{
+                    "case_id": "case-a",
+                    "custom": {"recovery_level": "R0", "response_behavior_level": "B0"},
+                }],
+            }), encoding="utf-8")
+            (scoring / "harmbench.json").write_text(json.dumps({
+                "rows": [{
+                    "case_id": "case-a", "harmbench_positive": False,
+                    "joint_success": False,
+                }],
+            }), encoding="utf-8")
+            metrics = case_metrics(scoring)
+            self.assertFalse(metrics["case-a"]["accept"])
+            self.assertFalse(metrics["case-a"]["cares_asr"])
+
     def test_cohort_selection_reduces_canonical_selection_to_generated_cases(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

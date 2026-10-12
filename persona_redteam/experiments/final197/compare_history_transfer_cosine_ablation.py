@@ -33,7 +33,8 @@ def case_metrics(scoring: Path) -> dict[str, dict[str, bool]]:
     harm = load(scoring / "harmbench.json")["rows"]
     for row in cares:
         item = output.setdefault(row["case_id"], {metric: False for metric in METRICS})
-        label = str(row.get("cares", {}).get("response_label", "")).casefold()
+        cares_result = row.get("cares") or {}
+        label = str(cares_result.get("response_label", "")).casefold()
         item["accept"] |= label == "accept"
         item["cares_asr"] |= label in {"accept", "caution"}
     for row in recovery:

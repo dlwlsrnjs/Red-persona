@@ -15,14 +15,22 @@ from pipeline.runtime_io import atomic_json
 
 TERMINAL_FAILURES = {"failed", "expired", "cancelled"}
 BATCH_PRICES_PER_MILLION = {
-    # Official Batch rates are 50% of the published Standard rates.
+    # Official Batch prices per one million tokens.
+    "gpt-5.4-mini": {"input": 0.75, "cached": 0.075, "output": 4.50},
     "gpt-6-luna": {"input": 0.05, "cached": 0.005, "output": 0.25},
     "gpt-4o": {"input": 1.25, "cached": 0.625, "output": 5.00},
     "gpt-4o-mini": {"input": 0.075, "cached": 0.0375, "output": 0.30},
 }
+DEFAULT_MAX_ENQUEUED_INPUT_TOKENS = 600_000
+
+
+class BatchEnqueuedTokenLimit(RuntimeError):
+    """The remote Batch queue is full, so this exact shard is safe to retry."""
 
 
 def model_family(model):
+    if model.startswith("gpt-5.4-mini"):
+        return "gpt-5.4-mini"
     if model.startswith("gpt-6-luna"):
         return "gpt-6-luna"
     return "gpt-4o-mini" if model.startswith("gpt-4o-mini") else "gpt-4o"
@@ -50,13 +58,17 @@ class BatchChatClient:
     api_mode = "openai_batch"
 
     def __init__(self, state_dir, *, max_budget_usd=120.0, poll_seconds=20,
-                 api_key=None):
+                 api_key=None,
+                 max_enqueued_input_tokens=DEFAULT_MAX_ENQUEUED_INPUT_TOKENS):
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.max_budget_usd = (
             None if max_budget_usd is None else float(max_budget_usd)
         )
         self.poll_seconds = max(5, int(poll_seconds))
+        self.max_enqueued_input_tokens = int(max_enqueued_input_tokens)
+        if self.max_enqueued_input_tokens < 1:
+            raise ValueError("max_enqueued_input_tokens must be positive")
         self.client = OpenAI(
             api_key=(api_key or os.environ["OPENAI_API_KEY"])
         )
@@ -102,6 +114,40 @@ class BatchChatClient:
             total += (prompt_tokens * price["input"] + output_tokens * price["output"]) / 1e6
         return total * 1.10
 
+    def _estimated_input_tokens(self, request, encodings=None):
+        encodings = {} if encodings is None else encodings
+        body = request["body"]
+        model = body["model"]
+        encoding = encodings.setdefault(model, self._encoding(model))
+        return 20 + sum(
+            10 + len(encoding.encode(str(message.get("content", ""))))
+            for message in body["messages"]
+        )
+
+    def _request_chunks(self, requests):
+        """Split deterministically below the organization's Batch token cap."""
+        chunks = []
+        current = []
+        current_tokens = 0
+        encodings = {}
+        for request in requests:
+            request_tokens = self._estimated_input_tokens(request, encodings)
+            if request_tokens > self.max_enqueued_input_tokens:
+                raise RuntimeError(
+                    f"{request['custom_id']}: estimated input {request_tokens} tokens "
+                    f"exceeds per-Batch cap {self.max_enqueued_input_tokens}"
+                )
+            if (current and current_tokens + request_tokens >
+                    self.max_enqueued_input_tokens):
+                chunks.append(current)
+                current = []
+                current_tokens = 0
+            current.append(request)
+            current_tokens += request_tokens
+        if current:
+            chunks.append(current)
+        return chunks
+
     @staticmethod
     def _actual_cost(results):
         total = 0.0
@@ -125,7 +171,7 @@ class BatchChatClient:
             return value.encode("utf-8")
         return value
 
-    def _run_once(self, label, requests):
+    def _run_once_attempt(self, label, requests):
         label_dir = self.state_dir / label
         label_dir.mkdir(parents=True, exist_ok=True)
         input_path = label_dir / "input.jsonl"
@@ -220,6 +266,37 @@ class BatchChatClient:
             if batch.status == "cancelled" and batch.output_file_id:
                 break
             if batch.status in TERMINAL_FAILURES:
+                batch_errors = getattr(getattr(batch, "errors", None), "data", None) or []
+                error_rows = [
+                    {
+                        "code": getattr(error, "code", None),
+                        "message": getattr(error, "message", None),
+                        "param": getattr(error, "param", None),
+                    }
+                    for error in batch_errors
+                ]
+                # The API rejects an entire Batch at validation time when the
+                # organization's enqueued-token allowance is temporarily full.
+                # Preserve the rejected server ID for auditability, clear only
+                # the active checkpoint, and let the wrapper resubmit the exact
+                # same input once capacity becomes available.
+                if (
+                    batch.status == "failed"
+                    and any(row["code"] == "token_limit_exceeded" for row in error_rows)
+                ):
+                    archived_state = {
+                        **state,
+                        "terminal_status": batch.status,
+                        "errors": error_rows,
+                    }
+                    atomic_json(
+                        label_dir / f"state-failed-{batch_id}.json",
+                        archived_state,
+                    )
+                    state_path.unlink(missing_ok=True)
+                    raise BatchEnqueuedTokenLimit(
+                        f"{label}: Batch queue token allowance is temporarily full"
+                    )
                 raise RuntimeError(f"{label}: batch {batch_id} ended as {batch.status}")
             time.sleep(self.poll_seconds)
 
@@ -234,7 +311,17 @@ class BatchChatClient:
             custom_id = row["custom_id"]
             response = row.get("response") or {}
             if response.get("status_code") == 200:
-                results[custom_id] = response_record(response["body"])
+                try:
+                    results[custom_id] = response_record(response["body"])
+                except (KeyError, IndexError, TypeError, ValueError) as exc:
+                    # A successful HTTP status can still contain an empty or
+                    # refused completion.  Preserve every usable row and let
+                    # run() retry only this custom ID in a new Batch.
+                    errors[custom_id] = {
+                        "code": "invalid_success_response",
+                        "message": str(exc),
+                        "status_code": 200,
+                    }
             else:
                 errors[custom_id] = row.get("error") or response
         if batch.error_file_id:
@@ -259,6 +346,25 @@ class BatchChatClient:
         atomic_json(self.ledger_path, ledger)
         return results
 
+    def _run_once(self, label, requests):
+        queue_retries = 0
+        while True:
+            try:
+                return self._run_once_attempt(label, requests)
+            except BatchEnqueuedTokenLimit:
+                queue_retries += 1
+                # Keep the retry cadence responsive once a completed Batch
+                # frees queue capacity; long backoff can leave the token queue
+                # unnecessarily idle during a sharded campaign.
+                delay = min(60, self.poll_seconds * queue_retries)
+                print(json.dumps({
+                    "batch": label,
+                    "status": "waiting_for_enqueued_token_capacity",
+                    "retry": queue_retries,
+                    "retry_in_seconds": delay,
+                }, ensure_ascii=False), flush=True)
+                time.sleep(delay)
+
     def run(self, label, requests, *, retries=2, prefilled=None):
         ids = [request["custom_id"] for request in requests]
         if len(ids) != len(set(ids)):
@@ -267,6 +373,28 @@ class BatchChatClient:
         unknown = set(merged) - set(ids)
         if unknown:
             raise ValueError(f"{label}: prefilled custom IDs are not requested")
+        if all(custom_id in merged for custom_id in ids):
+            return {custom_id: merged[custom_id] for custom_id in ids}
+        chunks = self._request_chunks(requests)
+        if len(chunks) > 1:
+            print(json.dumps({
+                "batch": label,
+                "status": "split_for_enqueued_token_capacity",
+                "requests": len(requests),
+                "parts": len(chunks),
+                "max_input_tokens_per_part": self.max_enqueued_input_tokens,
+            }, ensure_ascii=False), flush=True)
+            for index, chunk in enumerate(chunks, 1):
+                part_prefilled = {
+                    request["custom_id"]: merged[request["custom_id"]]
+                    for request in chunk
+                    if request["custom_id"] in merged
+                }
+                merged.update(self.run(
+                    f"{label}-part-{index:04d}", chunk,
+                    retries=retries, prefilled=part_prefilled,
+                ))
+            return {custom_id: merged[custom_id] for custom_id in ids}
         pending = [request for request in requests
                    if request["custom_id"] not in merged]
         for attempt in range(retries + 1):

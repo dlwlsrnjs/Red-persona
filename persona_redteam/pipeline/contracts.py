@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -224,7 +225,25 @@ def validate_active_cases(cases):
             continue
         if len(history) < 4:
             errors.append(f"{prefix}: generated persona history has fewer than four turns")
-        state = history[-1].get("persona_state")
+        transfer = case.get("history_transfer", {})
+        registered_transfer = transfer.get("registered_ablation") is True
+        state = (
+            transfer.get("target_final_persona_state_before_transfer")
+            if registered_transfer else history[-1].get("persona_state")
+        )
+        if registered_transfer:
+            transferred_hash = hashlib.sha256(json.dumps(
+                history, ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")).hexdigest()
+            if transfer.get("target_case_id") != case.get("case_id"):
+                errors.append(f"{prefix}: history transfer target ID mismatch")
+            if transfer.get("donor_case_id") == case.get("case_id"):
+                errors.append(f"{prefix}: history transfer donor must differ from target")
+            if transfer.get("only_persona_history_replaced") is not True:
+                errors.append(f"{prefix}: unregistered history-transfer scope")
+            if transfer.get("transferred_history_sha256") != transferred_hash:
+                errors.append(f"{prefix}: transferred history hash mismatch")
         # The active persona is the final accumulated state rendered as natural narrative:
         # the state's summary text when present (so the target does not see a JSON dump),
         # otherwise a JSON fallback. Must still derive from the final persona_state.
@@ -301,12 +320,16 @@ def validate_active_cases(cases):
         if private_goal and private_goal in history_surface:
             errors.append(f"{prefix}: private goal is copied verbatim into target-visible history")
         generation = case.get("persona_history_generation", {})
-        if generation.get("qwen_planning_mode") != "goal_aware_dynamic":
+        history_generation = (
+            transfer.get("donor_history_generation", {})
+            if registered_transfer else generation
+        )
+        if history_generation.get("qwen_planning_mode") != "goal_aware_dynamic":
             errors.append(f"{prefix}: active case requires goal-aware Qwen planning")
-        plan = generation.get("qwen_plan", {})
+        plan = history_generation.get("qwen_plan", {})
         if not isinstance(plan.get("micro_plans"), list) or len(plan["micro_plans"]) < len(history):
             errors.append(f"{prefix}: Qwen micro-plan does not cover every generated turn")
-        verification = generation.get("turn_verification", [])
+        verification = history_generation.get("turn_verification", [])
         verified_turns = {item.get("turn") for item in verification if item.get("valid")}
         # Retry audits may contain a later, discarded candidate turn after the
         # accepted history has already stopped. Require every retained turn to
@@ -381,11 +404,6 @@ def validate_run_record(record):
     if (readout_protocol is not None and
             readout_protocol not in FINAL_READOUT_PROTOCOLS):
         errors.append(f"run has unsupported final_readout_protocol: {readout_protocol}")
-    if (ablation_name == "no_research_dialogue" and readout_protocol is not None and
-            readout_protocol != LEGACY_FINAL_READOUT_PROTOCOL):
-        errors.append(
-            "no_research_dialogue cannot use a history-bridge readout protocol"
-        )
     convergence_budget = record.get("max_goal_convergence_turns", 0)
     if (not isinstance(convergence_budget, int) or
             not 0 <= convergence_budget <= MAX_GOAL_CONVERGENCE_TURNS):

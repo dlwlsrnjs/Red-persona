@@ -646,7 +646,7 @@ class PipelineContractTests(unittest.TestCase):
         }
         self.assertEqual(validate_run_record(record), [])
 
-    def test_no_research_dialogue_rejects_history_bridge_readout(self):
+    def test_no_research_dialogue_allows_fixed_latest_readout(self):
         record = self.make_run()
         record["active_conditions"] = ["neutral"]
         record["ablation"] = {"name": "no_research_dialogue"}
@@ -666,10 +666,7 @@ class PipelineContractTests(unittest.TestCase):
             "after_stage": "initial_analysis",
         }
 
-        errors = validate_run_record(record)
-
-        self.assertTrue(any("cannot use a history-bridge" in error
-                            for error in errors))
+        self.assertEqual(validate_run_record(record), [])
         record["final_readout_protocol"] = LEGACY_FINAL_READOUT_PROTOCOL
         result["final_readout_protocol"] = LEGACY_FINAL_READOUT_PROTOCOL
         self.assertEqual(validate_run_record(record), [])

@@ -109,8 +109,8 @@ def researcher_defaults_for_target(target_model: str) -> tuple[Path, str, str]:
 
 def chat_request(custom_id, model, messages, *, max_tokens=None, json_mode=False,
                  temperature=0, estimated_output_tokens=None):
-    """Build target requests with the correct fields for GPT-6 reasoning models."""
-    if model.startswith("gpt-6"):
+    """Build target requests with the correct fields for GPT-5/6 reasoning models."""
+    if model.startswith(("gpt-5", "gpt-6")):
         return _batch_chat_request(
             custom_id, model, messages,
             max_completion_tokens=max_tokens,
@@ -1407,6 +1407,10 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
         )
     output_dir = args.no_research_dialogue_output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
+    history_arm = (
+        "no_history" if args.ablation_variant == "no_prior_dialogue"
+        else "with_history"
+    )
     states = no_research_states(cases_by_id, source_states)
     final_path = args.campaign_dir / "ablation_no_research_final_branches.json"
     if final_path.exists():
@@ -1432,7 +1436,7 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
                 wave_dir / "ablation-no-research-final-initial-repair.json",
                 lambda: prepare_final_wave(
                     repair_cases, repair_states, researcher,
-                    LEGACY_FINAL_READOUT_PROTOCOL,
+                    args.final_readout_protocol,
                 ),
                 researcher,
             )
@@ -1463,7 +1467,7 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
             wave_dir / "ablation-no-research-final.json",
             lambda: prepare_final_wave(
                 cases_by_id, states, researcher,
-                LEGACY_FINAL_READOUT_PROTOCOL,
+                args.final_readout_protocol,
             ),
             researcher,
         )
@@ -1495,7 +1499,7 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
             wave_dir / "ablation-no-research-attack-v1.json",
             lambda: prepare_manifestation_wave(
                 cases_by_id, states, final, researcher,
-                LEGACY_FINAL_READOUT_PROTOCOL,
+                args.final_readout_protocol,
                 args.direct_response_prompt_protocol,
             ),
             researcher,
@@ -1538,18 +1542,23 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
             "target_system_prompt": states[case["case_id"]]["neutral"]["history"][0]["content"],
             "active_conditions": ["neutral"],
             "active_final_directions": list(FINAL_DIRECTIONS),
-            "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
+            "final_readout_protocol": args.final_readout_protocol,
             "direct_response_prompt_protocol": args.direct_response_prompt_protocol,
             "measurement_scope": (
                 "final_analysis_response_only" if args.final_response_only
                 else "final_analysis_plus_verified_direct_attack"
             ),
             "ablation": spec.metadata(),
+            "factorial_ablation": {
+                "research_dialogue": "absent",
+                "persona_prehistory": history_arm,
+                "context_ablation_variant": args.ablation_variant,
+            },
             "case_index": index,
             "case": transformed_case,
             "results": final_results(
                 case, states, final, args.target_model,
-                LEGACY_FINAL_READOUT_PROTOCOL,
+                args.final_readout_protocol,
                 manifestation_included=not args.final_response_only,
             ),
         }
@@ -1562,11 +1571,16 @@ def run_no_research_ablation(args, selected, cases_by_id, source_states,
         atomic_json(output_dir / f"{case['case_id']}.json", record)
     atomic_json(output_dir / "run_summary.json", {
         "variant": "no_research_dialogue",
+        "factorial_ablation": {
+            "research_dialogue": "absent",
+            "persona_prehistory": history_arm,
+            "context_ablation_variant": args.ablation_variant,
+        },
         "selected": len(selected), "complete": len(selected), "failed": 0,
         "target_model": args.target_model,
         "active_conditions": ["neutral"],
         "active_final_directions": list(FINAL_DIRECTIONS),
-        "final_readout_protocol": LEGACY_FINAL_READOUT_PROTOCOL,
+        "final_readout_protocol": args.final_readout_protocol,
         "direct_response_prompt_protocol": args.direct_response_prompt_protocol,
         "final_response_only": args.final_response_only,
         "measurement_scope": (
@@ -1596,6 +1610,13 @@ def main():
         "--no-research-dialogue-output-dir", type=Path,
         help=("Also run a paired neutral arm that branches immediately after the "
               "already-paid initial analysis."),
+    )
+    parser.add_argument(
+        "--only-no-research-dialogue", action="store_true",
+        help=("Run only the paired no-research-dialogue arm and exit immediately "
+              "after its four final branches and direct-response measurements. "
+              "This avoids paying for the seven research stages in a dedicated "
+              "research-dose ablation."),
     )
     parser.add_argument("--selection-path", type=Path)
     parser.add_argument(
@@ -1756,6 +1777,12 @@ def main():
         )
     if args.target_base_url and args.api_mode != "batch":
         parser.error("--api-mode applies only to OpenAI; omit it with --target-base-url")
+    if (args.only_no_research_dialogue and
+            not args.no_research_dialogue_output_dir):
+        parser.error(
+            "--only-no-research-dialogue requires "
+            "--no-research-dialogue-output-dir"
+        )
     CONDITIONS = tuple(dict.fromkeys(args.condition or DEFAULT_CONDITIONS))
     if args.require_harmful_goal_v2 and args.require_strict_harmful_goal_v3:
         parser.error("choose exactly one harmful-goal contract, not both v2 and v3")
@@ -2017,6 +2044,8 @@ def main():
             args, selected, cases_by_id, states, first_by_case, client, researcher,
             wave_dir, initial_repaired_case_ids,
         )
+        if args.only_no_research_dialogue:
+            return
     for stage_index, (stage, task) in enumerate(STAGES, 1):
         if not active_pairs(states):
             break

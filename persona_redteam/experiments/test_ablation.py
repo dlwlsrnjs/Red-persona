@@ -9,7 +9,8 @@ from ablation.direction_attribution import attribution
 from ablation.metrics import METRICS
 from ablation.specs import get_spec
 from experiments.qwen_target_persona_research_dialogue import (
-    FINAL_DIRECTIONS, LEGACY_FINAL_READOUT_PROTOCOL, initial_prompt,
+    FINAL_DIRECTIONS, JARGON_HISTORY_BRIDGE_PROTOCOL,
+    LEGACY_FINAL_READOUT_PROTOCOL, initial_prompt,
     run_all_conditions_batched, target_quote_candidates, verified_bridge_record,
     visible_goal_evidence_anchor,
 )
@@ -125,7 +126,7 @@ class AblationTest(unittest.TestCase):
         self.assertTrue(all(len(result["turns"]) == 1 for result in results))
         self.assertTrue(all(len(result["final_branches"]) == 4 for result in results))
         self.assertTrue(all(
-            result["final_readout_protocol"] == LEGACY_FINAL_READOUT_PROTOCOL
+            result["final_readout_protocol"] == JARGON_HISTORY_BRIDGE_PROTOCOL
             for result in results
         ))
         self.assertTrue(all(

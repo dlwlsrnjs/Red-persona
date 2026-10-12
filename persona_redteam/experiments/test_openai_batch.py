@@ -121,6 +121,40 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
         self.assertEqual(result, {"one": record})
         run_once.assert_not_called()
 
+    @patch("pipeline.openai_batch.OpenAI")
+    def test_batch_client_splits_large_request_sets_deterministically(self, _openai):
+        requests = [
+            chat_request(
+                f"request-{index}", "gpt-4o-2024-11-20",
+                [{"role": "user", "content": str(index)}], max_tokens=8,
+            )
+            for index in range(5)
+        ]
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "test"}), \
+                tempfile.TemporaryDirectory() as directory:
+            client = BatchChatClient(
+                directory, max_budget_usd=1, max_enqueued_input_tokens=10,
+            )
+            client._estimated_input_tokens = MagicMock(return_value=4)
+
+            def complete(_label, chunk):
+                return {
+                    request["custom_id"]: {"text": request["custom_id"]}
+                    for request in chunk
+                }
+
+            with patch.object(client, "_run_once", side_effect=complete) as run_once:
+                result = client.run("large", requests)
+
+        self.assertEqual(list(result), [request["custom_id"] for request in requests])
+        self.assertEqual(
+            [call.args[0] for call in run_once.call_args_list],
+            ["large-part-0001", "large-part-0002", "large-part-0003"],
+        )
+        self.assertEqual(
+            [len(call.args[1]) for call in run_once.call_args_list], [2, 2, 1]
+        )
+
     def test_completed_recovery_results_ignores_repair_directories(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -199,6 +233,47 @@ class OpenAIBatchHelpersTest(unittest.TestCase):
 
         self.assertEqual(result, {})
         self.assertEqual(api.batches.retrieve.call_count, 2)
+
+    @patch("pipeline.openai_batch.time.sleep")
+    @patch("pipeline.openai_batch.OpenAI")
+    def test_batch_queue_limit_archives_checkpoint_and_resubmits(
+            self, openai, sleep):
+        queue_error = MagicMock(
+            code="token_limit_exceeded", message="queue full", param=None,
+        )
+        rejected = MagicMock(
+            status="failed", request_counts=MagicMock(completed=0, failed=0),
+            errors=MagicMock(data=[queue_error]), output_file_id=None,
+            error_file_id=None,
+        )
+        completed = MagicMock(
+            status="completed", request_counts=MagicMock(completed=0, failed=0),
+            errors=None, output_file_id="output", error_file_id=None,
+        )
+        api = openai.return_value
+        api.files.create.side_effect = [MagicMock(id="input-1"), MagicMock(id="input-2")]
+        api.files.content.return_value = b""
+        api.batches.create.side_effect = [
+            MagicMock(id="batch-1", status="validating"),
+            MagicMock(id="batch-2", status="validating"),
+        ]
+        api.batches.retrieve.side_effect = [rejected, completed]
+        request = {
+            "custom_id": "one", "method": "POST", "url": "/v1/chat/completions",
+            "body": {"model": "gpt-4o-2024-11-20", "messages": [], "max_tokens": 1},
+        }
+
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "test"}), \
+                tempfile.TemporaryDirectory() as directory:
+            client = BatchChatClient(directory, max_budget_usd=1, poll_seconds=5)
+            with patch.object(client, "estimate_upper_cost", return_value=0):
+                result = client._run_once("queue", [request])
+            archived = list((Path(directory) / "queue").glob("state-failed-*.json"))
+
+        self.assertEqual(result, {})
+        self.assertEqual(api.batches.create.call_count, 2)
+        self.assertEqual(len(archived), 1)
+        sleep.assert_called_once_with(5)
 
     def test_manifestation_repairs_keep_json_mode_and_non_object_rows(self):
         specs = [{

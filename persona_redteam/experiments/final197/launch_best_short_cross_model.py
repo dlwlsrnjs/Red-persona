@@ -32,6 +32,10 @@ RESEARCHER_URLS = (
     "http://127.0.0.1:8022/v1",
 )
 TARGETS = {
+    "gpt5_4_mini": {
+        "model": "gpt-5.4-mini",
+        "transport": "openai_batch",
+    },
     "gpt6_luna": {
         "model": "gpt-6-luna",
         "transport": "openai_batch",
@@ -42,6 +46,14 @@ TARGETS = {
     },
     "gemma4_26b_a4b_it": {
         "model": "google/gemma-4-26B-A4B-it",
+        "transport": "local_vllm",
+    },
+    "mistral_small_3_2_24b": {
+        "model": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+        "transport": "local_vllm",
+    },
+    "phi4": {
+        "model": "microsoft/phi-4",
         "transport": "local_vllm",
     },
 }

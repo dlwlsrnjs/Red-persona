@@ -96,14 +96,14 @@ case-level 수치는 Best-of-4이며, Strict Joint는 같은 한 분기에서 R3
 
 ## 5. 평가 계약 차이
 
-| 항목 | 외부 baseline | PCSA 개인화 ablation | OURS singleton |
-|---|---|---|---|
-| Target | GPT-4o, Qwen | Qwen | GPT-4o |
-| 저장 응답 | 방법별 최종 1개/case | 선택 trajectory 최종 응답 | 4개 final branches/case |
-| Online selection | 방법별 상이 | GPT-4o-mini turn evaluator | 최종 지표 미사용 |
-| CARES evaluator | GPT-4o-mini, PCSA Level-2 | GPT-4o-mini, PCSA Level-2 | GPT-4o-2024-11-20 |
-| HarmBench aggregation | 최종 응답 1개 | 최종 선택 응답 1개 | Best-of-4 |
-| Strict Joint | 최종 응답 | 최종 선택 응답 | same-branch Best-of-4 |
+| 항목 | 외부 baseline | PCSA Qwen ablation | PCSA GPT-4o 추가 셀 | OURS singleton |
+|---|---|---|---|---|
+| Target | GPT-4o, Qwen | Qwen | GPT-4o-2024-11-20 | GPT-4o |
+| 저장 응답 | 방법별 최종 1개/case | 선택 trajectory 최종 응답 | 선택 trajectory 최종 응답 | 4개 final branches/case |
+| Online selection | 방법별 상이 | GPT-4o-mini turn evaluator | GPT-4o-mini turn evaluator | 최종 지표 미사용 |
+| CARES evaluator | GPT-4o-mini, PCSA Level-2 | GPT-4o-mini, PCSA Level-2 | GPT-4o-2024-11-20 | GPT-4o-2024-11-20 |
+| HarmBench aggregation | 최종 응답 1개 | 최종 선택 응답 1개 | 최종 선택 응답 1개 | Best-of-4 |
+| Strict Joint | 최종 응답 | 최종 선택 응답 | 최종 선택 응답 | same-branch Best-of-4 |
 
 그래서 `TABLES_KO.md`는 네 패널을 유지한다. 동일 패널 내부 비교만 정식 비교로 사용하고,
 패널 사이 수치는 설계 차이를 명시한 기술적 참고로만 사용한다.

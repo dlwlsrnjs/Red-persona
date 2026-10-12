@@ -22,6 +22,10 @@ RED-Persona 본 방법의 결과와 합치거나 외부 기법을 OURS로 표기
   PCSA Phase II의 Persona+History 대 No-Persona 동일 197건 paired ablation
 - [`pcsa_persona_ablation_final197.json`](pcsa_persona_ablation_final197.json):
   위 paired ablation의 기계 판독 가능 count·rate·McNemar 결과
+- [`PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md`](PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md):
+  Persona+History PCSA Phase II를 GPT-4o-2024-11-20 타깃으로 실행한 별도 197건 결과
+- [`pcsa_persona_history_gpt4o_final197.json`](pcsa_persona_history_gpt4o_final197.json):
+  위 GPT-4o 추가 셀의 생성·평가 계약과 기계 판독 집계
 
 ## GPT-6 Luna · Llama 추가 실험
 

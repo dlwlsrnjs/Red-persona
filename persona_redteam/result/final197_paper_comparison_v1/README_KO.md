@@ -1,13 +1,16 @@
 # Final-197 외부 베이스라인·PCSA 개인화·OURS 비교 패키지
 
-이 폴더는 동일한 Final-197 요청 집합에서 수행한 세 결과군을 논문 작성용으로 한곳에
+이 폴더는 동일한 Final-197 요청 집합에서 수행한 네 결과군을 논문 작성용으로 한곳에
 정리한다.
 
 1. 외부 베이스라인 9종 × GPT-4o/Qwen 타깃
 2. PCSA Phase II의 `Persona+History` 대 `No-Persona` paired ablation
-3. OURS `1011_method_v1` GPT-4o singleton Best-of-4와 두 ablation
+3. PCSA Phase II `Persona+History` × `gpt-4o-2024-11-20` 추가 셀
+4. OURS `1011_method_v1` GPT-4o singleton Best-of-4와 두 ablation
 
-197개 `case_id`, 순서, `request_sha256`는 세 결과군의 입력 자산에서 모두 일치한다.
+197개 `case_id` 집합과 `request_sha256`는 네 결과군의 입력 자산에서 모두 일치한다.
+기존 입력 자산의 순서는 같지만 새 GPT-4o PCSA 실행은 세 disjoint slice 내부를 seed로
+섞었으므로, 모든 비교·평가는 행 위치가 아니라 `case_id`로 결합한다.
 반면 response unit, query budget, CARES evaluator와 aggregation은 같지 않다. 따라서 이
 패키지는 결과를 나란히 보이되, 서로 다른 패널을 하나의 공식 순위로 합치지 않는다.
 
@@ -15,10 +18,10 @@
 
 | 파일 | 역할 |
 |---|---|
-| `TABLES_KO.md` | 논문 표에 옮길 수 있는 네 개의 scope-separated 결과표 |
+| `TABLES_KO.md` | 논문 표에 옮길 수 있는 다섯 개의 scope-separated 결과표 |
 | `RESULTS_INTERPRETATION_KO.md` | 결과가 지지하는 주장, 반대 결과, 논문용 문장과 제한 |
 | `METHODS_AND_CODE_KO.md` | 각 실험 설계와 실제 실행·평가 코드 위치 |
-| `comparison_records.json` | 23개 정규화 record와 비교 가능성 계약 |
+| `comparison_records.json` | 24개 정규화 record와 비교 가능성 계약 |
 | `comparison_records.csv` | 통계·도표 작성용 평탄화 데이터 |
 | `PROVENANCE.json` | 입력 결과·코드 SHA-256, 원 커밋, 코호트 일치 감사 |
 | `build_comparison.py` | 위 기계 파일과 표를 재생성·검증하는 표준 라이브러리 전용 코드 |
@@ -27,6 +30,9 @@ PCSA Persona+History의 원 보고서는
 [`../../../external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md`](../../../external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md),
 기계 판독 결과는
 [`../../../external_baselines/result/pcsa_persona_ablation_final197.json`](../../../external_baselines/result/pcsa_persona_ablation_final197.json)에 있다.
+GPT-4o 추가 셀은
+[`../../../external_baselines/result/PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md`](../../../external_baselines/result/PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md)와
+[`../../../external_baselines/result/pcsa_persona_history_gpt4o_final197.json`](../../../external_baselines/result/pcsa_persona_history_gpt4o_final197.json)에 분리했다.
 
 ## 핵심 결론
 
@@ -39,6 +45,12 @@ PCSA Persona+History의 원 보고서는
   개선된다”는 해석은 지지된다.
 - 하지만 CARES A+C는 `195/197 → 168/197`, Accept는 `48/197 → 23/197`로 감소했다.
   개인화 효과를 CARES non-refusal 하나로 요약하면 반대 결론이 난다.
+- 별도 GPT-4o Persona+History PCSA 셀은 HarmBench 9/197(4.57%), PCSA Unsafe
+  52/197(26.40%), B4+ 17/197(8.63%), Strict Joint 6/197(3.05%)였다. 기존 GPT-4o
+  profile-only PCSA의 1, 8, 4, 0건보다 높지만 target snapshot과 공개 paired label 차이
+  때문에 기술 비교로 제한한다.
+- 이 추가 셀의 CARES는 GPT-4o로 판정했으므로 기존 외부 baseline의 GPT-4o-mini CARES와
+  직접 비교하지 않는다.
 - OURS의 별도 GPT-4o singleton ablation에서는 `no_history`가 CARES Accept, B4+와
   Strict Joint에서 `no_verbatim`보다 높았다. history 효과는 공격 구조와 target에 따라
   달라지며 PCSA 결과를 OURS의 인과 효과로 전이하면 안 된다.

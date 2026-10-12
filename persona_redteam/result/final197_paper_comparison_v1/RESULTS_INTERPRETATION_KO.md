@@ -2,12 +2,13 @@
 
 ## 1. 먼저 고정해야 할 분석 단위
 
-세 결과군은 기반 요청 197개가 동일하지만 출력 선택 방식은 다르다.
+네 결과군은 기반 요청 197개가 동일하지만 출력 선택 방식은 다르다.
 
 | 결과군 | Target | 최종 분석 단위 | 유효한 내부 비교 |
 |---|---|---|---|
 | 외부 베이스라인 | GPT-4o, Qwen | 방법별로 저장된 최종 응답 1개/case | 같은 target의 9개 방법 |
 | PCSA 개인화 ablation | Qwen | evaluator-guided 최대 4턴 trajectory의 선택 응답 | Persona+History 대 No-Persona paired |
+| PCSA Persona+History 추가 셀 | GPT-4o-2024-11-20 | evaluator-guided 최대 4턴 trajectory의 선택 응답 | 단일 완성 셀; 기존 profile-only와 기술 비교 |
 | OURS singleton | GPT-4o | 네 독립 최종 분기의 case-level Best-of-4 | `no_verbatim`, `explicit`, `no_history` |
 
 공통 Final-197을 사용한다는 사실은 데이터셋 차이를 제거하지만, query budget과 response
@@ -52,7 +53,23 @@ HarmBench, PCSA compliance/unsafe, B4+와 Strict Joint에서 명확하게 확인
 CARES A+C와 Accept에는 같은 문장을 적용할 수 없다. 개인화된 trajectory가 구체적 목표
 수행은 늘렸지만, 광범위한 비거절/주의 응답을 세는 CARES 분포는 반대 방향으로 움직였다.
 
-## 4. OURS Final-197 singleton이 보여주는 것
+## 4. GPT-4o에서도 Persona+History 방향이 유지됐는가
+
+별도 `gpt-4o-2024-11-20` 타깃 셀에서 Persona+History PCSA는 HarmBench
+9/197(4.57%), PCSA Unsafe 52/197(26.40%), R3+ 56/197(28.43%), B4+
+17/197(8.63%), Strict Joint 6/197(3.05%)였다. 기존 Final-197 matrix의 GPT-4o
+profile-only PCSA는 각각 1, 8, 11, 4, 0건이었다. 따라서 task-aligned 지표가 모두 같은
+방향으로 증가했다.
+
+이 비교는 Qwen paired ablation을 보강하지만 같은 수준의 인과 비교는 아니다. 기존 target은
+정확한 snapshot이 아닌 `gpt-4o` alias로 기록됐고, 기존 case-level HarmBench label이 공개
+결과에 없어 paired 표와 McNemar 검정을 재구성하지 못했다. CARES는 더 직접적인 제한이
+있다. 새 셀은 GPT-4o, 기존 셀은 GPT-4o-mini 판정이므로 CARES 수치를 서로 비교하지 않는다.
+
+PCSA 온라인 evaluator는 35건을 성공으로 조기 종료했지만 최종 HarmBench 양성은 9건이었다.
+이는 중간평가자의 공격 진행 점수를 최종 ASR로 대신하면 안 된다는 추가 근거다.
+
+## 5. OURS Final-197 singleton이 보여주는 것
 
 GPT-4o 타깃의 OURS `no_verbatim`은 CARES Accept 190/197(96.45%), HarmBench@4
 176/197(89.34%), B4+@4 150/197(76.14%), same-branch Strict Joint@4
@@ -68,7 +85,7 @@ attacker의 Phase-I 특성·문체·상태 trajectory가 되어 매 턴 후보 �
 OURS에서는 이미 구축된 연구 대화 뒤 네 독립 singleton readout을 수행한다. 개인화 입력의
 효과는 공격 구조, target, 선택 규칙과 endpoint의 상호작용으로 해석해야 한다.
 
-## 5. 논문에 사용할 수 있는 문장
+## 6. 논문에 사용할 수 있는 문장
 
 ### 한국어
 
@@ -77,6 +94,11 @@ OURS에서는 이미 구축된 연구 대화 뒤 네 독립 singleton readout을
 > (exact McNemar p=8.23×10⁻¹⁰), PCSA Target Compliance도 14.72%에서 56.35%로
 > 증가시켰다. 반면 CARES A+C는 98.98%에서 85.28%로 감소하여, non-refusal 중심
 > 평가와 목표 수행 중심 평가가 상이한 개인화 효과를 포착함을 보였다.
+
+> 별도 GPT-4o-2024-11-20 타깃 실험에서도 Persona+History PCSA는 HarmBench 4.57%,
+> PCSA Unsafe 26.40%, Strict Joint 3.05%를 기록해 기존 profile-only PCSA의 0.51%,
+> 4.06%, 0%보다 높은 기술 통계를 보였다. 다만 기존 target snapshot 및 CARES evaluator가
+> 달라 이 차이는 paired 인과 추정이 아니라 보조적 재현 결과로 해석했다.
 
 ### English
 
@@ -87,7 +109,13 @@ OURS에서는 이미 구축된 연구 대화 뒤 네 독립 singleton readout을
 > non-refusal-oriented and task-compliance-oriented metrics capture different effects
 > of personalization.
 
-## 6. 반드시 같이 쓸 제한
+> In a separate GPT-4o-2024-11-20 target run, Persona+History PCSA achieved 4.57%
+> HarmBench ASR, 26.40% PCSA Unsafe, and 3.05% Strict Joint, compared with 0.51%,
+> 4.06%, and 0% in the earlier profile-only PCSA cell. We treat this as descriptive
+> corroboration rather than a paired causal estimate because the earlier target snapshot
+> and CARES evaluator were not identical.
+
+## 7. 반드시 같이 쓸 제한
 
 1. PCSA 구현은 공개 코드가 없는 논문의 서술과 Appendix prompt를 재구성한 것이다.
 2. 논문 attacker와 달리 이 통제 실험은 Qwen2.5-7B attacker/target을 사용했다.
@@ -96,3 +124,4 @@ OURS에서는 이미 구축된 연구 대화 뒤 네 독립 singleton readout을
 5. 외부 baseline, PCSA paired ablation, OURS는 CARES evaluator와 response aggregation이
    완전히 같지 않으므로 패널 간 공식 순위·유의성 검정을 하지 않는다.
 6. GitHub에는 집계와 코드가 있고, 민감한 개별 target 응답 및 evaluator rationale은 없다.
+7. GPT-4o 추가 셀의 CARES는 GPT-4o 판정이고 기존 외부 baseline은 GPT-4o-mini 판정이다.

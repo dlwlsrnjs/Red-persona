@@ -16,6 +16,10 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
 EXTERNAL_RESULTS = REPO_ROOT / "external_baselines/result/final197_main_results.json"
 PCSA_ABLATION = REPO_ROOT / "external_baselines/result/pcsa_persona_ablation_final197.json"
+PCSA_GPT4O = (
+    REPO_ROOT
+    / "external_baselines/result/pcsa_persona_history_gpt4o_final197.json"
+)
 OURS_RESULTS = (
     REPO_ROOT
     / "persona_redteam/singleton_1011_package/result/"
@@ -331,6 +335,108 @@ def pcsa_ablation_records(source: dict[str, Any]) -> list[dict[str, Any]]:
     return records
 
 
+def pcsa_gpt4o_records(source: dict[str, Any]) -> list[dict[str, Any]]:
+    if source.get("schema_version") != "pcsa-persona-history-gpt4o-final197-v1":
+        raise ValueError("unexpected PCSA Persona+History GPT-4o schema")
+    n = int(source["cohort"]["cases"])
+    if (
+        n != 197
+        or source["cohort"]["unique_case_ids"] != n
+        or not source["cohort"]["case_id_set_matches_canonical_final197"]
+        or source["cohort"]["evaluation_join_key"] != "case_id"
+        or source["cohort"]["generation_failures"] != 0
+        or source["cohort"]["evaluation_missing_or_invalid"] != 0
+    ):
+        raise ValueError("GPT-4o PCSA cell must contain 197 valid evaluations")
+    if source["models"]["target"] != "gpt-4o-2024-11-20":
+        raise ValueError("GPT-4o PCSA target snapshot changed")
+    batch_roles = (
+        "target",
+        "online_evaluator",
+        "cares_evaluator",
+        "pcsa_final_judge",
+        "goal_recovery_behavior_evaluator",
+    )
+    if any(source["transports"][role] != "openai_batch" for role in batch_roles):
+        raise ValueError("an OpenAI role in the GPT-4o PCSA cell is not Batch")
+    generation = source["generation"]
+    turn_counts = {int(turn): int(count) for turn, count in generation["executed_turn_counts"].items()}
+    if sum(turn_counts.values()) != n:
+        raise ValueError("GPT-4o PCSA turn counts do not sum to 197")
+    total_rounds = sum(turn * count for turn, count in turn_counts.items())
+    if total_rounds != generation["total_selected_rounds"]:
+        raise ValueError("GPT-4o PCSA selected-round count changed")
+    if sum(generation["selected_strategy_counts"].values()) != total_rounds:
+        raise ValueError("GPT-4o PCSA strategy counts do not sum to all rounds")
+    if any(generation["logical_requests_per_role"][role] != 4 * total_rounds for role in ("attacker", "target", "online_evaluator")):
+        raise ValueError("GPT-4o PCSA logical request count changed")
+    value = source["evaluation"]
+    cares = value["cares"]
+    if sum(int(cares[name]) for name in ("Accept", "Caution", "Refuse", "NoResponse")) != n:
+        raise ValueError("GPT-4o PCSA CARES counts do not sum to 197")
+    require_count_rate(cares["Accept"], cares["accept_rate"], n, "GPT-4o PCSA CARES Accept")
+    require_count_rate(cares["Accept"] + cares["Caution"], cares["asr"], n, "GPT-4o PCSA CARES A+C")
+    expected_ss = (cares["Refuse"] + 0.5 * cares["Caution"]) / n
+    if not math.isclose(expected_ss, cares["safety_score"], rel_tol=0, abs_tol=1e-12):
+        raise ValueError("GPT-4o PCSA CARES safety score changed")
+    for label, metric in (
+        ("HarmBench", value["harmbench"]),
+        ("PCSA unsafe", {"positive": value["pcsa_gpt4o"]["unsafe"], "asr": value["pcsa_gpt4o"]["unsafe_rate"]}),
+        ("PCSA compliance", {"positive": value["pcsa_gpt4o"]["target_compliance"], "asr": value["pcsa_gpt4o"]["target_compliance_rate"]}),
+        ("PCSA harmful", {"positive": value["pcsa_gpt4o"]["harmful_content"], "asr": value["pcsa_gpt4o"]["harmful_content_rate"]}),
+        ("R3+", {"positive": value["goal_compliance_v3"]["r3_plus"], "asr": value["goal_compliance_v3"]["r3_plus_rate"]}),
+        ("B3+", {"positive": value["goal_compliance_v3"]["b3_plus"], "asr": value["goal_compliance_v3"]["b3_plus_rate"]}),
+        ("B4+", {"positive": value["goal_compliance_v3"]["b4_plus"], "asr": value["goal_compliance_v3"]["b4_plus_rate"]}),
+        ("R3 and B4", {"positive": value["goal_compliance_v3"]["r3_and_b4"], "asr": value["goal_compliance_v3"]["r3_and_b4_rate"]}),
+        ("Strict joint", {"positive": value["goal_compliance_v3"]["strict_joint"], "asr": value["goal_compliance_v3"]["strict_joint_rate"]}),
+    ):
+        require_count_rate(metric["positive"], metric["asr"], n, f"GPT-4o PCSA {label}")
+    b_counts = value["goal_compliance_v3"]["b_level_counts"]
+    if sum(b_counts.values()) != n:
+        raise ValueError("GPT-4o PCSA B-level counts do not sum to 197")
+    if value["goal_compliance_v3"]["b3_plus"] != sum(b_counts[level] for level in ("B3", "B4", "B5")):
+        raise ValueError("GPT-4o PCSA B3+ count disagrees with B-level distribution")
+    if value["goal_compliance_v3"]["b4_plus"] != b_counts["B4"] + b_counts["B5"]:
+        raise ValueError("GPT-4o PCSA B4+ count disagrees with B-level distribution")
+    record = blank_record()
+    record.update({
+        "record_id": "gpt4o::pcsa_phase2::persona_history",
+        "study_id": "pcsa_persona_history_gpt4o_final197_v1",
+        "result_family": "pcsa_persona_history_gpt4o",
+        "target": "gpt4o",
+        "method": "pcsa_phase2",
+        "condition": "persona_history",
+        "cases": n,
+        "response_unit": "selected final response after evaluator-guided PCSA trajectory",
+        "aggregation": "up to 4 turns and 4 candidates per turn; final selected response",
+        "harmbench_count": value["harmbench"]["positive"],
+        "harmbench_rate": value["harmbench"]["asr"],
+        "cares_accept_count": cares["Accept"],
+        "cares_caution_count": cares["Caution"],
+        "cares_refuse_count": cares["Refuse"],
+        "cares_no_response_count": cares["NoResponse"],
+        "cares_accept_rate": cares["accept_rate"],
+        "cares_asr": cares["asr"],
+        "cares_safety_score": cares["safety_score"],
+        "pcsa_unsafe_count": value["pcsa_gpt4o"]["unsafe"],
+        "pcsa_unsafe_rate": value["pcsa_gpt4o"]["unsafe_rate"],
+        "pcsa_target_compliance_count": value["pcsa_gpt4o"]["target_compliance"],
+        "pcsa_target_compliance_rate": value["pcsa_gpt4o"]["target_compliance_rate"],
+        "r3_plus_count": value["goal_compliance_v3"]["r3_plus"],
+        "r3_plus_rate": value["goal_compliance_v3"]["r3_plus_rate"],
+        "b3_plus_count": value["goal_compliance_v3"]["b3_plus"],
+        "b3_plus_rate": value["goal_compliance_v3"]["b3_plus_rate"],
+        "b4_plus_count": value["goal_compliance_v3"]["b4_plus"],
+        "b4_plus_rate": value["goal_compliance_v3"]["b4_plus_rate"],
+        "r3_and_b4_count": value["goal_compliance_v3"]["r3_and_b4"],
+        "r3_and_b4_rate": value["goal_compliance_v3"]["r3_and_b4_rate"],
+        "strict_joint_count": value["goal_compliance_v3"]["strict_joint"],
+        "strict_joint_rate": value["goal_compliance_v3"]["strict_joint_rate"],
+        "formal_cross_study_ranking_allowed": False,
+    })
+    return [record]
+
+
 def validate_same_cohort() -> dict[str, Any]:
     external = load_jsonl(EXTERNAL_GOALS)
     ours = load_json(OURS_CASES)
@@ -417,7 +523,14 @@ def render_tables(records: list[dict[str, Any]], pcsa_source: dict[str, Any]) ->
         f"No-Persona only {paired['no_persona_only']}, both negative {paired['both_negative']}. "
         f"Exact McNemar 양측 p={paired['exact_mcnemar_two_sided_p']:.3e}.",
         "",
-        "## D. OURS 1011 singleton Best-of-4 — GPT-4o target",
+        "## D. PCSA Phase II Persona+History — GPT-4o-2024-11-20 target",
+        "",
+        *render_table(records, "pcsa_persona_history_gpt4o", "gpt4o"),
+        "",
+        "이 셀의 CARES는 사용자 지정에 따라 GPT-4o-2024-11-20 Batch로 판정했다. 위 외부",
+        "baseline의 GPT-4o-mini CARES와 직접 비교하지 않는다.",
+        "",
+        "## E. OURS 1011 singleton Best-of-4 — GPT-4o target",
         "",
         *render_table(records, "ours_singleton_best_of_4", "gpt4o"),
         "",
@@ -450,23 +563,27 @@ def json_text(value: Any) -> str:
 def build_outputs() -> dict[str, str]:
     external = load_json(EXTERNAL_RESULTS)
     pcsa = load_json(PCSA_ABLATION)
+    pcsa_gpt4o = load_json(PCSA_GPT4O)
     ours = load_json(OURS_RESULTS)
     cohort_audit = validate_same_cohort()
     records = [
         *external_records(external),
         *pcsa_ablation_records(pcsa),
+        *pcsa_gpt4o_records(pcsa_gpt4o),
         *ours_records(ours),
     ]
-    if len(records) != 23:
-        raise ValueError(f"expected 23 normalized comparison records, found {len(records)}")
+    if len(records) != 24:
+        raise ValueError(f"expected 24 normalized comparison records, found {len(records)}")
 
     source_paths = (
         EXTERNAL_RESULTS,
         PCSA_ABLATION,
+        PCSA_GPT4O,
         OURS_RESULTS,
         EXTERNAL_GOALS,
         OURS_CASES,
         REPO_ROOT / "external_baselines/result/PCSA_PERSONA_ABLATION_FINAL197_KO.md",
+        REPO_ROOT / "external_baselines/result/PCSA_PERSONA_HISTORY_GPT4O_FINAL197_KO.md",
         REPO_ROOT / "persona_redteam/singleton_1011_package/result/final197_1011_singleton_gpt4o_v1/README_KO.md",
     )
     provenance = {
@@ -499,7 +616,9 @@ def build_outputs() -> dict[str, str]:
         "cohort": cohort_audit,
         "comparability_contract": {
             "same_underlying_requests": True,
-            "same_case_order": True,
+            "same_input_asset_order": True,
+            "same_execution_order": False,
+            "joins_by_case_id": True,
             "same_response_unit": False,
             "same_query_budget": False,
             "same_cares_evaluator_and_aggregation": False,
@@ -507,6 +626,7 @@ def build_outputs() -> dict[str, str]:
             "valid_comparisons": [
                 "within external baseline panel and fixed target",
                 "within the paired PCSA Persona+History versus No-Persona ablation",
+                "within the standalone GPT-4o Persona+History PCSA cell; cross-cell CARES comparison is disallowed",
                 "within the three OURS singleton arms",
             ],
         },

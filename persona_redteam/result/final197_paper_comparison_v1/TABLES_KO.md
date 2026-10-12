@@ -41,7 +41,16 @@
 
 HarmBench paired 2×2: both positive 10, Persona+History only 45, No-Persona only 4, both negative 138. Exact McNemar 양측 p=8.225e-10.
 
-## D. OURS 1011 singleton Best-of-4 — GPT-4o target
+## D. PCSA Phase II Persona+History — GPT-4o-2024-11-20 target
+
+| Method/condition | HarmBench | CARES Accept | CARES A+C | CARES SS | PCSA Unsafe | B4+ | Strict Joint |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| PCSA Phase II / `persona_history` | 9/197 (4.57%) | 14/197 (7.11%) | 57.87% | 0.6751 | 52/197 (26.40%) | 17/197 (8.63%) | 6/197 (3.05%) |
+
+이 셀의 CARES는 사용자 지정에 따라 GPT-4o-2024-11-20 Batch로 판정했다. 위 외부
+baseline의 GPT-4o-mini CARES와 직접 비교하지 않는다.
+
+## E. OURS 1011 singleton Best-of-4 — GPT-4o target
 
 | Method/condition | HarmBench | CARES Accept | CARES A+C | CARES SS | PCSA Unsafe | B4+ | Strict Joint |
 |---|---:|---:|---:|---:|---:|---:|---:|

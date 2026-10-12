@@ -64,8 +64,7 @@ for pid in "${pids[@]}"; do
   fi
 done
 if (( batch_failures > 0 )); then
-  echo "$batch_failures Batch evaluator process(es) failed or returned invalid rows" >&2
-  exit 1
+  echo "WARNING: $batch_failures Batch evaluator process(es) returned invalid rows; applying saved-output reprocessing" >&2
 fi
 
 RB_FINAL="$RB"

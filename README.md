@@ -1,5 +1,13 @@
 # RED-Persona
 
+## 단계별 대화 검사 UI
+
+API 키를 브라우저에서만 입력하고 RED-Persona와 baseline prompt를 한 단계씩 직접 전송하며
+비교하려면 [`persona_redteam/interactive_lab/`](persona_redteam/interactive_lab/)을 사용한다.
+Final-197 성공/실패 표본 선택, persona/history와 질문 풀 감사, custom GOAL, OpenAI 및
+Hugging Face Inference 연결을 제공한다. 자세한 실행법과 보안 계약은
+[`interactive_lab/README_KO.md`](persona_redteam/interactive_lab/README_KO.md)에 있다.
+
 ## 논문 최종 구현
 
 Final-197의 GPT-4o 본실험에 사용하는 canonical 구현은

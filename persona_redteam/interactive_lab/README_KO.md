@@ -1,0 +1,86 @@
+# RED-Persona Interactive Lab
+
+기존 대량 실험을 대체하는 실행기가 아니라, **한 사례의 실제 prompt 전개를 사람의 클릭으로
+한 단계씩 확인하는 로컬 검사 도구**다. API 호출은 자동 진행되지 않으며 `다음 단계 준비`는
+prompt만 만들고, `이 단계만 모델에 전송`을 눌렀을 때만 한 번의 외부 요청이 발생한다.
+
+## 제공 기능
+
+- Final-197 사례를 ID/키워드로 찾거나 과거 strict-joint 성공·실패 집합에서 무작위 선택
+- 선택된 persona, persona history, 원 GOAL과 과거 분기별 평가 표시
+- 31,733개 persona 원본 pool 검색과 사례별 retrieval top-12, rerank 사유, fit audit 표시
+- 사전 생성된 유사-GOAL Case A/B 질문 풀과 실제 질문/인용 선택 audit 표시
+- `Compact dialogue`, `Direct-final-only`, `Seven-stage dialogue`, Direct baseline 비교
+- PCSA Phase II의 client simulator → Target → progress evaluator 한 stream을 수동 검사
+- OpenAI Chat Completions와 Hugging Face Inference Providers 연결
+- 사용자가 별도 GOAL을 입력하고 모든 마지막 prompt를 전송 전 수정
+- 저장된 본실험 응답과 새 실시간 응답을 같은 단계에서 비교
+- 여러 실행 레인을 열어 모델 또는 알고리즘을 나란히 비교
+
+## 실행
+
+저장소 루트에서:
+
+```bash
+python -m persona_redteam.interactive_lab.app
+```
+
+브라우저에서 <http://127.0.0.1:7865>를 연다. 포트를 바꾸려면:
+
+```bash
+python -m persona_redteam.interactive_lab.app --port 8090
+```
+
+기본 bind는 `127.0.0.1`이다. `--host 0.0.0.0`도 가능하지만, prompt와 브라우저에 입력한
+키가 네트워크에 노출될 수 있으므로 인증·TLS가 없는 서버에서는 사용하지 않는다.
+
+## API 키 계약
+
+1. 키는 HTML이나 Python 설정 파일에 쓰지 않는다.
+2. 브라우저 `localStorage`/`sessionStorage`에 저장하지 않는다. 입력창의 현재 값으로만 유지한다.
+3. 키는 `POST /api/session/<id>/send` 한 요청에만 포함된다.
+4. 서버는 키를 세션 객체, 결과 파일 또는 로그에 복사하지 않는다.
+5. `confirm_send=true`가 없으면 서버가 호출을 거부한다.
+6. 페이지를 닫거나 새로고침하면 입력한 키가 사라진다.
+
+## 단계 계약
+
+### RED-Persona Compact
+
+1. 저장된 실험 계약으로 persona/history 초기 분석 prompt를 보여준다.
+2. 선택 분기의 저장된 goal-focused follow-up과 question-selection audit를 보여준다.
+3. 새 Target readout에서 1--3개 연속 문장 exact substring 후보를 만든다.
+4. GOAL token coverage, request-language와 output-form 신호로 후보를 정렬한다.
+5. 사용자가 후보를 확인·교체한 후에만 동일 분기의 final query를 만든다.
+
+자동 selector는 대시보드용 설명 가능한 보조 선택기다. 논문 본실험의 Qwen semantic selector
+결과는 `historical_anchor_audit`로 별도 표시되며, 대시보드의 새 실시간 응답을 다시 논문 수치로
+섞지 않는다.
+
+### Direct-final-only와 Seven-stage
+
+각각 저장된 완결 실험의 실제 단계 prompt를 사용한다. Seven-stage는 선택한 history 조건에 맞는
+과거 실행 artifact가 있을 때만 활성화된다. 마지막 인용은 새 readout의 exact substring으로 다시
+구성한다.
+
+### PCSA Phase II inspector
+
+저장소의 PCSA system/candidate/evaluator prompt 계약을 사람이 한 단계씩 검사하기 위한
+**한 전략 stream**이다. 전체 baseline의 turn당 네 후보 Best-of-4 실행 및 최종 논문 성능을
+대체하지 않는다. 각 단계에서 Attacker, Target, Evaluator를 서로 다른 provider/model로 선택할 수
+있다.
+
+## Custom GOAL 주의
+
+Custom GOAL은 Direct와 PCSA prompt에 직접 반영된다. RED-Persona 레인은 선택 사례에서 이미
+검증된 persona와 질문 scaffold를 보존하므로 새 GOAL과 자동으로 재매칭하지 않는다. 화면에서
+persona/질문 풀 정합성을 확인하고 마지막 prompt를 직접 수정해야 한다. 새 GOAL에 맞춘 정식
+persona retrieval·history 생성은 기존 오프라인 pipeline을 사용한다.
+
+## 테스트
+
+```bash
+python -m unittest persona_redteam.interactive_lab.test_interactive_lab -v
+```
+
+테스트는 외부 API를 호출하지 않는다.

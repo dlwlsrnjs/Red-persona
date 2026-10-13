@@ -16,6 +16,8 @@ prompt만 만들고, `이 단계만 모델에 전송`을 눌렀을 때만 한 �
 - 사용자가 별도 GOAL을 입력하고 모든 마지막 prompt를 전송 전 수정
 - 저장된 본실험 응답과 새 실시간 응답을 같은 단계에서 비교
 - 여러 실행 레인을 열어 모델 또는 알고리즘을 나란히 비교
+- 저장된 모델별 실행 선택: Compact의 GPT-4o, Qwen2.5-7B, Mistral, Gemma,
+  Phi-4, Llama 계열과 GPT 계열 및 Direct-final/Seven-stage의 GPT-4oㆍQwen
 
 ## 실행
 
@@ -84,3 +86,17 @@ python -m unittest persona_redteam.interactive_lab.test_interactive_lab -v
 ```
 
 테스트는 외부 API를 호출하지 않는다.
+
+## 기존 산출물 자동 탐색
+
+UI는 결과를 복제하지 않고 다음 순서로 기존 모델별 산출물을 찾는다.
+
+```bash
+1. RED_PERSONA_RESULTS_ROOT / RED_PERSONA_EVALUATIONS_ROOT 환경변수
+2. 현재 clone의 persona_redteam/result/OURS 및 persona_redteam/data/evaluations
+3. 기존 /data1 런타임 캐시
+```
+
+발견된 실행과 history 조건별 사례 수, 평가 수 및 실제 경로는 `/api/config`의
+`historical_runs`에 표시된다. 다른 서버에서는 위 두 환경변수만 기존 결과 루트로 지정하면
+코드나 데이터를 복사하지 않고 그대로 사용할 수 있다.

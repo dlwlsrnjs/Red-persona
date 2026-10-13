@@ -61,6 +61,30 @@ class InteractiveLabTest(unittest.TestCase):
         })
         self.assertEqual(session.prepare()["prompt"], "custom audit query")
 
+    def test_model_specific_historical_run_is_selectable(self) -> None:
+        runs = self.catalog.public_runs()
+        self.assertIn("compact_gpt4o", runs)
+        self.assertIn("compact_qwen2_5_7b", runs)
+        self.assertEqual(
+            runs["compact_qwen2_5_7b"]["artifact_counts"]["with_history"], 197
+        )
+        session = create_session(self.catalog, {
+            "case_id": self.catalog.ids()[0],
+            "protocol": "red_persona_compact",
+            "historical_run": "compact_qwen2_5_7b",
+            "history_enabled": True,
+        })
+        self.assertEqual(session.public()["historical_run"], "compact_qwen2_5_7b")
+        self.assertTrue(session.prepare()["historical_reference_response"])
+
+    def test_historical_run_must_match_protocol(self) -> None:
+        with self.assertRaises(ValueError):
+            create_session(self.catalog, {
+                "case_id": self.catalog.ids()[0],
+                "protocol": "red_persona_direct_final",
+                "historical_run": "compact_gpt4o",
+            })
+
 
 if __name__ == "__main__":
     unittest.main()

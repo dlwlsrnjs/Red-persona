@@ -219,6 +219,7 @@ class ManualSession:
     goal: str
     case: dict[str, Any]
     artifact: dict[str, Any] | None
+    historical_run: str | None = None
     created_at: float = field(default_factory=time.time)
     cursor: int = 0
     conversation: list[dict[str, str]] = field(default_factory=list)
@@ -237,6 +238,7 @@ class ManualSession:
             "history_enabled": self.history_enabled,
             "branch_index": self.branch_index,
             "goal": self.goal,
+            "historical_run": self.historical_run,
             "cursor": self.cursor,
             "completed": self.is_complete(),
             "completed_steps": deepcopy(self.completed_steps),
@@ -478,12 +480,19 @@ def create_session(catalog: Catalog, payload: dict[str, Any]) -> ManualSession:
     if protocol not in PROTOCOLS:
         raise ValueError(f"unknown protocol: {protocol}")
     history_enabled = bool(payload.get("history_enabled", True))
-    case = catalog.get_case(case_id, history_enabled=history_enabled)
+    requested_run = str(payload.get("historical_run", "")).strip() or None
+    case_run = requested_run if protocol == "red_persona_compact" else None
+    case = catalog.get_case(
+        case_id, history_enabled=history_enabled, run_id=case_run
+    )
     custom_goal = str(payload.get("custom_goal", "")).strip()
     branch_index = int(payload.get("branch_index", 0))
     if not 0 <= branch_index <= 3:
         raise ValueError("branch_index must be between 0 and 3")
-    artifact = catalog.artifact_for_protocol(case_id, protocol, history_enabled)
+    artifact = (
+        catalog.artifact_for_protocol(case_id, protocol, history_enabled, requested_run)
+        if protocol.startswith("red_persona_") else None
+    )
     if protocol.startswith("red_persona_") and artifact is None:
         raise ValueError(f"no saved protocol scaffold for {case_id}: {protocol}")
     strategy = str(payload.get("pcsa_strategy", "intellectualization"))
@@ -501,5 +510,9 @@ def create_session(catalog: Catalog, payload: dict[str, Any]) -> ManualSession:
         goal=custom_goal or str(case.get("goal", "")),
         case=case,
         artifact=artifact,
+        historical_run=(
+            requested_run or catalog.default_run(protocol, history_enabled)
+            if protocol.startswith("red_persona_") else None
+        ),
         pcsa_strategy=strategy,
     )

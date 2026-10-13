@@ -4,6 +4,8 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 let config = null;
 let currentCase = null;
 const lanes = new Map();
+let laneViewMode = "all";
+let focusedLaneId = "";
 
 function historyMode() {
   return $("#historyEnabled").checked ? "with_history" : "no_history";
@@ -169,6 +171,23 @@ function renderCase(value) {
   });
   const audits = el("article", "question-card"); audits.append(el("strong", "", "실제 분기별 선택 감사"));
   audits.append(jsonBlock(value.branches.map(row => ({direction: row.direction, audit: row.recovery_question_audit, anchor: row.anchor})))); pool.append(audits);
+  renderPersonaStage();
+}
+
+function renderPersonaStage() {
+  if (!currentCase) return;
+  $("#stagePersonaTitle").textContent = `${currentCase.persona_id || "Persona"} · ${currentCase.case_id}`;
+  $("#stagePersonaText").textContent = currentCase.persona || "";
+  $("#stageGoalText").textContent = currentCase.goal || "";
+  const root = $("#stageHistory"); root.replaceChildren();
+  (currentCase.persona_history || []).forEach((turn, index) => {
+    const item = el("article", "timeline-item");
+    item.append(el("h3", "", `Observation ${index + 1}`));
+    item.append(el("p", "", turn.user || ""));
+    const state = el("pre");
+    state.textContent = typeof turn.persona_state === "string" ? turn.persona_state : JSON.stringify(turn.persona_state, null, 2);
+    item.append(state); root.append(item);
+  });
 }
 
 async function loadCase() {
@@ -207,6 +226,67 @@ function populateSelect(select, rows, selected) {
   }
 }
 
+function pricingFor(provider, model) {
+  if (provider !== "openai") return null;
+  const key = model.toLowerCase().startsWith("gpt-4o") ? "gpt-4o" : model.toLowerCase();
+  return ((config.pricing_estimate || {}).models || {})[key] || null;
+}
+
+function estimateCost(summary, provider, model) {
+  const price = pricingFor(provider, model);
+  if (!price || !summary || !summary.observations) return null;
+  const cached = summary.mean_cached_prompt_tokens || 0;
+  const uncached = Math.max(0, summary.mean_prompt_tokens - cached);
+  return uncached * price.input_per_million / 1e6 +
+    cached * price.cached_input_per_million / 1e6 +
+    summary.mean_completion_tokens * price.output_per_million / 1e6;
+}
+
+function costText(summary, provider, model) {
+  if (!summary || !summary.observations) return "과거 기록 없음";
+  const usd = estimateCost(summary, provider, model);
+  return `${Number(summary.mean_total_tokens).toLocaleString()} tokens` +
+    (usd == null ? " · 비용은 provider 요금에 따라 결정" : ` · 약 $${usd.toFixed(4)}`);
+}
+
+function renderCostPreview(node, session) {
+  const root = $(".cost-preview", node); root.replaceChildren();
+  const estimate = (config.usage_estimates || {})[session.historical_run];
+  const history = session.history_enabled ? "with_history" : "no_history";
+  const values = estimate && estimate.histories && estimate.histories[history];
+  const provider = $(".provider", node).value;
+  const model = $(".model", node).value.trim();
+  for (const [label, key] of [
+    ["다음 호출 1회 평균", "per_call"],
+    ["샘플 1개 · 현재 분기", "one_sample_one_branch"],
+    ["샘플 1개 · 4분기 전체", "one_sample_all_branches"],
+  ]) {
+    const card = el("div", "cost-item");
+    card.append(el("strong", "", label), el("span", "", costText(values && values[key], provider, model)));
+    if (values && values[key] && values[key].p95_total_tokens) {
+      card.append(el("small", "", `과거 p95 ${Number(values[key].p95_total_tokens).toLocaleString()} tokens`));
+    }
+    root.append(card);
+  }
+  const source = (config.pricing_estimate || {}).source;
+  const date = (config.pricing_estimate || {}).as_of;
+  const note = el("p", "cost-note");
+  note.textContent = `저장된 ${estimate ? estimate.label : "동일 조건"} 실제 usage 평균. ` +
+    (pricingFor(provider, model) ? `OpenAI 공개 단가(${date})의 추정치이며 실제 청구액은 다를 수 있습니다.` : "달러 비용은 선택한 provider 단가를 확인하세요.");
+  if (source && pricingFor(provider, model)) {
+    const link = el("a", "", " 단가 출처"); link.href = source; link.target = "_blank"; link.rel = "noreferrer"; note.append(link);
+  }
+  root.append(note);
+}
+
+function confirmCost(node, session) {
+  const estimate = (config.usage_estimates || {})[session.historical_run];
+  const history = session.history_enabled ? "with_history" : "no_history";
+  const summary = estimate && estimate.histories && estimate.histories[history] && estimate.histories[history].per_call;
+  const message = costText(summary, $(".provider", node).value, $(".model", node).value.trim());
+  return window.confirm(`지금 모델 호출 1회를 시작합니다.\n과거 동일 프로토콜 평균: ${message}\n\n계속 전송할까요?`);
+}
+
 async function addLane() {
   clearError($("#globalError"));
   if (!currentCase) return;
@@ -238,13 +318,103 @@ function createLane(session) {
   populateSelect(provider, config.providers, "openai");
   const model = $(".model", node);
   model.value = config.providers.openai.models[0];
-  provider.addEventListener("change", () => { model.value = config.providers[provider.value].models[0]; });
-  $(".remove-lane", node).addEventListener("click", () => { lanes.delete(session.id); node.remove(); });
+  provider.addEventListener("change", () => {
+    model.value = config.providers[provider.value].models[0];
+    renderCostPreview(node, session);
+  });
+  model.addEventListener("input", () => renderCostPreview(node, session));
+  $(".remove-lane", node).addEventListener("click", () => {
+    lanes.delete(session.id); node.remove();
+    if (focusedLaneId === session.id) focusedLaneId = lanes.size ? lanes.keys().next().value : "";
+    refreshLaneView();
+  });
+  $(".focus-lane", node).addEventListener("click", () => focusLane(session.id));
   $(".prepare", node).addEventListener("click", () => prepareLane(node));
   $(".send", node).addEventListener("click", () => sendLane(node));
   $("#lanes").append(node);
   lanes.set(session.id, {node, session});
+  focusedLaneId = session.id;
+  renderCostPreview(node, session);
   renderLaneState(node, session);
+  refreshLaneView();
+}
+
+function refreshLaneView() {
+  const root = $("#lanes");
+  root.classList.toggle("single-view", laneViewMode === "single");
+  for (const [sessionId, lane] of lanes.entries()) {
+    const selected = sessionId === focusedLaneId;
+    lane.node.classList.toggle("is-focused", selected);
+    lane.node.classList.toggle("focus-hidden", laneViewMode === "single" && !selected);
+  }
+  const select = $("#focusedLane");
+  const previous = focusedLaneId;
+  select.replaceChildren();
+  for (const [sessionId, lane] of lanes.entries()) {
+    const option = el("option"); option.value = sessionId;
+    option.textContent = `${lane.session.protocol_metadata.label} · ${(config.historical_runs[lane.session.historical_run] || {}).target_model || "live"}`;
+    option.selected = sessionId === previous; select.append(option);
+  }
+  select.disabled = laneViewMode !== "single" || !lanes.size;
+  $("#viewAll").classList.toggle("active", laneViewMode === "all");
+  $("#viewSingle").classList.toggle("active", laneViewMode === "single");
+  renderProgressStage();
+}
+
+function setLaneView(mode) {
+  laneViewMode = mode;
+  if (!focusedLaneId && lanes.size) focusedLaneId = lanes.keys().next().value;
+  refreshLaneView();
+}
+
+function focusLane(sessionId) {
+  focusedLaneId = sessionId;
+  laneViewMode = "single";
+  refreshLaneView();
+  $("#lanesSection").scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+function renderProgressStage() {
+  const root = $("#progressOverview"); root.replaceChildren();
+  if (!lanes.size) {
+    root.append(el("p", "empty-stage", "아직 실행 레인이 없습니다."));
+    return;
+  }
+  for (const [sessionId, lane] of lanes.entries()) {
+    const session = lane.session;
+    const card = el("article", "progress-card");
+    card.dataset.sessionId = sessionId;
+    const head = el("div", "progress-card-head");
+    const title = el("div");
+    title.append(el("p", "eyebrow", (config.historical_runs[session.historical_run] || {}).label || "LIVE RUN"));
+    title.append(el("h2", "", session.protocol_metadata.label));
+    head.append(title, el("span", session.completed ? "status-complete" : "status-running", session.completed ? "완료" : "진행 중"));
+    card.append(head);
+    const total = session.protocol === "red_persona_compact" ? 3 :
+      session.protocol === "red_persona_direct_final" ? 2 :
+      session.protocol === "direct_baseline" ? 1 : null;
+    const progress = el("div", "progress-meter");
+    const fill = el("span");
+    fill.style.width = `${total ? Math.min(100, session.completed_steps.length / total * 100) : (session.completed ? 100 : 18)}%`;
+    progress.append(fill); card.append(progress);
+    card.append(el("p", "progress-count", total ? `${session.completed_steps.length} / ${total} 단계` : `${session.completed_steps.length} 단계 완료`));
+    const steps = el("div", "stage-step-list");
+    for (const step of session.completed_steps) {
+      const row = el("article", "stage-step done");
+      row.append(el("strong", "", `${step.stage} · ${step.role}`));
+      row.append(el("p", "", step.response.text || "")); steps.append(row);
+    }
+    if (!session.completed) {
+      const pending = el("article", "stage-step current");
+      pending.append(el("strong", "", session.pending ? `준비됨 · ${session.pending.stage}` : "다음 단계 준비 전"));
+      pending.append(el("p", "", session.pending ? session.pending.prompt : "해당 레인에서 ‘다음 단계 준비’를 누르세요."));
+      steps.append(pending);
+    }
+    card.append(steps);
+    const focus = el("button", "secondary", "이 레인 집중 보기");
+    focus.addEventListener("click", () => { $("#progressStage").close(); focusLane(sessionId); });
+    card.append(focus); root.append(card);
+  }
 }
 
 function renderMessages(root, messages) {
@@ -274,6 +444,7 @@ function renderLaneState(node, session) {
   $(".prepare", node).disabled = session.completed;
   renderTimeline(node, session.completed_steps);
   if (session.completed) $(".pending", node).classList.add("hidden");
+  renderProgressStage();
 }
 
 async function prepareLane(node, quoteOverride = "") {
@@ -303,6 +474,11 @@ function renderPending(node, step) {
   selection.append(el("strong", "", "Prompt/질문 선택 근거"), jsonBlock(step.selection));
   renderMessages($(".message-list", node), step.messages);
   $(".prompt-editor", node).value = step.prompt;
+  const runtime = step.runtime_parameters || {};
+  if (runtime.temperature != null) $(".temperature", node).value = runtime.temperature;
+  if (runtime.max_tokens) $(".max-tokens", node).value = runtime.max_tokens;
+  $(".runtime-preset", node).textContent =
+    `Historical preset · temperature=${runtime.temperature ?? "omitted"} · max_tokens=${runtime.max_tokens ?? "omitted"} · top_p=${runtime.top_p || "omitted"} · seed=${runtime.seed || "omitted"}`;
   $(".reference-response", node).textContent = step.historical_reference_response || "(저장된 비교 응답 없음)";
   const quoteBox = $(".quote-box", node); quoteBox.replaceChildren();
   const candidates = step.selection.quote_candidates || [];
@@ -329,6 +505,8 @@ async function sendLane(node) {
   if (!$("#consent").checked) { showError(errorNode, "먼저 통제된 안전성 평가 동의 체크박스를 선택하세요."); return; }
   const key = $(".api-key", node).value.trim();
   if (!key) { showError(errorNode, "이 단계에 사용할 API key 또는 HF token을 입력하세요."); return; }
+  const current = lanes.get(node.dataset.sessionId).session;
+  if (!confirmCost(node, current)) return;
   const send = $(".send", node); send.disabled = true; send.textContent = "전송 중…";
   try {
     const sessionId = node.dataset.sessionId;
@@ -370,6 +548,15 @@ async function init() {
   });
   $("#searchPersonas").addEventListener("click", searchPersonaPool);
   $("#addLane").addEventListener("click", addLane);
+  $("#viewAll").addEventListener("click", () => setLaneView("all"));
+  $("#viewSingle").addEventListener("click", () => setLaneView("single"));
+  $("#focusedLane").addEventListener("change", event => focusLane(event.target.value));
+  $("#openPersonaStage").addEventListener("click", () => { renderPersonaStage(); $("#personaStage").showModal(); });
+  $("#openProgressStage").addEventListener("click", () => { renderProgressStage(); $("#progressStage").showModal(); });
+  $$(".close-dialog").forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));
+  $$('dialog').forEach(dialog => dialog.addEventListener("click", event => {
+    if (event.target === dialog) dialog.close();
+  }));
   $$(".copy").forEach(button => button.addEventListener("click", async () => {
     await navigator.clipboard.writeText($("#" + button.dataset.copy).textContent);
     button.textContent = "복사됨"; setTimeout(() => button.textContent = "복사", 1000);

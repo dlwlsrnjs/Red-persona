@@ -7,6 +7,13 @@ API 키를 브라우저에서만 입력하고 RED-Persona와 baseline prompt를 
 Final-197 성공/실패 표본 선택, persona/history와 질문 풀 감사, custom GOAL, OpenAI 및
 Hugging Face Inference 연결을 제공한다. 자세한 실행법과 보안 계약은
 [`interactive_lab/README_KO.md`](persona_redteam/interactive_lab/README_KO.md)에 있다.
+한 레인 집중/여러 레인 비교와 personaㆍ진행상황 전체화면을 지원한다. GitHub Pages용
+브라우저 실행본은 [`docs/interactive-lab/`](docs/interactive-lab/)에 있으며 배포 주소는
+<https://dlwlsrnjs.github.io/Red-persona/>다.
+배포 첫 화면에서 API 호출이 전혀 없는 `Dataset Viewer`와 사용자가 매 호출을 승인하는
+`Live Lab`을 별도 페이지로 선택한다.
+실행 레인에는 과거 실제 token usage에 근거한 호출/샘플 단위 예상량이 먼저 표시되며,
+비용 확인을 승인해야 provider 요청을 전송한다.
 
 이 저장소에는 JMIR 기반 공식 500개 평가를 위한 seedless Qwen–Lexi–target 파이프라인과
 동일한 500개에 적용하는 single-turn/multi-turn jailbreak baseline도 보존한다.

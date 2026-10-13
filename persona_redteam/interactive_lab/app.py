@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__
-from .catalog import Catalog
+from .catalog import Catalog, PRICING_ESTIMATE
 from .protocols import PROTOCOLS, ManualSession, create_session
 from .providers import PROVIDERS, ProviderError, chat_completion
 
@@ -107,6 +107,8 @@ class Handler(SimpleHTTPRequestHandler):
                     "protocols": PROTOCOLS,
                     "providers": PROVIDERS,
                     "historical_runs": self.state.catalog.public_runs(),
+                    "usage_estimates": self.state.catalog.usage_estimates(),
+                    "pricing_estimate": PRICING_ESTIMATE,
                     "security": {
                         "api_keys_stored": False,
                         "api_keys_logged": False,

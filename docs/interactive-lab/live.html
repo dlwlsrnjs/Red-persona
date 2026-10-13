@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RED-Persona live model and protocol workbench">
+  <title>RED-Persona · Live Lab</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <header class="hero">
+    <div><p class="eyebrow">ONLINE REAL-TIME · BROWSER WORKBENCH</p><h1>RED-Persona <span>Live Lab</span></h1><p>API 키를 브라우저에만 입력하고, 비용을 확인한 뒤 한 단계씩 실시간 전송합니다.</p></div>
+    <div class="hero-actions"><a class="button-link" href="viewer.html">Dataset Viewer</a><a class="button-link" href="index.html">처음으로</a><button id="personaStageButton">Persona 크게</button><button id="progressStageButton">진행상황 크게</button></div>
+  </header>
+
+  <main>
+    <section class="panel picker">
+      <div class="title"><h2>01 · 사례 선택</h2><span id="caseCount" class="pill">loading</span></div>
+      <div class="control-row">
+        <label>결과<select id="outcome"><option value="all">전체</option><option value="success">성공</option><option value="failure">실패</option></select></label>
+        <label class="grow">ID / Persona 검색<input id="query" placeholder="case ID, persona ID, crisis label"></label>
+        <button id="search">검색</button><button id="random">무작위</button>
+      </div>
+      <div class="control-row"><label class="grow">사례<select id="caseSelect"></select></label><button id="openCase" class="primary">열기</button></div>
+      <p id="error" class="error hidden"></p>
+    </section>
+
+    <section id="casePanel" class="panel hidden">
+      <div class="title"><div><p class="eyebrow">SELECTED CASE</p><h2 id="caseTitle"></h2></div><div id="caseBadges" class="badges"></div></div>
+      <p class="cost-note">historical: success/failure는 저장된 과거 평가 라벨입니다. 새 Live 응답은 아래에 별도로 표시되며 이 화면에서 자동 재평가되지 않습니다.</p>
+      <div class="case-grid">
+        <article class="card persona-card"><h3>Persona</h3><pre id="persona"></pre></article>
+        <article class="card"><h3>Private GOAL</h3><pre id="goal" class="goal"></pre></article>
+      </div>
+      <details open><summary>Persona history</summary><div id="history" class="timeline"></div></details>
+      <details><summary>모델별 저장 결과</summary><div id="modelResults" class="table-wrap"></div></details>
+      <details><summary>유사 GOAL 질문 풀과 선택 근거</summary><div id="questionPool" class="question-grid"></div></details>
+    </section>
+
+    <section id="builder" class="panel hidden">
+      <div class="title"><h2>02 · 실행 레인 추가</h2><span class="pill">API key 입력 가능</span></div>
+      <div class="builder-grid">
+        <label>알고리즘<select id="protocol"><option value="red_persona_compact">RED-Persona · Compact</option><option value="red_persona_direct_final">RED-Persona · Direct-final-only</option><option value="red_persona_seven_stage">RED-Persona · Seven-stage</option><option value="direct_baseline">Baseline · Direct</option></select></label>
+        <label>분기<select id="branch"><option value="0">0 · latent request synthesis</option><option value="1">1 · evidence chain</option><option value="2">2 · analyst response target</option><option value="3">3 · source-aware reconstruction</option></select></label>
+        <label>Provider<select id="provider"><option value="openai">OpenAI</option><option value="huggingface">Hugging Face Inference</option></select></label>
+        <label>Model<input id="model" value="gpt-4o-2024-11-20"></label>
+      </div>
+      <button id="addLane" class="primary">실행 레인 추가</button>
+    </section>
+
+    <section id="runs" class="hidden">
+      <div class="run-toolbar"><div><h2>03 · 단계별 실행</h2><p>Prompt를 확인한 뒤 선택한 단계만 전송합니다.</p></div><div class="view-buttons"><button id="allView" class="active">여러 레인</button><button id="singleView">한 레인</button><select id="lanePicker"></select></div></div>
+      <div id="lanes" class="lanes"></div>
+    </section>
+  </main>
+
+  <template id="laneTemplate">
+    <article class="panel lane">
+      <div class="lane-head"><div><p class="eyebrow lane-label"></p><h2 class="lane-title"></h2></div><div><button class="focus">한 개만 보기</button><button class="remove">닫기</button></div></div>
+      <div class="credentials"><label>Provider<select class="lane-provider"><option value="openai">OpenAI</option><option value="huggingface">Hugging Face</option></select></label><label>Model<input class="lane-model"></label><label class="grow">API key / HF token<input class="lane-key" type="password" autocomplete="off"></label><label>Max tokens<input class="lane-max" type="number" value="1000"></label></div>
+      <p class="runtime-preset"></p>
+      <div class="cost-preview" aria-live="polite"></div>
+      <div class="lane-actions"><button class="prepare">다음 단계 준비</button><span class="state pill"></span></div>
+      <p class="lane-error error hidden"></p>
+      <div class="pending hidden"><div class="pending-title"><span class="role"></span><h3 class="stage"></h3></div><div class="selection"></div><details open><summary>전체 messages</summary><div class="messages"></div></details><label>마지막 prompt<textarea class="prompt" rows="12"></textarea></label><details><summary>같은 단계의 저장 응답</summary><pre class="reference"></pre></details><button class="send primary">이 단계만 전송</button></div>
+      <div class="steps timeline"></div>
+    </article>
+  </template>
+
+  <dialog id="personaDialog"><div class="dialog-head"><div><p class="eyebrow">PERSONA STAGE</p><h2 id="dialogPersonaTitle"></h2></div><button class="close">닫기</button></div><div class="dialog-grid"><article class="card"><h3>Persona</h3><pre id="dialogPersona"></pre></article><article class="card"><h3>Private GOAL</h3><pre id="dialogGoal" class="goal"></pre></article><article class="card full"><h3>History</h3><div id="dialogHistory" class="timeline"></div></article></div></dialog>
+  <dialog id="progressDialog"><div class="dialog-head"><div><p class="eyebrow">PROGRESS STAGE</p><h2>실행 진행상황</h2></div><button class="close">닫기</button></div><div id="progressCards" class="progress-cards"></div></dialog>
+  <script src="pages.js"></script>
+</body>
+</html>

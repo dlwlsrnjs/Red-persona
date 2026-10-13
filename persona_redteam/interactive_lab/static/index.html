@@ -56,7 +56,10 @@
     <section id="caseInspector" class="panel hidden">
       <div class="section-title">
         <div><span class="step-number">02</span><h2>입력과 선택 근거</h2></div>
-        <div id="caseBadges" class="badges"></div>
+        <div class="section-actions">
+          <button id="openPersonaStage" class="ghost">Persona 크게 보기</button>
+          <div id="caseBadges" class="badges"></div>
+        </div>
       </div>
       <div class="inspector-grid">
         <article class="data-card wide">
@@ -132,6 +135,12 @@
     <section id="lanesSection" class="hidden">
       <div class="section-title standalone">
         <div><span class="step-number">04</span><h2>단계별 실행</h2></div>
+        <div class="view-toolbar" role="group" aria-label="실행 레인 표시 방식">
+          <button id="viewAll" class="view-toggle active">여러 레인 비교</button>
+          <button id="viewSingle" class="view-toggle">한 레인 집중</button>
+          <select id="focusedLane" aria-label="집중해서 볼 실행 레인"></select>
+          <button id="openProgressStage" class="ghost">진행상황 크게 보기</button>
+        </div>
       </div>
       <div id="lanes" class="lanes"></div>
     </section>
@@ -141,7 +150,7 @@
     <article class="lane panel">
       <div class="lane-head">
         <div><p class="eyebrow lane-protocol"></p><h2 class="lane-title"></h2><p class="lane-summary hint"></p></div>
-        <button class="ghost remove-lane">닫기</button>
+        <div class="lane-head-actions"><button class="ghost focus-lane">이 레인만 보기</button><button class="ghost remove-lane">닫기</button></div>
       </div>
       <div class="provider-grid">
         <label>Provider<select class="provider"></select></label>
@@ -150,6 +159,8 @@
         <label>Temperature<input class="temperature" type="number" min="0" max="2" step="0.1" value="0"></label>
         <label>Max tokens<input class="max-tokens" type="number" min="1" max="8192" value="1000"></label>
       </div>
+      <p class="runtime-preset hint"></p>
+      <div class="cost-preview" aria-live="polite"></div>
       <div class="lane-actions">
         <button class="prepare secondary">다음 단계 준비</button>
         <span class="lane-state pill"></span>
@@ -167,6 +178,20 @@
       <div class="live-timeline timeline"></div>
     </article>
   </template>
+
+  <dialog id="personaStage" class="stage-dialog">
+    <div class="dialog-head"><div><p class="eyebrow">PERSONA STAGE</p><h2 id="stagePersonaTitle">선택된 Persona</h2></div><button class="ghost close-dialog">닫기</button></div>
+    <div class="stage-grid">
+      <article class="stage-card stage-persona"><h3>Persona</h3><pre id="stagePersonaText"></pre></article>
+      <article class="stage-card"><h3>Private GOAL</h3><pre id="stageGoalText" class="sensitive"></pre></article>
+      <article class="stage-card full"><h3>Longitudinal history</h3><div id="stageHistory" class="timeline"></div></article>
+    </div>
+  </dialog>
+
+  <dialog id="progressStage" class="stage-dialog progress-stage">
+    <div class="dialog-head"><div><p class="eyebrow">RUN PROGRESS STAGE</p><h2>모델·알고리즘 진행상황</h2></div><button class="ghost close-dialog">닫기</button></div>
+    <div id="progressOverview" class="progress-overview"></div>
+  </dialog>
 
   <script src="/app.js"></script>
 </body>

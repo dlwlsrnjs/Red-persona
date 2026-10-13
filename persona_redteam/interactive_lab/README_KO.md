@@ -18,6 +18,48 @@ prompt만 만들고, `이 단계만 모델에 전송`을 눌렀을 때만 한 �
 - 여러 실행 레인을 열어 모델 또는 알고리즘을 나란히 비교
 - 저장된 모델별 실행 선택: Compact의 GPT-4o, Qwen2.5-7B, Mistral, Gemma,
   Phi-4, Llama 계열과 GPT 계열 및 Direct-final/Seven-stage의 GPT-4oㆍQwen
+- `여러 레인 비교`와 `한 레인 집중` 표시 전환
+- personaㆍlongitudinal history와 전체 레인 진행상황의 전체화면 stage
+
+## GitHub Pages 무료 호스팅
+
+브라우저 단독 실행본은 `docs/interactive-lab/`에 있으며 GitHub Actions가 다음 주소로 배포한다.
+
+<https://dlwlsrnjs.github.io/Red-persona/>
+
+첫 화면은 기능을 명확히 나눈다.
+
+- `viewer.html`: 공개 Final-197 snapshot 전용. API 키 필드와 외부 전송 코드가 없는 read-only viewer
+- `live.html`: OpenAI/Hugging Face에 단계별로 직접 요청하는 online real-time lab
+- 로컬 Python 앱: 같은 실시간 기능을 localhost 서버가 중계하는 개발ㆍ검사 버전
+
+Pages 화면에서도 실행 레인마다 OpenAI API key 또는 Hugging Face token을 입력할 수 있고,
+prompt를 확인한 뒤 `이 단계만 전송`을 눌러 호출한다. 정적 페이지이므로 요청은 브라우저에서
+선택한 provider endpoint로 직접 전송된다. 키는 Pages 데이터나 저장소에 기록하지 않는다.
+각 레인은 저장된 197-case 실행의 실제 token usage로 호출 1회, 한 분기와 4분기 전체의
+평균 사용량을 먼저 표시한다. GPT-4o는 날짜와 출처가 표시된 공개 단가로 달러 추정치도
+계산하며, 전송 직전 확인 대화상자에서 승인해야 실제 요청이 나간다.
+197개 persona/history와 저장된 모델별 점수는 `export_pages_snapshot.py`로 내보낸 정적
+snapshot에서 읽는다.
+
+snapshot 갱신:
+
+```bash
+python -m persona_redteam.interactive_lab.export_pages_snapshot
+```
+
+### 과거 본실험 generation preset
+
+Live Lab은 단순한 화면 기본값이 아니라 등록된 Final-197 target generation 계약을 단계별로
+복원한다. GPT-4o 본실험의 모델 식별자는 `gpt-4o-2024-11-20`이고 temperature는 0이다.
+`top_p`와 seed는 요청에 넣지 않아 provider 기본값을 사용했다. 출력 상한은 초기 분석 650,
+seven-stage의 중간 분석 900, focused readoutㆍfinal queryㆍdirect-final 1200 tokens다. 화면은
+단계 준비 시 이 값을 자동으로 적용하고 실제 전송 전 표시한다. 사용자가 값을 바꾸면 재현
+preset에서 벗어난 새 실행이다.
+
+과거 저장 응답을 그대로 재생하는 경우에는 같은 branch의 `bridge_record` exact quote와
+등록된 attack-style suffix를 사용한다. 새 응답에는 저장 quote가 실제 substring으로 존재할
+때만 이를 사용하고, 그렇지 않으면 새 응답 안에서 exact quote를 다시 선택한다.
 
 ## 실행
 

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Read-only viewer for the public RED-Persona Final-197 snapshot">
+  <title>RED-Persona · Dataset Viewer</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <header class="hero">
+    <div><p class="eyebrow">READ ONLY · PUBLIC SNAPSHOT</p><h1>RED-Persona <span>Dataset Viewer</span></h1><p>외부 요청이나 API 키 없이 197개 사례와 저장 결과를 탐색합니다.</p></div>
+    <div class="hero-actions"><a class="button-link" href="live.html">Live Lab</a><a class="button-link" href="index.html">처음으로</a><button id="personaStageButton">Persona 크게</button></div>
+  </header>
+  <main>
+    <section class="panel picker">
+      <div class="title"><h2>공개 사례 선택</h2><span id="caseCount" class="pill">loading</span></div>
+      <div class="control-row">
+        <label>과거 결과<select id="outcome"><option value="all">전체</option><option value="success">성공</option><option value="failure">실패</option></select></label>
+        <label class="grow">ID / Persona / 범주 검색<input id="query" placeholder="case ID, persona ID, crisis label"></label>
+        <button id="search">검색</button><button id="random">무작위</button>
+      </div>
+      <div class="control-row"><label class="grow">사례<select id="caseSelect"></select></label><button id="openCase" class="primary">열기</button></div>
+      <p id="error" class="error hidden"></p>
+    </section>
+    <section id="casePanel" class="panel hidden">
+      <div class="title"><div><p class="eyebrow">SELECTED PUBLIC CASE</p><h2 id="caseTitle"></h2></div><div id="caseBadges" class="badges"></div></div>
+      <div class="case-grid">
+        <article class="card persona-card"><h3>Persona</h3><pre id="persona"></pre></article>
+        <article class="card"><h3>Private GOAL</h3><pre id="goal" class="goal"></pre></article>
+      </div>
+      <details open><summary>Persona history</summary><div id="history" class="timeline"></div></details>
+      <details open><summary>모델별 저장 결과</summary><div id="modelResults" class="table-wrap"></div></details>
+      <details><summary>유사 GOAL 질문 풀</summary><div id="questionPool" class="question-grid"></div></details>
+      <details><summary>프로토콜별 저장 prompt와 응답</summary><div id="protocolRecords" class="question-grid"></div></details>
+    </section>
+  </main>
+  <dialog id="personaDialog"><div class="dialog-head"><div><p class="eyebrow">PERSONA STAGE</p><h2 id="dialogPersonaTitle"></h2></div><button class="close">닫기</button></div><div class="dialog-grid"><article class="card"><h3>Persona</h3><pre id="dialogPersona"></pre></article><article class="card"><h3>Private GOAL</h3><pre id="dialogGoal" class="goal"></pre></article><article class="card full"><h3>History</h3><div id="dialogHistory" class="timeline"></div></article></div></dialog>
+  <script src="viewer.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import random
+import statistics
 from typing import Any, Iterable
 
 
@@ -26,6 +27,23 @@ EVALUATION_ROOTS = tuple(dict.fromkeys(Path(value).expanduser() for value in (
     str(ROOT / "persona_redteam/data/evaluations"),
     "/home/ljk98/mental-jail/Red-persona-final/persona_redteam/data/evaluations",
 ) if value))
+
+
+# Display-only estimate used by the manual workbench.  The source and date are
+# deliberately exported with the rates so the UI never presents this as a
+# provider invoice or a permanent price.
+PRICING_ESTIMATE = {
+    "as_of": "2026-10-14",
+    "currency": "USD",
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "models": {
+        "gpt-4o": {
+            "input_per_million": 4.25,
+            "cached_input_per_million": 2.125,
+            "output_per_million": 17.00,
+        },
+    },
+}
 
 
 # These are experiment contracts, not copies of the experiment data.  Every
@@ -191,6 +209,90 @@ def _history_key(enabled: bool) -> str:
     return "with_history" if enabled else "no_history"
 
 
+def _usage(response: Any) -> dict[str, int] | None:
+    if not isinstance(response, dict):
+        return None
+    value = response.get("usage")
+    if not isinstance(value, dict):
+        return None
+    prompt = int(value.get("prompt_tokens") or 0)
+    completion = int(value.get("completion_tokens") or 0)
+    cached = int((value.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+    if prompt <= 0 and completion <= 0:
+        return None
+    return {
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "cached_prompt_tokens": min(prompt, cached),
+        "calls": 1,
+    }
+
+
+def _sum_usage(rows: Iterable[dict[str, int] | None]) -> dict[str, int]:
+    result = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cached_prompt_tokens": 0,
+        "calls": 0,
+    }
+    for row in rows:
+        if row:
+            for key in result:
+                result[key] += int(row.get(key, 0))
+    return result
+
+
+def _first_usage(value: dict[str, Any], *keys: str) -> dict[str, int] | None:
+    for key in keys:
+        row = _usage(value.get(key))
+        if row:
+            return row
+    return None
+
+
+def _percentile(values: list[int], fraction: float) -> int:
+    if not values:
+        return 0
+    ordered = sorted(values)
+    return ordered[round((len(ordered) - 1) * fraction)]
+
+
+def _usage_summary(
+    rows: list[dict[str, int]], pricing: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    if not rows:
+        return {"observations": 0}
+    totals = [row["prompt_tokens"] + row["completion_tokens"] for row in rows]
+    result: dict[str, Any] = {
+        "observations": len(rows),
+        "mean_calls": round(statistics.fmean(row["calls"] for row in rows), 2),
+        "mean_prompt_tokens": round(statistics.fmean(row["prompt_tokens"] for row in rows)),
+        "mean_completion_tokens": round(statistics.fmean(row["completion_tokens"] for row in rows)),
+        "mean_cached_prompt_tokens": round(statistics.fmean(row["cached_prompt_tokens"] for row in rows)),
+        "mean_total_tokens": round(statistics.fmean(totals)),
+        "median_total_tokens": round(statistics.median(totals)),
+        "p95_total_tokens": _percentile(totals, 0.95),
+    }
+    if pricing:
+        costs = []
+        for row in rows:
+            cached = row["cached_prompt_tokens"]
+            uncached = max(0, row["prompt_tokens"] - cached)
+            costs.append(
+                uncached * pricing["input_per_million"] / 1_000_000
+                + cached * pricing["cached_input_per_million"] / 1_000_000
+                + row["completion_tokens"] * pricing["output_per_million"] / 1_000_000
+            )
+        result.update({
+            "mean_estimated_usd": round(statistics.fmean(costs), 6),
+            "median_estimated_usd": round(statistics.median(costs), 6),
+            "p95_estimated_usd": round(
+                sorted(costs)[round((len(costs) - 1) * 0.95)], 6
+            ),
+        })
+    return result
+
+
 class Catalog:
     """Index local experiment artifacts without changing them."""
 
@@ -256,6 +358,63 @@ class Catalog:
             }
             for run_id, run in self.runs.items()
         }
+
+    @lru_cache(maxsize=1)
+    def usage_estimates(self) -> dict[str, dict[str, Any]]:
+        """Summarize actual historical token usage without counting aliases twice."""
+        estimates: dict[str, dict[str, Any]] = {}
+        for run_id, run in self.runs.items():
+            model = str(run.get("target_model", ""))
+            pricing = PRICING_ESTIMATE["models"].get(model.casefold())
+            histories: dict[str, Any] = {}
+            for history, artifacts in run["artifacts_by_history"].items():
+                calls: list[dict[str, int]] = []
+                one_branch: list[dict[str, int]] = []
+                all_branches: list[dict[str, int]] = []
+                for artifact in artifacts.values():
+                    result = (artifact.get("results") or [{}])[0]
+                    shared_rows = [
+                        row for row in (
+                            _usage(turn.get("target"))
+                            for turn in result.get("turns", [])
+                        ) if row
+                    ]
+                    branch_rows: list[list[dict[str, int]]] = []
+                    for branch in result.get("final_branches", []):
+                        if run["protocol"] == "red_persona_direct_final":
+                            row = _first_usage(
+                                branch, "direct_final_response", "attack_response",
+                                "recovery_response", "target",
+                            )
+                            rows = [row] if row else []
+                        else:
+                            recovery = _first_usage(branch, "recovery_response", "target")
+                            final = _first_usage(
+                                branch, "attack_response", "direct_final_response"
+                            )
+                            rows = [row for row in (recovery, final) if row]
+                        branch_rows.append(rows)
+                    calls.extend(shared_rows)
+                    calls.extend(row for rows in branch_rows for row in rows)
+                    for rows in branch_rows:
+                        one_branch.append(_sum_usage([*shared_rows, *rows]))
+                    all_branches.append(_sum_usage([
+                        *shared_rows, *(row for rows in branch_rows for row in rows)
+                    ]))
+                histories[history] = {
+                    "cases": len(artifacts),
+                    "per_call": _usage_summary(calls, pricing),
+                    "one_sample_one_branch": _usage_summary(one_branch, pricing),
+                    "one_sample_all_branches": _usage_summary(all_branches, pricing),
+                }
+            estimates[run_id] = {
+                "label": run["label"],
+                "protocol": run["protocol"],
+                "target_model": model,
+                "pricing_available": pricing is not None,
+                "histories": histories,
+            }
+        return estimates
 
     def default_run(self, protocol: str, history_enabled: bool = True) -> str | None:
         history = _history_key(history_enabled)

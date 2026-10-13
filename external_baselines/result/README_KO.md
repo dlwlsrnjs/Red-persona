@@ -5,6 +5,12 @@
 완료된 외부 baseline 21개 셀의 내용, 전체 표, 설정, 해석, CSV/JSON, provenance와 재생성
 코드를 한 폴더에 정리했다.
 
+기존 18개 외부 baseline 셀의 최종 응답을 GPT-4o로 다시 판정한 별도 결과는
+[`final197_gpt4o_evaluator_v1/README_KO.md`](final197_gpt4o_evaluator_v1/README_KO.md)에
+있다. 이 패키지는 GPT-4o-mini R/B 및 CARES 판정을 GPT-4o로 대체 비교한 3,546행 결과,
+strict-joint와 18개 셀 통합 JSON/CSV를 포함하며, 추가 PCSA 3개 셀은 범위에 포함하지
+않는다.
+
 호출 상한이 기존 4--6회였던 반복형 공격을 최대 16 target query로 다시 실행한
 민감도 분석은
 [`final197_query16_matched_v1/README_KO.md`](final197_query16_matched_v1/README_KO.md)에

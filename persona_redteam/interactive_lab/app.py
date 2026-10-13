@@ -106,6 +106,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "version": __version__,
                     "protocols": PROTOCOLS,
                     "providers": PROVIDERS,
+                    "historical_runs": self.state.catalog.public_runs(),
                     "security": {
                         "api_keys_stored": False,
                         "api_keys_logged": False,
@@ -120,6 +121,7 @@ class Handler(SimpleHTTPRequestHandler):
                     outcome=query.get("outcome", ["all"])[0],
                     query=query.get("q", [""])[0],
                     history_enabled=history,
+                    run_id=query.get("run", [None])[0],
                 )
                 self._json({"count": len(rows), "cases": rows})
                 return
@@ -128,13 +130,18 @@ class Handler(SimpleHTTPRequestHandler):
                 row = self.state.catalog.random_case(
                     outcome=query.get("outcome", ["all"])[0],
                     history_enabled=history,
+                    run_id=query.get("run", [None])[0],
                 )
                 self._json(row)
                 return
             if path.startswith("/api/cases/"):
                 case_id = unquote(path.split("/", 3)[3])
                 history = _bool(query.get("history", ["1"])[0], True)
-                self._json(self.state.catalog.get_case(case_id, history_enabled=history))
+                self._json(self.state.catalog.get_case(
+                    case_id,
+                    history_enabled=history,
+                    run_id=query.get("run", [None])[0],
+                ))
                 return
             if path == "/api/personas":
                 rows = self.state.catalog.search_persona_pool(

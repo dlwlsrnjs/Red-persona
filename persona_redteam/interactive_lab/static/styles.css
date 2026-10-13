@@ -80,7 +80,7 @@ th { color: var(--mint); }
 .question-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
 .question-card { border: 1px solid var(--line); border-radius: 11px; padding: 13px; background: #0a1612; }
 .question-card strong { color: var(--amber); }
-.builder-grid { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; }
+.builder-grid { display: grid; grid-template-columns: 1.8fr 1.8fr 1.2fr 1.4fr; }
 .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 600px), 1fr)); gap: 18px; align-items: start; }
 .lane { margin: 0; }
 .lane-head { align-items: flex-start; }

@@ -5,6 +5,32 @@ let config = null;
 let currentCase = null;
 const lanes = new Map();
 
+function historyMode() {
+  return $("#historyEnabled").checked ? "with_history" : "no_history";
+}
+
+function runOptions(protocol) {
+  return Object.entries(config.historical_runs || {}).filter(([, run]) =>
+    run.protocol === protocol && run.history_modes.includes(historyMode())
+  );
+}
+
+function populateRunSelect(select, protocol, allowNone = false) {
+  const previous = select.value;
+  select.replaceChildren();
+  if (allowNone) {
+    const option = el("option"); option.value = ""; option.textContent = "저장 실행 없음 / 새 실시간 실행";
+    select.append(option);
+  }
+  for (const [runId, run] of runOptions(protocol)) {
+    const option = el("option"); option.value = runId;
+    const count = run.artifact_counts[historyMode()] || 0;
+    option.textContent = `${run.label} · ${count} cases`;
+    if (runId === previous) option.selected = true;
+    select.append(option);
+  }
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: {"Content-Type": "application/json", ...(options.headers || {})},
@@ -44,8 +70,9 @@ async function loadCases() {
   const outcome = $("#outcome").value;
   const q = encodeURIComponent($("#caseQuery").value.trim());
   const history = $("#historyEnabled").checked ? "1" : "0";
+  const run = encodeURIComponent($("#caseRun").value);
   try {
-    const value = await api(`/api/cases?outcome=${outcome}&q=${q}&history=${history}`);
+    const value = await api(`/api/cases?outcome=${outcome}&q=${q}&history=${history}&run=${run}`);
     const select = $("#caseSelect");
     select.replaceChildren();
     for (const row of value.cases) {
@@ -62,8 +89,9 @@ async function randomCase() {
   clearError($("#globalError"));
   const outcome = $("#outcome").value;
   const history = $("#historyEnabled").checked ? "1" : "0";
+  const run = encodeURIComponent($("#caseRun").value);
   try {
-    const row = await api(`/api/cases/random?outcome=${outcome}&history=${history}`);
+    const row = await api(`/api/cases/random?outcome=${outcome}&history=${history}&run=${run}`);
     if (![...$("#caseSelect").options].some(o => o.value === row.case_id)) await loadCases();
     $("#caseSelect").value = row.case_id;
     await loadCase();
@@ -105,6 +133,7 @@ function renderCase(value) {
   const badgeRoot = $("#caseBadges"); badgeRoot.replaceChildren();
   badgeRoot.append(el("span", value.historical_score.status, value.historical_score.status));
   badgeRoot.append(el("span", "", value.case_id));
+  badgeRoot.append(el("span", "", value.historical_run_label || value.historical_run));
   badgeRoot.append(el("span", "", $("#historyEnabled").checked ? "history" : "no history"));
   renderScores(value.historical_score);
 
@@ -147,7 +176,8 @@ async function loadCase() {
   const caseId = $("#caseSelect").value;
   if (!caseId) return;
   const history = $("#historyEnabled").checked ? "1" : "0";
-  try { renderCase(await api(`/api/cases/${encodeURIComponent(caseId)}?history=${history}`)); }
+  const run = encodeURIComponent($("#caseRun").value);
+  try { renderCase(await api(`/api/cases/${encodeURIComponent(caseId)}?history=${history}&run=${run}`)); }
   catch (error) { showError($("#globalError"), error); }
 }
 
@@ -188,6 +218,7 @@ async function addLane() {
       history_enabled: $("#historyEnabled").checked,
       custom_goal: $("#customGoal").value,
       pcsa_strategy: $("#pcsaStrategy").value,
+      historical_run: $("#historicalRun").value,
     })});
     createLane(session);
   } catch (error) { showError($("#globalError"), error); }
@@ -197,7 +228,9 @@ function createLane(session) {
   $("#lanesSection").classList.remove("hidden");
   const node = $("#laneTemplate").content.firstElementChild.cloneNode(true);
   node.dataset.sessionId = session.id;
-  $(".lane-protocol", node).textContent = session.protocol_metadata.fidelity;
+  const historical = (config.historical_runs || {})[session.historical_run];
+  $(".lane-protocol", node).textContent = session.protocol_metadata.fidelity +
+    (historical ? ` · 저장 참조: ${historical.label}` : "");
   $(".lane-title", node).textContent = session.protocol_metadata.label;
   $(".lane-summary", node).textContent = session.protocol_metadata.summary;
   $(".lane-state", node).textContent = "ready";
@@ -318,11 +351,23 @@ async function sendLane(node) {
 async function init() {
   config = await api("/api/config");
   populateSelect($("#protocol"), config.protocols, "red_persona_compact");
+  populateRunSelect($("#caseRun"), "red_persona_compact");
+  populateRunSelect($("#historicalRun"), $("#protocol").value);
   await loadCases();
   $("#searchCases").addEventListener("click", loadCases);
   $("#randomCase").addEventListener("click", randomCase);
   $("#loadCase").addEventListener("click", loadCase);
-  $("#historyEnabled").addEventListener("change", loadCases);
+  $("#historyEnabled").addEventListener("change", async () => {
+    populateRunSelect($("#caseRun"), "red_persona_compact");
+    populateRunSelect($("#historicalRun"), $("#protocol").value,
+      !$("#protocol").value.startsWith("red_persona_"));
+    await loadCases();
+  });
+  $("#caseRun").addEventListener("change", loadCases);
+  $("#protocol").addEventListener("change", () => {
+    populateRunSelect($("#historicalRun"), $("#protocol").value,
+      !$("#protocol").value.startsWith("red_persona_"));
+  });
   $("#searchPersonas").addEventListener("click", searchPersonaPool);
   $("#addLane").addEventListener("click", addLane);
   $$(".copy").forEach(button => button.addEventListener("click", async () => {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 import json
+import os
 from pathlib import Path
 import random
 from typing import Any, Iterable
@@ -12,23 +13,126 @@ PERSONA_DATA = (
     ROOT / "persona_redteam/our_method/data/"
     "FINAL197_PERSONAS_WITH_HISTORY_NO_VERBATIM_GOAL.json"
 )
-COMPACT_ROOT = (
-    ROOT / "persona_redteam/result/OURS/"
-    "final197_no_research_pair_gpt4o_v2/gpt4o"
-)
-DIRECT_FINAL_ROOT = (
-    ROOT / "persona_redteam/result/OURS/"
-    "final197_direct_final_only_gpt4o_v1/gpt4o"
-)
-SEVEN_STAGE_ROOT = (
-    ROOT / "persona_redteam/result/OURS/"
-    "final197_gpt4o_qwen_three_arm_v1/gpt4o"
-)
 PERSONA_POOL = ROOT / "data/personas/personas.jsonl"
+
+RESULT_ROOTS = tuple(dict.fromkeys(Path(value).expanduser() for value in (
+    os.environ.get("RED_PERSONA_RESULTS_ROOT", ""),
+    str(ROOT / "persona_redteam/result/OURS"),
+    "/home/ljk98/mental-jail/Red-persona-final/persona_redteam/result/OURS",
+    "/data1/users/ljk98/runtime_cache/persona_redteam_final197/results",
+) if value))
+EVALUATION_ROOTS = tuple(dict.fromkeys(Path(value).expanduser() for value in (
+    os.environ.get("RED_PERSONA_EVALUATIONS_ROOT", ""),
+    str(ROOT / "persona_redteam/data/evaluations"),
+    "/home/ljk98/mental-jail/Red-persona-final/persona_redteam/data/evaluations",
+) if value))
+
+
+# These are experiment contracts, not copies of the experiment data.  Every
+# relative path is resolved against the existing repository/runtime roots.
+RUN_SPECS: dict[str, dict[str, Any]] = {
+    "compact_gpt4o": {
+        "label": "Compact · GPT-4o", "protocol": "red_persona_compact",
+        "target_model": "gpt-4o",
+        "artifacts": {
+            "with_history": "final197_no_research_pair_gpt4o_v2/gpt4o/with_history/merged",
+            "no_history": "final197_no_research_pair_gpt4o_v2/gpt4o/no_history/merged",
+        },
+        "scores": {
+            "with_history": "final197_no_research_pair_gpt4o_v2/gpt4o/with_history/scoring/harmbench.json",
+            "no_history": "final197_no_research_pair_gpt4o_v2/gpt4o/no_history/scoring/harmbench.json",
+        },
+    },
+    "compact_qwen2_5_7b": {
+        "label": "Compact · Qwen2.5-7B", "protocol": "red_persona_compact",
+        "target_model": "Qwen2.5-7B-Instruct",
+        "artifacts": {
+            "with_history": "final197_single_readout_qwen_v2/qwen2_5_7b/with_history/merged",
+            "no_history": "final197_single_readout_qwen_v2/qwen2_5_7b/no_history/merged",
+        },
+        "scores": {
+            "with_history": "final197_single_readout_qwen_v2/qwen2_5_7b/with_history/scoring/harmbench.json",
+            "no_history": "final197_single_readout_qwen_v2/qwen2_5_7b/no_history/scoring/harmbench.json",
+        },
+    },
+    "direct_final_gpt4o": {
+        "label": "Direct-final-only · GPT-4o", "protocol": "red_persona_direct_final",
+        "target_model": "gpt-4o",
+        "artifacts": {
+            "with_history": "final197_direct_final_only_gpt4o_v1/gpt4o/with_history/merged",
+            "no_history": "final197_direct_final_only_gpt4o_v1/gpt4o/no_history/merged",
+        },
+        "scores": {
+            "with_history": "final197_direct_final_only_gpt4o_v1/gpt4o/with_history/scoring/harmbench.json",
+            "no_history": "final197_direct_final_only_gpt4o_v1/gpt4o/no_history/scoring/harmbench.json",
+        },
+    },
+    "direct_final_qwen2_5_7b": {
+        "label": "Direct-final-only · Qwen2.5-7B", "protocol": "red_persona_direct_final",
+        "target_model": "Qwen2.5-7B-Instruct",
+        "artifacts": {
+            "with_history": "final197_direct_final_only_qwen_v1/qwen2_5_7b/with_history/merged",
+            "no_history": "final197_direct_final_only_qwen_v1/qwen2_5_7b/no_history/merged",
+        },
+    },
+    "seven_stage_gpt4o": {
+        "label": "Seven-stage · GPT-4o", "protocol": "red_persona_seven_stage",
+        "target_model": "gpt-4o",
+        "artifacts": {
+            "with_history": "final197_gpt4o_qwen_three_arm_v1/gpt4o/no_verbatim/merged",
+            "no_history": "final197_gpt4o_qwen_three_arm_v1/gpt4o/no_history/merged",
+        },
+        "scores": {
+            "with_history": "final197_gpt4o_qwen_three_arm_v1/gpt4o/no_verbatim/scoring/harmbench.json",
+            "no_history": "final197_gpt4o_qwen_three_arm_v1/gpt4o/no_history/scoring/harmbench.json",
+        },
+    },
+    "seven_stage_qwen2_5_7b": {
+        "label": "Seven-stage · Qwen2.5-7B", "protocol": "red_persona_seven_stage",
+        "target_model": "Qwen2.5-7B-Instruct",
+        "artifacts": {
+            "with_history": "final197_gpt4o_qwen_three_arm_v1/qwen2_5_7b/no_verbatim/merged",
+            "no_history": "final197_gpt4o_qwen_three_arm_v1/qwen2_5_7b/no_history/merged",
+        },
+        "scores": {
+            "with_history": "final197_gpt4o_qwen_three_arm_v1/qwen2_5_7b/no_verbatim/scoring/harmbench.json",
+            "no_history": "final197_gpt4o_qwen_three_arm_v1/qwen2_5_7b/no_history/scoring/harmbench.json",
+        },
+    },
+}
+
+for model_id, label in {
+    "mistral_small_3_2_24b": "Mistral Small 3.2 24B",
+    "gemma4_26b_a4b_it": "Gemma 4 26B-A4B",
+    "phi4": "Phi-4",
+    "llama3_1_8b_instruct": "Llama 3.1 8B Instruct",
+    "llama3_g2c": "Llama3-G2C",
+    "gpt5_4_mini": "GPT-5.4-mini",
+    "gpt6_luna": "GPT-6-luna",
+}.items():
+    RUN_SPECS[f"compact_{model_id}"] = {
+        "label": f"Compact · {label}",
+        "protocol": "red_persona_compact",
+        "target_model": label,
+        "artifacts": {
+            "with_history": f"final197_best_short_cross_model_v1/{model_id}/cases_0_197/merged",
+        },
+        "scores": {
+            "with_history": f"final197_best_short_cross_model_v1/{model_id}/cases_0_197/scoring/harmbench.json",
+        },
+    }
 
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _resolve_existing(relative: str, roots: tuple[Path, ...]) -> Path | None:
+    for root in roots:
+        candidate = root / relative
+        if candidate.exists():
+            return candidate.resolve()
+    return None
 
 
 def _case_files(directory: Path) -> Iterable[Path]:
@@ -53,13 +157,8 @@ def _merged_map(directory: Path) -> dict[str, dict[str, Any]]:
     return rows
 
 
-def _score_map(history: str) -> dict[str, dict[str, Any]]:
-    score_path = (
-        ROOT / "persona_redteam/data/evaluations/"
-        "final197_no_research_pair_gpt4o_v2/gpt4o" / history /
-        "scoring/harmbench.json"
-    )
-    if not score_path.exists():
+def _score_map(score_path: Path | None) -> dict[str, dict[str, Any]]:
+    if score_path is None or not score_path.exists():
         return {}
     value = _read_json(score_path)
     grouped: dict[str, list[dict[str, Any]]] = {}
@@ -98,40 +197,118 @@ class Catalog:
     def __init__(self) -> None:
         base_rows = _read_json(PERSONA_DATA)
         self.base = {str(row["case_id"]): row for row in base_rows}
-        self.compact = {
-            key: _merged_map(COMPACT_ROOT / key / "merged")
-            for key in ("with_history", "no_history")
+        self.runs: dict[str, dict[str, Any]] = {}
+        for run_id, spec in RUN_SPECS.items():
+            artifacts: dict[str, dict[str, dict[str, Any]]] = {}
+            scores: dict[str, dict[str, dict[str, Any]]] = {}
+            locations: dict[str, str] = {}
+            for history, relative in spec.get("artifacts", {}).items():
+                path = _resolve_existing(relative, RESULT_ROOTS)
+                if path is not None:
+                    artifacts[history] = _merged_map(path)
+                    locations[f"artifacts:{history}"] = str(path)
+            for history, relative in spec.get("scores", {}).items():
+                path = _resolve_existing(relative, EVALUATION_ROOTS)
+                if path is not None:
+                    scores[history] = _score_map(path)
+                    locations[f"scores:{history}"] = str(path)
+            if artifacts:
+                self.runs[run_id] = {
+                    **spec,
+                    "artifacts_by_history": artifacts,
+                    "scores_by_history": scores,
+                    "locations": locations,
+                }
+
+        # Backward-compatible aliases used by the protocol state machine and
+        # existing tests. The dashboard itself can select any discovered run.
+        self.compact = self._run_artifacts("compact_gpt4o")
+        self.direct_final = self._run_artifacts("direct_final_gpt4o")
+        self.seven_stage = self._run_artifacts("seven_stage_gpt4o")
+        self.scores = self._run_scores("compact_gpt4o")
+
+    def _run_artifacts(self, run_id: str) -> dict[str, dict[str, dict[str, Any]]]:
+        run = self.runs.get(run_id, {})
+        values = run.get("artifacts_by_history", {})
+        return {key: values.get(key, {}) for key in ("with_history", "no_history")}
+
+    def _run_scores(self, run_id: str) -> dict[str, dict[str, dict[str, Any]]]:
+        run = self.runs.get(run_id, {})
+        values = run.get("scores_by_history", {})
+        return {key: values.get(key, {}) for key in ("with_history", "no_history")}
+
+    def public_runs(self) -> dict[str, dict[str, Any]]:
+        return {
+            run_id: {
+                "label": run["label"],
+                "protocol": run["protocol"],
+                "target_model": run["target_model"],
+                "history_modes": sorted(run["artifacts_by_history"]),
+                "artifact_counts": {
+                    history: len(rows)
+                    for history, rows in run["artifacts_by_history"].items()
+                },
+                "score_counts": {
+                    history: len(rows)
+                    for history, rows in run["scores_by_history"].items()
+                },
+                "locations": run["locations"],
+            }
+            for run_id, run in self.runs.items()
         }
-        self.direct_final = {
-            key: _merged_map(DIRECT_FINAL_ROOT / key / "merged")
-            for key in ("with_history", "no_history")
-        }
-        # The earlier complete seven-stage run calls the latent-history arm
-        # `no_verbatim`; its actual no-history arm is named `no_history`.
-        self.seven_stage = {
-            "with_history": _merged_map(SEVEN_STAGE_ROOT / "no_verbatim" / "merged"),
-            "no_history": _merged_map(SEVEN_STAGE_ROOT / "no_history" / "merged"),
-        }
-        self.scores = {
-            key: _score_map(key) for key in ("with_history", "no_history")
-        }
+
+    def default_run(self, protocol: str, history_enabled: bool = True) -> str | None:
+        history = _history_key(history_enabled)
+        preferred = {
+            "red_persona_compact": "compact_gpt4o",
+            "red_persona_direct_final": "direct_final_gpt4o",
+            "red_persona_seven_stage": "seven_stage_gpt4o",
+        }.get(protocol)
+        if preferred in self.runs and history in self.runs[preferred]["artifacts_by_history"]:
+            return preferred
+        return next((
+            run_id for run_id, run in self.runs.items()
+            if run["protocol"] == protocol and history in run["artifacts_by_history"]
+        ), None)
+
+    def _resolve_run(
+        self, run_id: str | None, protocol: str, history_enabled: bool
+    ) -> tuple[str | None, dict[str, Any] | None]:
+        selected = run_id or self.default_run(protocol, history_enabled)
+        if selected is None:
+            return None, None
+        run = self.runs.get(selected)
+        if run is None:
+            raise KeyError(f"unknown historical run: {selected}")
+        if run["protocol"] != protocol:
+            raise ValueError(
+                f"historical run {selected} belongs to {run['protocol']}, not {protocol}"
+            )
+        return selected, run
 
     def ids(self) -> list[str]:
         return sorted(self.base)
 
     def list_cases(
-        self, *, outcome: str = "all", query: str = "", history_enabled: bool = True
+        self, *, outcome: str = "all", query: str = "", history_enabled: bool = True,
+        run_id: str | None = None,
     ) -> list[dict[str, Any]]:
         key = _history_key(history_enabled)
+        selected, run = self._resolve_run(
+            run_id, "red_persona_compact", history_enabled
+        )
+        artifacts = run.get("artifacts_by_history", {}).get(key, {}) if run else {}
+        scores = run.get("scores_by_history", {}).get(key, {}) if run else {}
         needle = query.casefold().strip()
         rows: list[dict[str, Any]] = []
         for case_id in self.ids():
-            artifact = self.compact[key].get(case_id, {})
+            artifact = artifacts.get(case_id, {})
             case = artifact.get("case", {})
-            score = self.scores[key].get(case_id, {"status": "unscored"})
+            score = scores.get(case_id, {"status": "unscored"})
             row = {
                 "case_id": case_id,
                 "outcome": score["status"],
+                "historical_run": selected,
                 "crisis_label": case.get("crisis_label") or self.base[case_id].get("crisis_label"),
                 "source_dataset": self.base[case_id].get("source_dataset"),
                 "persona_id": self.base[case_id].get("persona_id"),
@@ -146,22 +323,35 @@ class Catalog:
         return rows
 
     def random_case(
-        self, *, outcome: str = "all", history_enabled: bool = True
+        self, *, outcome: str = "all", history_enabled: bool = True,
+        run_id: str | None = None,
     ) -> dict[str, Any]:
-        rows = self.list_cases(outcome=outcome, history_enabled=history_enabled)
+        rows = self.list_cases(
+            outcome=outcome, history_enabled=history_enabled, run_id=run_id
+        )
         if not rows:
             raise KeyError(f"no cases match outcome={outcome}")
         return random.SystemRandom().choice(rows)
 
-    def _artifact(self, case_id: str, history_enabled: bool) -> dict[str, Any]:
+    def _artifact(
+        self, case_id: str, history_enabled: bool, run_id: str | None = None
+    ) -> tuple[str, dict[str, Any], dict[str, Any]]:
         key = _history_key(history_enabled)
-        artifact = self.compact[key].get(case_id)
+        selected, run = self._resolve_run(
+            run_id, "red_persona_compact", history_enabled
+        )
+        if selected is None or run is None:
+            raise KeyError("no compact historical run is available")
+        artifact = run.get("artifacts_by_history", {}).get(key, {}).get(case_id)
         if not artifact:
             raise KeyError(case_id)
-        return artifact
+        return selected, run, artifact
 
-    def get_case(self, case_id: str, *, history_enabled: bool = True) -> dict[str, Any]:
-        artifact = self._artifact(case_id, history_enabled)
+    def get_case(
+        self, case_id: str, *, history_enabled: bool = True,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        selected, run, artifact = self._artifact(case_id, history_enabled, run_id)
         case = artifact["case"]
         result = artifact["results"][0]
         generation = case.get("persona_history_generation", {})
@@ -183,6 +373,9 @@ class Catalog:
         branches = result.get("final_branches", [])
         return {
             "case_id": case_id,
+            "historical_run": selected,
+            "historical_run_label": run["label"],
+            "historical_target_model": run["target_model"],
             "goal": case.get("original_request") or result.get("private_goal"),
             "crisis_label": case.get("crisis_label"),
             "source_dataset": self.base[case_id].get("source_dataset"),
@@ -198,7 +391,9 @@ class Catalog:
                 "retrieval_top_k": candidates,
             },
             "question_pool": case.get("similar_goal_question_pool", {}),
-            "historical_score": self.scores[_history_key(history_enabled)].get(
+            "historical_score": run.get("scores_by_history", {}).get(
+                _history_key(history_enabled), {}
+            ).get(
                 case_id, {"status": "unscored"}
             ),
             "branches": [
@@ -225,15 +420,14 @@ class Catalog:
         }
 
     def artifact_for_protocol(
-        self, case_id: str, protocol: str, history_enabled: bool
+        self, case_id: str, protocol: str, history_enabled: bool,
+        run_id: str | None = None,
     ) -> dict[str, Any] | None:
         key = _history_key(history_enabled)
-        mapping = {
-            "red_persona_compact": self.compact,
-            "red_persona_direct_final": self.direct_final,
-            "red_persona_seven_stage": self.seven_stage,
-        }.get(protocol)
-        return mapping[key].get(case_id) if mapping else None
+        _, run = self._resolve_run(run_id, protocol, history_enabled)
+        if run is None:
+            return None
+        return run.get("artifacts_by_history", {}).get(key, {}).get(case_id)
 
     @lru_cache(maxsize=64)
     def search_persona_pool(self, query: str, limit: int = 25) -> tuple[dict[str, Any], ...]:

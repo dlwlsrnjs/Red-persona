@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RED-Persona Interactive Lab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">MANUAL SAFETY-EVALUATION WORKBENCH</p>
+      <h1>RED-Persona <span>Interactive Lab</span></h1>
+      <p class="subtitle">저장된 197개 사례와 알고리즘을 한 단계씩 검사하고, 클릭한 요청만 모델에 전송합니다.</p>
+    </div>
+    <div class="security-card">
+      <strong>Manual-send only</strong>
+      <span>키 저장 없음 · 자동 전송 없음 · 기본 localhost</span>
+      <label><input id="consent" type="checkbox"> 통제된 안전성 평가 목적으로만 사용합니다.</label>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel picker-panel">
+      <div class="section-title">
+        <div><span class="step-number">01</span><h2>사례 선택</h2></div>
+        <span id="caseCount" class="pill">loading…</span>
+      </div>
+      <div class="controls grid-picker">
+        <label>과거 결과
+          <select id="outcome">
+            <option value="all">전체</option>
+            <option value="success">Strict joint 성공</option>
+            <option value="failure">Strict joint 실패</option>
+          </select>
+        </label>
+        <label class="grow">ID / 키워드 검색
+          <input id="caseQuery" placeholder="jmir-source-1454 또는 키워드">
+        </label>
+        <label class="toggle-label"><input id="historyEnabled" type="checkbox" checked> Persona history 포함</label>
+        <button id="searchCases" class="secondary">검색</button>
+        <button id="randomCase" class="accent">무작위 선택</button>
+      </div>
+      <div class="controls">
+        <label class="grow">사례
+          <select id="caseSelect"></select>
+        </label>
+        <button id="loadCase" class="primary">사례 열기</button>
+      </div>
+      <p id="globalError" class="error hidden"></p>
+    </section>
+
+    <section id="caseInspector" class="panel hidden">
+      <div class="section-title">
+        <div><span class="step-number">02</span><h2>입력과 선택 근거</h2></div>
+        <div id="caseBadges" class="badges"></div>
+      </div>
+      <div class="inspector-grid">
+        <article class="data-card wide">
+          <div class="card-head"><h3>Private GOAL</h3><button class="ghost copy" data-copy="goalText">복사</button></div>
+          <pre id="goalText" class="sensitive"></pre>
+        </article>
+        <article class="data-card">
+          <h3>선택된 Persona</h3>
+          <div id="personaMeta" class="meta"></div>
+          <pre id="personaText"></pre>
+        </article>
+        <article class="data-card">
+          <h3>과거 평가</h3>
+          <div id="scoreSummary"></div>
+        </article>
+      </div>
+      <details open>
+        <summary>Persona history</summary>
+        <div id="historyList" class="timeline compact"></div>
+      </details>
+      <details>
+        <summary>Persona pool 후보와 선택 기준</summary>
+        <div id="selectionReason" class="callout"></div>
+        <div id="personaCandidates" class="table-wrap"></div>
+      </details>
+      <details>
+        <summary>유사 GOAL 질문 풀과 선택 감사</summary>
+        <div id="questionPool" class="question-grid"></div>
+      </details>
+      <details>
+        <summary>전체 31,733 Persona pool 검색</summary>
+        <div class="controls"><input id="personaQuery" class="grow" placeholder="persona ID, concern, background"><button id="searchPersonas" class="secondary">Pool 검색</button></div>
+        <div id="poolResults" class="table-wrap"></div>
+      </details>
+    </section>
+
+    <section id="runBuilder" class="panel hidden">
+      <div class="section-title">
+        <div><span class="step-number">03</span><h2>비교 실행 레인 만들기</h2></div>
+        <span class="pill">여러 레인을 나란히 실행 가능</span>
+      </div>
+      <div class="builder-grid">
+        <label>알고리즘
+          <select id="protocol"></select>
+        </label>
+        <label>최종 분기
+          <select id="branchIndex">
+            <option value="0">0 · latent request synthesis</option>
+            <option value="1">1 · evidence chain</option>
+            <option value="2">2 · analyst response target</option>
+            <option value="3">3 · source-aware reconstruction</option>
+          </select>
+        </label>
+        <label>PCSA 전략
+          <select id="pcsaStrategy">
+            <option value="intellectualization">intellectualization</option>
+            <option value="reassurance_seeking">reassurance seeking</option>
+            <option value="appeal_to_expertise">appeal to expertise</option>
+            <option value="metaphorical_expression">metaphorical expression</option>
+          </select>
+        </label>
+      </div>
+      <label>직접 입력 GOAL (비우면 선택 사례의 원 GOAL 사용)
+        <textarea id="customGoal" rows="3" placeholder="사용자가 직접 비교할 goal query"></textarea>
+      </label>
+      <p class="hint">Custom GOAL은 Direct/PCSA에는 그대로 반영됩니다. RED-Persona에서는 기존 사례의 persona·질문 scaffold를 유지하므로, prompt를 전송 전에 직접 수정해 정합성을 확인하세요.</p>
+      <button id="addLane" class="primary large">실행 레인 추가</button>
+    </section>
+
+    <section id="lanesSection" class="hidden">
+      <div class="section-title standalone">
+        <div><span class="step-number">04</span><h2>단계별 실행</h2></div>
+      </div>
+      <div id="lanes" class="lanes"></div>
+    </section>
+  </main>
+
+  <template id="laneTemplate">
+    <article class="lane panel">
+      <div class="lane-head">
+        <div><p class="eyebrow lane-protocol"></p><h2 class="lane-title"></h2><p class="lane-summary hint"></p></div>
+        <button class="ghost remove-lane">닫기</button>
+      </div>
+      <div class="provider-grid">
+        <label>Provider<select class="provider"></select></label>
+        <label>Model<input class="model"></label>
+        <label>API key / HF token<input class="api-key" type="password" autocomplete="off" placeholder="이 레인의 브라우저 메모리에만 유지"></label>
+        <label>Temperature<input class="temperature" type="number" min="0" max="2" step="0.1" value="0"></label>
+        <label>Max tokens<input class="max-tokens" type="number" min="1" max="8192" value="1000"></label>
+      </div>
+      <div class="lane-actions">
+        <button class="prepare secondary">다음 단계 준비</button>
+        <span class="lane-state pill"></span>
+      </div>
+      <p class="lane-error error hidden"></p>
+      <div class="pending hidden">
+        <div class="stage-header"><span class="stage-role"></span><h3 class="stage-name"></h3></div>
+        <div class="selection-box"></div>
+        <details open><summary>모델에 보낼 전체 messages</summary><div class="message-list"></div></details>
+        <label>마지막 prompt — 전송 전 직접 수정 가능<textarea class="prompt-editor" rows="12"></textarea></label>
+        <div class="quote-box hidden"></div>
+        <details class="reference-details"><summary>과거 본실험 응답 보기</summary><pre class="reference-response"></pre></details>
+        <button class="send danger">이 단계만 모델에 전송</button>
+      </div>
+      <div class="live-timeline timeline"></div>
+    </article>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RED-Persona live model and protocol workbench">
+  <title>RED-Persona · Live Lab</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <header class="hero">
+    <div><p class="eyebrow">ONLINE REAL-TIME · BROWSER WORKBENCH</p><h1>RED-Persona <span>Live Lab</span></h1><p>기법 또는 모델을 고정해 비교하고, Step이나 Auto로 선택 레인을 병렬 실행합니다.</p></div>
+    <div class="hero-actions"><a class="button-link" href="method.html">역할·도구·단계</a><a class="button-link" href="viewer.html">Dataset Viewer</a><a class="button-link" href="index.html">처음으로</a><button id="personaStageButton">Persona 크게</button><button id="progressStageButton">진행상황 크게</button></div>
+  </header>
+
+  <main>
+    <section class="panel picker">
+      <div class="title"><h2>01 · 사례 선택</h2><span id="caseCount" class="pill">loading</span></div>
+      <div class="control-row">
+        <label>결과<select id="outcome"><option value="all">전체</option><option value="success">성공</option><option value="failure">실패</option></select></label>
+        <label class="grow">ID / Persona 검색<input id="query" placeholder="case ID, persona ID, crisis label"></label>
+        <button id="search">검색</button><button id="random">무작위</button>
+      </div>
+      <div class="control-row"><label class="grow">사례<select id="caseSelect"></select></label><button id="openCase" class="primary">열기</button></div>
+      <p id="error" class="error hidden"></p>
+    </section>
+
+    <section id="casePanel" class="panel hidden">
+      <div class="title"><div><p class="eyebrow">SELECTED CASE</p><h2 id="caseTitle"></h2></div><div id="caseBadges" class="badges"></div></div>
+      <p class="cost-note">historical: success/failure는 저장된 과거 평가 라벨입니다. 새 Live 응답은 아래에 별도로 표시되며 이 화면에서 자동 재평가되지 않습니다.</p>
+      <div class="case-grid">
+        <article class="card persona-card"><h3>Persona</h3><pre id="persona"></pre></article>
+        <article class="card"><h3>Private GOAL</h3><pre id="goal" class="goal"></pre></article>
+      </div>
+      <details open><summary>Persona history</summary><div id="history" class="timeline"></div></details>
+      <details><summary>모델별 저장 결과</summary><div id="modelResults" class="table-wrap"></div></details>
+      <details><summary>유사 GOAL 질문 풀과 선택 근거</summary><div id="questionPool" class="question-grid"></div></details>
+    </section>
+
+    <section id="builder" class="panel hidden">
+      <div class="title"><h2>02 · 비교 축과 실행 레인</h2><span class="pill">기법 고정 · 모델 고정 · 교차 비교</span></div>
+      <div class="comparison-intro">
+        <label>비교 모드<select id="comparisonMode"><option value="method_fixed">기법 고정 → 여러 모델</option><option value="model_fixed">모델 고정 → 여러 기법</option><option value="cartesian">여러 기법 × 여러 모델</option></select></label>
+        <p id="comparisonHelp" class="cost-note"></p>
+      </div>
+      <div class="builder-grid">
+        <label id="fixedProtocolField">고정 기법<select id="protocol"><option value="red_persona_compact">RED-Persona · Compact</option><option value="red_persona_direct_final">RED-Persona · Direct-final-only</option><option value="red_persona_seven_stage">RED-Persona · Seven-stage</option><option value="direct_baseline">Baseline · Direct</option></select></label>
+        <label>분기<select id="branch"><option value="0">0 · latent request synthesis</option><option value="1">1 · evidence chain</option><option value="2">2 · analyst response target</option><option value="3">3 · source-aware reconstruction</option></select></label>
+      </div>
+      <div class="matrix-grid">
+        <fieldset id="protocolChoices"><legend>동시에 비교할 기법</legend><div id="protocolChecklist" class="choice-list"></div></fieldset>
+        <fieldset id="modelChoices"><legend>동시에 비교할 Target 모델</legend><div id="modelChecklist" class="choice-list"></div></fieldset>
+        <fieldset id="fixedModelChoices" class="hidden"><legend>고정 Target 모델</legend><label>Provider<select id="provider"><option value="openai">OpenAI</option><option value="huggingface">Hugging Face Inference</option></select></label><label>Model<input id="model" value="gpt-4o-2024-11-20"></label></fieldset>
+      </div>
+      <details class="shared-credentials"><summary>공용 API 키 입력 — 브라우저 메모리에만 유지</summary><div class="credentials-grid"><label>OpenAI API key<input id="openaiKey" type="password" autocomplete="off" placeholder="sk-…"></label><label>Hugging Face token<input id="hfKey" type="password" autocomplete="off" placeholder="hf_…"></label></div></details>
+      <label class="consent-row"><input id="consent" type="checkbox"> 통제된 안전성 평가 목적이며 Step/Auto 호출 비용을 확인했습니다.</label>
+      <div class="builder-actions"><button id="createComparison" class="primary">선택 조합 레인 만들기</button><button id="addLane">현재 고정값으로 1개 추가</button><span id="matrixPreview" class="pill"></span></div>
+    </section>
+
+    <section id="runs" class="hidden">
+      <div class="run-toolbar"><div><h2>03 · 단계별 실행</h2><p>Step은 선택 레인에 한 단계씩, Auto는 완료까지 병렬 진행합니다.</p></div><div class="view-buttons"><button id="nextSelected" class="primary">선택 레인 · 다음</button><button id="autoSelected" class="primary">선택 레인 · Auto</button><button id="stopAuto" disabled>Auto 중지</button><button id="allView" class="active">여러 레인</button><button id="singleView">한 레인</button><select id="lanePicker"></select></div></div>
+      <div id="lanes" class="lanes"></div>
+    </section>
+  </main>
+
+  <template id="laneTemplate">
+    <article class="panel lane">
+      <div class="lane-head"><div><label class="lane-select"><input class="lane-selected" type="checkbox" checked> 일괄 실행에 포함</label><p class="eyebrow lane-label"></p><h2 class="lane-title"></h2></div><div><button class="focus">한 개만 보기</button><button class="remove">닫기</button></div></div>
+      <div class="credentials"><label>Provider<select class="lane-provider"><option value="openai">OpenAI</option><option value="huggingface">Hugging Face</option></select></label><label>Model<input class="lane-model"></label><label class="grow">API key / HF token<input class="lane-key" type="password" autocomplete="off"></label><label>Max tokens<input class="lane-max" type="number" value="1000"></label></div>
+      <p class="runtime-preset"></p>
+      <div class="cost-preview" aria-live="polite"></div>
+      <details class="protocol-contract" open>
+        <summary>기법 설계 철학과 전체 데이터 흐름</summary>
+        <div class="transparency-grid">
+          <article><h3>왜 이렇게 설계했나</h3><p class="protocol-philosophy"></p></article>
+          <article><h3>고정 실행 계약</h3><ol class="protocol-flow"></ol></article>
+          <article><h3>최종적으로 남는 데이터</h3><pre class="protocol-artifacts"></pre></article>
+        </div>
+        <button class="open-protocol-detail">과거 전체 실행 · prompt 트리 보기</button>
+      </details>
+      <div class="lane-actions"><button class="prepare">다음 단계 준비</button><span class="state pill"></span></div>
+      <p class="lane-error error hidden"></p>
+      <div class="pending hidden">
+        <div class="pending-title"><span class="role"></span><h3 class="stage"></h3></div>
+        <div class="selection"></div>
+        <section class="stage-transparency">
+          <div class="transparency-title"><p class="eyebrow">IMPLEMENTATION TRACE</p><h3>이 단계에서 뒤에서 일어나는 일</h3></div>
+          <div class="transparency-grid">
+            <article><h4>단계 철학</h4><p class="stage-philosophy"></p></article>
+            <article><h4>Prompt stack</h4><ol class="prompt-layers"></ol></article>
+            <article><h4>읽는 데이터</h4><pre class="trace-inputs"></pre></article>
+            <article><h4>이번 호출이 만드는 데이터</h4><pre class="trace-outputs"></pre></article>
+          </div>
+        </section>
+        <details open><summary>실제 백그라운드 prompt 전체 (messages)</summary><div class="messages"></div></details>
+        <label>마지막 prompt<textarea class="prompt" rows="12"></textarea></label>
+        <details><summary>같은 단계의 저장 응답</summary><pre class="reference"></pre></details>
+        <button class="send primary">이 단계만 전송</button>
+      </div>
+      <div class="steps timeline"></div>
+    </article>
+  </template>
+
+  <dialog id="personaDialog"><div class="dialog-head"><div><p class="eyebrow">PERSONA STAGE</p><h2 id="dialogPersonaTitle"></h2></div><button class="close">닫기</button></div><div class="dialog-grid"><article class="card"><h3>Persona</h3><pre id="dialogPersona"></pre></article><article class="card"><h3>Private GOAL</h3><pre id="dialogGoal" class="goal"></pre></article><article class="card full"><h3>History</h3><div id="dialogHistory" class="timeline"></div></article></div></dialog>
+  <dialog id="progressDialog"><div class="dialog-head"><div><p class="eyebrow">PROGRESS STAGE</p><h2>실행 진행상황</h2></div><button class="close">닫기</button></div><div id="progressCards" class="progress-cards"></div></dialog>
+  <dialog id="protocolDialog" class="protocol-dialog">
+    <div class="dialog-head"><div><p class="eyebrow">PROTOCOL TRACE</p><h2 id="protocolDialogTitle"></h2><p id="protocolDialogSubtitle" class="dialog-subtitle"></p></div><button class="close">닫기</button></div>
+    <div class="protocol-dialog-body">
+      <div id="protocolRunContext" class="protocol-run-context"></div>
+      <div class="protocol-explain-grid">
+        <details open><summary>왜 이렇게 설계했나 · 상세 prompt 구성</summary><div id="protocolWhy"></div><div id="protocolPromptComposition" class="prompt-composition"></div></details>
+        <details open><summary>고정 실행 계약 · 개괄표</summary><div id="protocolOverview" class="table-wrap"></div></details>
+      </div>
+      <section class="execution-section"><div class="title"><div><p class="eyebrow">STORED EXECUTION TREE</p><h2>과거 전체 진행과 실제 prompt/response</h2></div><span class="pill">노드를 클릭해 원문 펼치기</span></div><div id="protocolTree" class="execution-tree"></div></section>
+    </div>
+  </dialog>
+  <script src="protocol-detail.js"></script>
+  <script src="pages.js"></script>
+</body>
+</html>

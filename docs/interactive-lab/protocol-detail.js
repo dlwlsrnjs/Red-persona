@@ -91,10 +91,40 @@
     return block;
   }
 
+  function renderStructured(value, depth = 0) {
+    if (value == null || value === "") return element("p", "empty-value", "(저장 값 없음)");
+    if (typeof value !== "object") return pre(String(value), "structured-text");
+    if (depth > 4) return pre(value, "structured-text");
+    if (Array.isArray(value)) {
+      const list = element("div", "structured-list");
+      const isMessages = value.every(item => item && typeof item === "object" && "role" in item && "content" in item);
+      value.forEach((item, index) => {
+        const card = element("article", isMessages ? "message-record" : "structured-item");
+        if (isMessages) {
+          card.append(element("span", `message-role role-${item.role}`, `${index + 1} · ${item.role}`), pre(item.content || "", "message-content"));
+        } else {
+          card.append(element("strong", "structured-index", `#${index + 1}`), renderStructured(item, depth + 1));
+        }
+        list.append(card);
+      });
+      return list;
+    }
+    const rows = element("div", "structured-record");
+    Object.entries(value).forEach(([key, item]) => {
+      const row = element("div", "structured-row");
+      row.append(element("strong", "structured-key", key));
+      const data = element("div", "structured-value");
+      data.append(renderStructured(item, depth + 1));
+      row.append(data);
+      rows.append(row);
+    });
+    return rows;
+  }
+
   function detailBlock(title, value, open = false) {
     const details = element("details", "record-detail");
     details.open = open;
-    details.append(element("summary", "", title), pre(value || "(저장 값 없음)"));
+    details.append(element("summary", "", title), renderStructured(value));
     return details;
   }
 
@@ -132,6 +162,11 @@
     return element("span", `metric-badge ${state}`, `${label} ${value === true ? "✓" : value === false ? "×" : "—"}`);
   }
 
+  function levelBadge(label, value, positive) {
+    const state = value == null ? "unknown" : positive ? "success" : "failure";
+    return element("span", `metric-badge compact ${state}`, `${label} ${value == null ? "—" : value}`);
+  }
+
   function targetFamily(value) {
     const name = String(value || "").split(":")[0].toLowerCase();
     if (name.includes("gpt-4o-mini")) return "gpt-4o-mini";
@@ -151,6 +186,7 @@
     if (run && run.score) {
       const score = run.score;
       const metrics = element("div", "run-metrics");
+      metrics.append(element("span", `metric-badge ${score.status === "success" ? "success" : score.status === "failure" ? "failure" : "unknown"}`, `Status ${score.status || "unscored"}`));
       metrics.append(scoreBadge("R3+", score.r3_plus), scoreBadge("B4+", score.b4_plus), scoreBadge("HB+", score.harmbench_positive), scoreBadge("Joint", score.strict_joint));
       root.append(metrics);
     }
@@ -208,7 +244,7 @@
     root.append(table);
   }
 
-  function renderTree(root, caseData, protocol, scaffold) {
+  function renderTree(root, caseData, protocol, scaffold, run) {
     root.replaceChildren();
     if (!scaffold) {
       root.append(element("p", "empty", "이 사례에는 선택한 protocol의 공개 scaffold가 없습니다."));
@@ -237,8 +273,19 @@
     root.append(shared, edge("four pre-registered independent branches"));
     const fork = element("div", "branch-fork");
     (scaffold.branches || []).forEach((branch, branchIndex) => {
+      const branchScore = (((run || {}).score || {}).branches || [])[branchIndex] || {};
       const column = element("article", "branch-column");
-      column.append(element("div", "branch-title", `B${branchIndex + 1} · ${branch.direction || "branch"}`));
+      const title = element("div", "branch-title");
+      title.append(element("span", "branch-name", `B${branchIndex + 1} · ${branch.direction || "branch"}`));
+      const metrics = element("span", "branch-metrics");
+      metrics.append(
+        levelBadge("R", branchScore.R, /^R[34]$/.test(branchScore.R || "")),
+        levelBadge("B", branchScore.B, /^B[45]$/.test(branchScore.B || "")),
+        scoreBadge("HB", branchScore.harmbench_positive),
+        scoreBadge("Joint", branchScore.joint_success),
+      );
+      title.append(metrics);
+      column.append(title);
       if (protocol !== "red_persona_direct_final") {
         column.append(executionNode({
           index: `${branchIndex + 1}.1`, title: "Focused readout", kind: "readout-node",
@@ -263,7 +310,7 @@
         prompt: lastUserPrompt(finalMessages, branch.final_question),
         messages: finalMessages,
         response: branch.historical_final_response,
-        output: "분기 endpoint · R/B/HB 평가 입력",
+        output: `분기 endpoint · R=${branchScore.R || "—"}, B=${branchScore.B || "—"}, HB=${branchScore.harmbench_positive === true ? "+" : branchScore.harmbench_positive === false ? "−" : "—"}, Joint=${branchScore.joint_success === true ? "성공" : branchScore.joint_success === false ? "실패" : "미평가"}`,
       }));
       fork.append(column);
     });
@@ -275,12 +322,14 @@
     if (!dialog || !caseData) return;
     const guide = guideFor(protocol);
     const scaffold = (caseData.protocol_scaffolds || {})[protocol] || null;
+    const matchingRuns = (caseData.model_results || []).filter(item => item.protocol === protocol);
+    const effectiveRun = run || matchingRuns.find(item => scaffold && targetFamily(item.target_model) === targetFamily(scaffold.target_model)) || matchingRuns[0] || null;
     document.querySelector("#protocolDialogTitle").textContent = guide.label;
     document.querySelector("#protocolDialogSubtitle").textContent = guide.short;
-    renderRunContext(document.querySelector("#protocolRunContext"), caseData, scaffold, run, liveTarget);
+    renderRunContext(document.querySelector("#protocolRunContext"), caseData, scaffold, effectiveRun, liveTarget);
     renderWhy(document.querySelector("#protocolWhy"), document.querySelector("#protocolPromptComposition"), guide, scaffold);
     renderOverview(document.querySelector("#protocolOverview"), protocol, scaffold);
-    renderTree(document.querySelector("#protocolTree"), caseData, protocol, scaffold);
+    renderTree(document.querySelector("#protocolTree"), caseData, protocol, scaffold, effectiveRun);
     dialog.showModal();
   }
 

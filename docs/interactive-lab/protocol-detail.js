@@ -122,7 +122,9 @@
       value.forEach((item, index) => {
         const card = element("article", isMessages ? "message-record" : "structured-item");
         if (isMessages) {
-          card.append(element("span", `message-role role-${item.role}`, `${index + 1} · ${item.role}`), pre(item.content || "", "message-content"));
+          const content = item.content || "";
+          card.append(element("span", `message-role role-${item.role}`, `${index + 1} · ${item.role}`), pre(content, "message-content"));
+          if (hasEnglishSource(content)) card.append(inlineTranslator(content));
         } else {
           card.append(element("strong", "structured-index", `#${index + 1}`), renderStructured(item, depth + 1));
         }
@@ -262,10 +264,10 @@
     details.append(summary);
     const body = element("div", "node-body");
     if (output) body.append(element("p", "node-output", output));
-    if (prompt) body.append(detailBlock("실제 단계 prompt", prompt, true));
+    if (prompt) body.append(detailBlock("실제 단계 prompt", prompt, true, true));
     if (Array.isArray(messages) && messages.length) body.append(detailBlock("실제 누적 messages", messages));
     if (audit && (typeof audit !== "object" || Object.keys(audit).length)) body.append(detailBlock("선택·검증 audit", audit));
-    if (response) body.append(detailBlock("저장된 모델 응답", response));
+    if (response) body.append(detailBlock("저장된 모델 응답", response, false, true));
     details.append(body);
     return details;
   }

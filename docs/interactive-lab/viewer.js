@@ -17,6 +17,11 @@ function outcomeLabel(value) {
   return value === "success" ? "저장 결과: 성공" : value === "failure" ? "저장 결과: 실패" : "저장 결과: 미평가";
 }
 
+function shortText(value, limit = 20) {
+  const text = String(value || "");
+  return text.length <= limit ? text : `${text.slice(0, limit).trim()}…`;
+}
+
 function node(tag, className = "", text = "") {
   const value = document.createElement(tag);
   if (className) value.className = className;
@@ -54,7 +59,7 @@ function renderCaseList() {
   rows.forEach(row => {
     const option = node("option");
     option.value = row.file;
-    option.textContent = `[${categoryInfo(row.crisis_label).label}] · ${outcomeLabel(row.outcome)} · ${row.case_id} · ${row.persona_id || ""}`;
+    option.textContent = `[${categoryInfo(row.crisis_label).label}] · ${shortText(row.case_id)} · ${row.goal_preview || "요청 개요 없음"}`;
     select.append(option);
   });
   if (previous && rows.some(row => row.file === previous)) select.value = previous;
@@ -70,8 +75,9 @@ function renderCasePreview() {
   if (!row) { preview.textContent = "표시할 사례가 없습니다."; return; }
   const category = categoryInfo(row.crisis_label);
   preview.replaceChildren(
-    node("strong", "", `범주 · ${category.label}`),
-    node("span", "", category.summary),
+    node("strong", "", `ID · ${row.case_id}`),
+    node("span", "", `범주 · ${category.label}`),
+    node("span", "", `요청 개요 · ${row.goal_preview || category.summary}`),
     node("span", "", outcomeLabel(row.outcome)),
   );
 }

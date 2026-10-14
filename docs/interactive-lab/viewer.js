@@ -81,9 +81,87 @@ function renderCase() {
   $("#dialogPersonaTitle").textContent = `${value.persona_id || "Persona"} · ${value.case_id}`;
   $("#dialogPersona").textContent = value.persona || "";
   $("#dialogGoal").textContent = value.goal || "";
+  renderModelEndpoints();
   renderModelResults();
   renderQuestions();
   renderProtocols();
+}
+
+function outcomeState(value) {
+  return value === true ? "success" : value === false ? "failure" : "unknown";
+}
+
+function outcomeText(value, success = "성공", failure = "실패") {
+  return value === true ? success : value === false ? failure : "미평가";
+}
+
+function endpointMetrics(score = {}) {
+  const root = node("div", "endpoint-metrics");
+  [
+    ["R", score.R, /^R[34]$/.test(score.R || "")],
+    ["B", score.B, /^B[45]$/.test(score.B || "")],
+    ["HB", score.harmbench_positive === true ? "+" : score.harmbench_positive === false ? "−" : "—", score.harmbench_positive],
+    ["Joint", outcomeText(score.joint_success), score.joint_success],
+  ].forEach(([label, value, positive]) => root.append(node("span", `metric-badge ${value === "—" || value === undefined ? "unknown" : positive ? "success" : "failure"}`, `${label} ${value == null ? "—" : value}`)));
+  return root;
+}
+
+function renderModelEndpoints() {
+  const root = $("#modelEndpointCards");
+  root.replaceChildren();
+  (currentCase.model_results || []).forEach(run => {
+    const score = run.score || {};
+    const endpoints = run.endpoint_responses || [];
+    const branchScores = score.branches || [];
+    const card = node("article", `endpoint-card run-${score.status || "unscored"}`);
+    const head = node("div", "endpoint-head");
+    const identity = node("div");
+    identity.append(node("h3", "", run.target_model || run.label || "Target"), node("p", "", run.label || run.protocol || ""));
+    const overall = node("span", `overall-outcome ${score.status || "unscored"}`, score.status === "success" ? "전체 성공" : score.status === "failure" ? "전체 실패" : "미평가");
+    head.append(identity, overall);
+    card.append(head);
+
+    const summary = node("div", "endpoint-summary");
+    [["R3+", score.r3_plus], ["B4+", score.b4_plus], ["HB+", score.harmbench_positive], ["Joint", score.strict_joint]].forEach(([label, value]) => summary.append(node("span", `metric-badge ${outcomeState(value)}`, `${label} ${value === true ? "✓" : value === false ? "×" : "—"}`)));
+    card.append(summary);
+
+    if (!endpoints.length) {
+      card.append(node("p", "empty", "이 실행의 최종답변은 공개 스냅샷에 저장되지 않았습니다."));
+      root.append(card);
+      return;
+    }
+
+    const tabs = node("div", "endpoint-tabs");
+    const answerHead = node("div", "endpoint-answer-head");
+    const answerTitle = node("strong");
+    const answer = node("pre", "endpoint-answer");
+    const metrics = node("div");
+    answerHead.append(answerTitle, metrics);
+    const selectBranch = index => {
+      [...tabs.children].forEach((button, buttonIndex) => button.classList.toggle("active", buttonIndex === index));
+      const endpoint = endpoints[index] || {};
+      const branchScore = branchScores[index] || {};
+      answerTitle.textContent = `B${index + 1} · ${endpoint.direction || branchScore.direction || "branch"}`;
+      answer.textContent = endpoint.response || "(빈 응답)";
+      metrics.replaceChildren(endpointMetrics(branchScore));
+    };
+    endpoints.forEach((endpoint, index) => {
+      const branchScore = branchScores[index] || {};
+      const button = node("button", `endpoint-tab ${outcomeState(branchScore.joint_success)}`, `B${index + 1} ${outcomeText(branchScore.joint_success, "✓", "×")}`);
+      button.type = "button";
+      button.title = `${endpoint.direction || branchScore.direction || "branch"} · Joint ${outcomeText(branchScore.joint_success)}`;
+      button.onclick = () => selectBranch(index);
+      tabs.append(button);
+    });
+    card.append(tabs, answerHead, answer);
+    const treeButton = node("button", "endpoint-tree-button", "이 모델·프로토콜의 실행 트리 보기");
+    treeButton.type = "button";
+    treeButton.onclick = () => openProtocol(run.protocol, run);
+    card.append(treeButton);
+    const preferred = branchScores.findIndex(value => value && value.joint_success === true);
+    selectBranch(preferred >= 0 ? preferred : 0);
+    root.append(card);
+  });
 }
 
 function renderModelResults() {

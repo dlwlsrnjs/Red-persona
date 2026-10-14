@@ -83,6 +83,28 @@ def _score_for(catalog: Catalog, run_id: str, case_id: str) -> dict[str, Any]:
     return score or {"status": "unscored"}
 
 
+def _endpoint_responses(
+    catalog: Catalog,
+    run_id: str,
+    case_id: str,
+    protocol: str,
+) -> list[dict[str, Any]]:
+    """Return model-specific stored endpoints without duplicating full trajectories."""
+    artifact = catalog.artifact_for_protocol(case_id, protocol, True, run_id)
+    if not artifact or not artifact.get("results"):
+        return []
+    result = artifact["results"][0]
+    return [
+        {
+            "direction": branch.get("direction") or f"branch_{index + 1}",
+            "response": _text(
+                branch.get("attack_response") or branch.get("direct_final_response")
+            ),
+        }
+        for index, branch in enumerate(result.get("final_branches", []))
+    ]
+
+
 def export_case(catalog: Catalog, case_id: str) -> dict[str, Any]:
     case = catalog.get_case(case_id, history_enabled=True, run_id="compact_gpt4o")
     protocols = {}
@@ -113,6 +135,9 @@ def export_case(catalog: Catalog, case_id: str) -> dict[str, Any]:
                 "protocol": run["protocol"],
                 "target_model": run["target_model"],
                 "score": _score_for(catalog, run_id, case_id),
+                "endpoint_responses": _endpoint_responses(
+                    catalog, run_id, case_id, run["protocol"]
+                ),
             }
             for run_id, run in catalog.runs.items()
             if "with_history" in run.get("artifacts_by_history", {})

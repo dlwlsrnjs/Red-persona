@@ -537,6 +537,7 @@
   }
 
   function renderGraph(root, caseData, protocol, scaffold, run) {
+    if (root._graphResizeObserver) root._graphResizeObserver.disconnect();
     root.replaceChildren();
     if (!scaffold) {
       root.append(element("p", "empty", "이 사례에는 선택한 protocol의 공개 scaffold가 없습니다."));
@@ -546,7 +547,20 @@
       root.append(element("p", "context-warning graph-warning", `선택한 ${run.target_model} 실행은 endpoint 응답과 점수를 표시합니다. 중간 prompt/response provenance는 공개 스냅샷에 저장된 ${scaffold.target_model} scaffold를 사용하므로 두 Target의 중간 trajectory가 동일하다고 해석하면 안 됩니다.`));
     }
     const graph = graphRecords(caseData, protocol, scaffold, run);
+    const controls = element("div", "graph-controls");
+    const zoomOut = element("button", "", "−");
+    const zoomValue = element("output", "graph-zoom-value", "100%");
+    const zoomIn = element("button", "", "+");
+    const fitButton = element("button", "", "전체 맞춤");
+    const actualButton = element("button", "", "100%");
+    [zoomOut, zoomIn, fitButton, actualButton].forEach(button => { button.type = "button"; });
+    zoomOut.setAttribute("aria-label", "그래프 축소");
+    zoomIn.setAttribute("aria-label", "그래프 확대");
+    fitButton.setAttribute("aria-label", "모든 노드를 캔버스 안에 맞추기");
+    actualButton.setAttribute("aria-label", "그래프를 실제 크기로 복원");
+    controls.append(zoomOut, zoomValue, zoomIn, fitButton, actualButton, element("span", "graph-pan-hint", "빈 공간을 드래그해 이동 · Ctrl/⌘+휠 확대"));
     const scroller = element("div", "graph-scroll");
+    const stage = element("div", "graph-stage");
     const canvas = element("div", "graph-canvas");
     canvas.style.width = `${graph.width}px`;
     canvas.style.height = `${graph.height}px`;
@@ -618,14 +632,82 @@
       attachLongHover(button, item);
       canvas.append(button);
     });
-    scroller.append(canvas);
-    root.append(scroller);
+    stage.append(canvas);
+    scroller.append(stage);
+    root.append(controls, scroller);
     root._graphScroller = scroller;
+    let scale = 1;
+    const clamp = value => Math.min(1.6, Math.max(.28, value));
+    const applyScale = (next, preserveCenter = true) => {
+      const previous = scale;
+      const centerX = (scroller.scrollLeft + scroller.clientWidth / 2) / previous;
+      const centerY = (scroller.scrollTop + scroller.clientHeight / 2) / previous;
+      scale = clamp(next);
+      canvas.style.transform = `scale(${scale})`;
+      stage.style.width = `${graph.width * scale}px`;
+      stage.style.height = `${graph.height * scale}px`;
+      zoomValue.textContent = `${Math.round(scale * 100)}%`;
+      if (preserveCenter) {
+        scroller.scrollLeft = Math.max(0, centerX * scale - scroller.clientWidth / 2);
+        scroller.scrollTop = Math.max(0, centerY * scale - scroller.clientHeight / 2);
+      }
+    };
+    let fitAttempts = 0;
+    const fit = () => {
+      if ((scroller.clientWidth < 100 || scroller.clientHeight < 100) && fitAttempts < 4) {
+        fitAttempts += 1;
+        requestAnimationFrame(fit);
+        return;
+      }
+      fitAttempts = 0;
+      const widthScale = (scroller.clientWidth - 28) / graph.width;
+      const heightScale = (scroller.clientHeight - 28) / graph.height;
+      applyScale(Math.min(1, widthScale, heightScale), false);
+      scroller.scrollTo({left: 0, top: 0, behavior: "smooth"});
+    };
+    const actual = () => {
+      applyScale(1, false);
+      scroller.scrollTo({left: 0, top: 0, behavior: "smooth"});
+    };
+    zoomOut.addEventListener("click", () => applyScale(scale - .1));
+    zoomIn.addEventListener("click", () => applyScale(scale + .1));
+    fitButton.addEventListener("click", fit);
+    actualButton.addEventListener("click", actual);
+    scroller.addEventListener("wheel", event => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      applyScale(scale + (event.deltaY < 0 ? .08 : -.08));
+    }, {passive: false});
+    let drag = null;
+    scroller.addEventListener("pointerdown", event => {
+      if (event.button !== 0 || event.target.closest("button, .graph-edge-hit")) return;
+      drag = {x: event.clientX, y: event.clientY, left: scroller.scrollLeft, top: scroller.scrollTop};
+      scroller.classList.add("dragging");
+      scroller.setPointerCapture(event.pointerId);
+    });
+    scroller.addEventListener("pointermove", event => {
+      if (!drag) return;
+      scroller.scrollLeft = drag.left - (event.clientX - drag.x);
+      scroller.scrollTop = drag.top - (event.clientY - drag.y);
+    });
+    const endDrag = event => {
+      if (!drag) return;
+      drag = null;
+      scroller.classList.remove("dragging");
+      if (scroller.hasPointerCapture(event.pointerId)) scroller.releasePointerCapture(event.pointerId);
+    };
+    scroller.addEventListener("pointerup", endDrag);
+    scroller.addEventListener("pointercancel", endDrag);
+    root._graphControls = {fit, actual, zoomIn: () => applyScale(scale + .1), zoomOut: () => applyScale(scale - .1)};
+    if (typeof ResizeObserver !== "undefined") {
+      root._graphResizeObserver = new ResizeObserver(() => fit());
+      root._graphResizeObserver.observe(root);
+    }
+    requestAnimationFrame(fit);
   }
 
   function resetGraph(root) {
-    const scroller = root && root._graphScroller;
-    if (scroller) scroller.scrollTo({left: 0, top: 0, behavior: "smooth"});
+    if (root && root._graphControls) root._graphControls.fit();
   }
 
   function open({caseData, protocol, run = null, liveTarget = ""}) {

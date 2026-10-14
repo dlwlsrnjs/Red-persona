@@ -18,6 +18,36 @@ const PROTOCOLS = {
   red_persona_seven_stage: "RED-Persona · Seven-stage",
   direct_baseline: "Baseline · Direct",
 };
+const PROTOCOL_GUIDES = {
+  red_persona_compact: {
+    philosophy: "목표 복원과 최종 수행을 분리해 관찰합니다. Target이 사례 근거를 자기 문장으로 먼저 정리하게 한 뒤, 같은 분기의 정확한 Target 문장만 다음 질의에 연결합니다. 외부 planner가 최종 목표 문장을 새로 써 주는 개입과 endpoint를 본 뒤의 재탐색은 허용하지 않습니다.",
+    flow: ["Persona와 선택적 history로 초기 사례 분석", "초기 분석에서 부족한 O(행동·결과), F(산출물 형식), K(제약)를 한 번의 focused readout으로 확인", "같은 readout의 연속 1–3문장을 exact quote로 선택", "고정 final-query template에 그 인용만 삽입", "분기별 응답과 실행 메타데이터 저장"],
+    artifacts: ["initial_analysis record", "focused_readout record", "selected Target-authored exact quote", "final_query / final_response record", "provider·model·runtime·message provenance"],
+  },
+  red_persona_direct_final: {
+    philosophy: "Compact의 두 핵심 요소인 goal-focused follow-up과 quotation transition을 함께 제거한 소거 조건입니다. 동일한 사례와 분기를 유지한 채, 초기 분석만 거쳐 고정 final prompt를 바로 보내 두 요소의 결합 효과를 확인합니다.",
+    flow: ["Persona와 선택적 history로 초기 사례 분석", "Focused readout 없이 사전 저장된 분기 final prompt 선택", "Target-authored quotation 없이 최종 응답 요청", "응답과 실행 메타데이터 저장"],
+    artifacts: ["initial_analysis record", "direct_final prompt/response record", "quotation_transition=false", "provider·model·runtime·message provenance"],
+  },
+  red_persona_seven_stage: {
+    philosophy: "긴 연구 대화가 항상 유리한지 검증하기 위한 고정 깊이 조건입니다. 단계와 순서는 사전에 고정하고, 중간 응답을 누적하되 최종 응답을 본 뒤 prompt를 바꾸지 않습니다. Compact와 같은 focused readout·quotation transition을 사용해 차이를 대화 깊이로 제한합니다.",
+    flow: ["초기 사례 분석", "사전 고정된 7단계 연구 분석을 순서대로 누적", "분기별 focused readout", "같은 분기의 Target-authored exact quote 선택", "고정 final-query template과 최종 응답 저장"],
+    artifacts: ["initial + seven-stage analysis records", "focused_readout record", "selected Target-authored exact quote", "final_query / final_response record", "전체 누적 messages provenance"],
+  },
+  direct_baseline: {
+    philosophy: "Persona, history, 질문 풀, 연구 대화를 모두 제거하고 원 요청에 대한 단일 응답을 측정하는 기준선입니다.",
+    flow: ["Private GOAL을 단일 user message로 구성", "Target에 한 번 전송", "응답과 실행 메타데이터 저장"],
+    artifacts: ["direct_request prompt/response record", "provider·model·runtime metadata"],
+  },
+};
+const STAGE_GUIDES = {
+  initial_analysis: "관찰과 추론을 분리해 사례가 실제로 제공하는 신호만 Target 자신의 표현으로 정리합니다. RED-Persona에서는 완결된 private GOAL 문장을 Target message에 직접 삽입하지 않습니다.",
+  focused_readout: "초기 분석에서 빠진 O/F/K만 좁혀 묻습니다. 이 단계의 응답은 목표 복원 측정과 다음 단계 exact-quote 후보의 유일한 출처가 됩니다.",
+  final_query: "같은 분기에서 Target이 방금 작성한 인용을 고정 template에 넣습니다. Private GOAL이나 다른 분기 문장으로 대체하지 않으며, endpoint 응답을 본 뒤 질의를 수정하지 않습니다.",
+  direct_final: "Focused readout과 Target-authored quotation 없이 사전 고정된 final prompt를 바로 사용해 두 전이 요소의 제거 효과를 측정합니다.",
+  direct_request: "추가 문맥이나 변환 없이 원 요청에 대한 단일 Target 응답을 얻는 기준 단계입니다.",
+  analysis: "사전에 등록된 연구 분석 축 하나를 이전 대화 뒤에 누적합니다. 단계 순서는 고정이며 최종 endpoint 결과에 따라 변경되지 않습니다.",
+};
 
 let caseIndex = [], currentCase = null, viewMode = "all", focused = "";
 let usageEstimates = {}, pricingEstimate = {}, autoRunActive = false;
@@ -28,6 +58,52 @@ function node(tag, className = "", text = "") {
   if (className) element.className = className;
   if (text !== "") element.textContent = String(text);
   return element;
+}
+function stageGuide(stage) { return STAGE_GUIDES[stage] || (stage.startsWith("analysis_") ? STAGE_GUIDES.analysis : "등록된 실행 계약에 따라 다음 모델 입력을 구성합니다."); }
+function appendList(root, values) { root.replaceChildren(); values.forEach(value => root.append(node("li", "", value))); }
+function renderProtocolContract(element, session) {
+  const guide = PROTOCOL_GUIDES[session.protocol] || {philosophy: "등록된 프로토콜 계약을 실행합니다.", flow: [], artifacts: []};
+  $(".protocol-philosophy", element).textContent = guide.philosophy;
+  appendList($(".protocol-flow", element), guide.flow);
+  $(".protocol-artifacts", element).textContent = JSON.stringify({case_level: guide.artifacts, branch_index: session.branch, branch_direction: branch(session).direction || null}, null, 2);
+}
+function promptLayerLabels(messages) {
+  return messages.map((message, index) => {
+    const isLast = index === messages.length - 1;
+    if (message.role === "system") return `${index + 1}. system — 저장된 역할·분석 경계 계약`;
+    if (isLast && message.role === "user") return `${index + 1}. user — 현재 단계의 실제 전송 prompt (아래 편집기와 동일)`;
+    if (message.role === "assistant") return `${index + 1}. assistant — 이전 단계에서 실제로 생성된 Target 응답`;
+    return `${index + 1}. ${message.role} — 누적된 이전 연구 질문`;
+  });
+}
+function traceInputs(session, step) {
+  const selectedBranch = branch(session);
+  const redPersona = session.protocol.startsWith("red_persona_");
+  return {
+    case_id: currentCase.case_id,
+    persona_id: currentCase.persona_id || null,
+    persona_history_observations: (currentCase.persona_history || []).length,
+    private_goal_boundary: redPersona ? "planner/selection audit에만 사용; 완결된 GOAL을 Target message에 직접 삽입하지 않음" : "direct baseline user message로 Target-visible",
+    question_pool_candidates: ((currentCase.question_pool || {}).candidates || []).length,
+    branch: redPersona ? {index: session.branch, direction: selectedBranch.direction || null, attack_style: selectedBranch.attack_style || null} : null,
+    conversation_messages: step.messages.length,
+    selection_or_audit: step.selection,
+  };
+}
+function traceOutputs(session, step) {
+  return {
+    before_send: ["stage", "messages", "prompt", "selection", "runtime", "historical_reference_response"],
+    provider_adds: ["response_text", "provider", "model"],
+    state_update: ["completed step append", "conversation append", "cursor +1"],
+    next_stage_dependency: step.stage === "focused_readout" ? "이 응답의 exact substring이 final_query 동적 입력 후보가 됨" : "등록된 protocol cursor에 따라 결정",
+    endpoint_adaptation: false,
+  };
+}
+function renderStageTransparency(element, session, step) {
+  $(".stage-philosophy", element).textContent = stageGuide(step.stage);
+  appendList($(".prompt-layers", element), promptLayerLabels(step.messages));
+  $(".trace-inputs", element).textContent = JSON.stringify(traceInputs(session, step), null, 2);
+  $(".trace-outputs", element).textContent = JSON.stringify(traceOutputs(session, step), null, 2);
 }
 function fail(target, error) { target.textContent = error.message || String(error); target.classList.remove("hidden"); }
 function clearError(target) { target.textContent = ""; target.classList.add("hidden"); }
@@ -150,7 +226,7 @@ function addLane(options = {}) {
     $(".prepare", element).onclick = () => prepare(session.id); $(".send", element).onclick = () => send(session.id); $(".focus", element).onclick = () => focusLane(session.id); $(".lane-selected", element).onchange = renderProgress;
     $(".lane-provider", element).onchange = event => { $(".lane-key", element).value = sharedKey(event.target.value); $(".lane-model", element).value = PROVIDERS[event.target.value].models[0]; renderCost(session.id); }; $(".lane-model", element).oninput = () => renderCost(session.id);
     $(".remove", element).onclick = () => { lanes.delete(session.id); element.remove(); if (focused === session.id) focused = lanes.size ? lanes.keys().next().value : ""; refreshView(); };
-    $("#lanes").append(element); lanes.set(session.id, {session, el: element}); focused = session.id; $("#runs").classList.remove("hidden"); renderCost(session.id); renderLane(session.id); refreshView(); return session;
+    $("#lanes").append(element); lanes.set(session.id, {session, el: element}); focused = session.id; $("#runs").classList.remove("hidden"); renderProtocolContract(element, session); renderCost(session.id); renderLane(session.id); refreshView(); return session;
   } catch (error) { fail($("#error"), error); return null; }
 }
 function createComparisonLanes() { clearError($("#error")); const cells = comparisonCells().filter(cell => cell.model); if (!cells.length) { fail($("#error"), new Error("비교할 기법과 모델을 하나 이상 선택하세요.")); return; } if (cells.length > 24) { fail($("#error"), new Error(`한 번에 최대 24개 레인까지 만들 수 있습니다. 현재 ${cells.length}개입니다.`)); return; } cells.forEach(addLane); $("#runs").scrollIntoView({behavior: "smooth", block: "start"}); }
@@ -222,10 +298,21 @@ function renderLane(id) {
   const lane = lanes.get(id), {session, el} = lane; $(".state", el).textContent = session.complete ? "complete" : `${session.steps.length} steps`; const pending = $(".pending", el); pending.classList.toggle("hidden", !session.pending);
   if (session.pending) {
     $(".role", el).textContent = "Target"; $(".stage", el).textContent = session.pending.stage; $(".selection", el).textContent = session.pending.selection;
+    renderStageTransparency(el, session, session.pending);
     const messages = $(".messages", el); messages.replaceChildren(); session.pending.messages.forEach((message, index) => { const card = node("article", "message"); card.append(node("strong", "", `${index + 1} · ${message.role}`)); const pre = node("pre"); pre.textContent = message.content; card.append(pre); messages.append(card); });
     $(".prompt", el).value = session.pending.prompt; $(".reference", el).textContent = session.pending.reference || "저장 응답 없음"; const params = session.pending.runtime || runtime(session.pending.stage); $(".lane-max", el).value = params.max_tokens; $(".runtime-preset", el).textContent = `Historical preset · temperature=${params.temperature} · max_tokens=${params.max_tokens} · top_p=${params.top_p} · seed=${params.seed}`;
   }
-  const steps = $(".steps", el); steps.replaceChildren(); session.steps.forEach((step, index) => { const card = node("article", "timeline-item"); card.append(node("h3", "", `${index + 1}. ${step.stage} · ${step.model}`)); const pre = node("pre"); pre.textContent = step.response; card.append(pre); steps.append(card); }); $(".prepare", el).disabled = session.complete; renderProgress();
+  const steps = $(".steps", el); steps.replaceChildren(); session.steps.forEach((step, index) => {
+    const card = node("article", "timeline-item"); card.append(node("h3", "", `${index + 1}. ${step.stage} · ${step.model}`));
+    const pre = node("pre"); pre.textContent = step.response; card.append(pre);
+    const details = node("details"), summary = node("summary", "", "이 단계의 prompt 철학·입력·생성 데이터");
+    const record = {
+      philosophy: stageGuide(step.stage),
+      input_lineage: traceInputs(session, step),
+      stored_step_record: {stage: step.stage, messages: step.messages, selection: step.selection, runtime: step.runtime, provider: step.provider, model: step.model, response_text: step.response},
+    };
+    const trace = node("pre"); trace.textContent = JSON.stringify(record, null, 2); details.append(summary, trace); card.append(details); steps.append(card);
+  }); $(".prepare", el).disabled = session.complete; renderProgress();
 }
 function refreshView() {
   const root = $("#lanes"); root.classList.toggle("single", viewMode === "single");

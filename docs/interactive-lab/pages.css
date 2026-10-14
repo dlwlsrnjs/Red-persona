@@ -109,3 +109,14 @@ dialog::backdrop{background:rgba(2,7,5,.88);backdrop-filter:blur(6px)}
 .dialog-grid .full{grid-column:1}
 .hero-actions,.view-buttons{flex-wrap:wrap}
 }
+.protocol-contract{margin-top:16px;padding:13px 15px;border:1px solid rgba(115,226,183,.24);border-radius:13px;background:rgba(115,226,183,.045)}
+.protocol-contract>summary{color:var(--mint)}
+.stage-transparency{margin:16px 0;padding:16px;border:1px solid rgba(120,170,248,.28);border-radius:13px;background:rgba(120,170,248,.055)}
+.transparency-title{margin-bottom:12px}.transparency-title .eyebrow{margin-bottom:4px}.transparency-title h3{margin:0}
+.transparency-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.transparency-grid article{min-width:0;padding:13px;border:1px solid var(--line);border-radius:10px;background:rgba(4,12,9,.52)}
+.transparency-grid article:last-child:nth-child(3){grid-column:1/-1}
+.transparency-grid h3,.transparency-grid h4{margin:0 0 8px;color:var(--amber)}
+.transparency-grid p{margin:0;color:#cfdfd7}.transparency-grid ol{margin:0;padding-left:20px;color:#cfdfd7}.transparency-grid li+li{margin-top:5px}
+.transparency-grid pre{max-height:300px;overflow:auto;font-size:11px}
+@media(max-width:850px){.transparency-grid{grid-template-columns:1fr}.transparency-grid article:last-child:nth-child(3){grid-column:1}}

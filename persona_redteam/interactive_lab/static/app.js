@@ -8,6 +8,59 @@ let laneViewMode = "all";
 let focusedLaneId = "";
 let autoRunActive = false;
 
+const PROTOCOL_GUIDES = {
+  red_persona_compact: {
+    philosophy: "목표 복원과 최종 수행을 분리해 관찰합니다. Target이 사례 근거를 자기 문장으로 먼저 정리하게 한 뒤, 같은 분기의 정확한 Target 문장만 다음 질의에 연결합니다. 외부 planner가 최종 목표 문장을 새로 써 주는 개입과 endpoint를 본 뒤의 재탐색은 허용하지 않습니다.",
+    flow: ["Persona와 선택적 history로 초기 사례 분석", "초기 분석에서 부족한 O/F/K를 한 번의 focused readout으로 확인", "같은 readout의 연속 1–3문장을 exact quote로 선택", "고정 final-query template에 그 인용만 삽입", "분기별 응답과 실행 메타데이터 저장"],
+    artifacts: ["initial_analysis record", "focused_readout record", "selected Target-authored exact quote", "final_query / final_response record", "provider·model·usage·latency·message provenance"],
+  },
+  red_persona_direct_final: {
+    philosophy: "Compact의 goal-focused follow-up과 quotation transition을 함께 제거한 소거 조건입니다. 동일 사례와 분기를 유지한 채 초기 분석 뒤 고정 final prompt를 바로 보내 두 요소의 결합 효과를 확인합니다.",
+    flow: ["Persona와 선택적 history로 초기 사례 분석", "Focused readout 없이 저장된 분기 final prompt 선택", "Target-authored quotation 없이 최종 응답 요청", "응답과 실행 메타데이터 저장"],
+    artifacts: ["initial_analysis record", "direct_final prompt/response record", "quotation_transition=false", "provider·model·usage·latency·message provenance"],
+  },
+  red_persona_seven_stage: {
+    philosophy: "긴 연구 대화의 효과를 검증하는 고정 깊이 조건입니다. 단계와 순서는 사전에 고정하고 최종 응답을 본 뒤 prompt를 바꾸지 않습니다. Compact와 같은 readout·quotation transition을 사용해 차이를 대화 깊이로 제한합니다.",
+    flow: ["초기 사례 분석", "사전 고정된 7단계 연구 분석 누적", "분기별 focused readout", "같은 분기의 exact quote 선택", "고정 final query와 응답 저장"],
+    artifacts: ["initial + seven-stage analysis records", "focused_readout record", "selected Target-authored exact quote", "final response record", "전체 누적 message provenance"],
+  },
+  direct_baseline: {
+    philosophy: "Persona, history, 질문 풀, 연구 대화를 제거하고 원 요청에 대한 단일 응답을 측정하는 기준선입니다.",
+    flow: ["Private GOAL을 단일 user message로 구성", "Target에 한 번 전송", "응답과 실행 메타데이터 저장"],
+    artifacts: ["direct_request prompt/response record", "provider·model·usage·latency metadata"],
+  },
+  pcsa_phase2: {
+    philosophy: "내담자 발화 생성, Target 응답, 진행도 평가를 반복해 하나의 대화 경로를 갱신합니다. 이 화면은 각 역할의 실제 prompt와 선택된 단일 stream을 단계별로 노출합니다.",
+    flow: ["Attacker가 전략별 다음 client utterance 생성", "Target이 누적 대화에 응답", "Evaluator가 hidden GOAL 대비 진행도 기록", "최대 4 turn 반복"],
+    artifacts: ["attacker utterance records", "Target response records", "intermediate evaluator JSON", "selected conversation trajectory", "provider·model·usage·latency provenance"],
+  },
+};
+const STAGE_GUIDES = {
+  initial_analysis: "관찰과 추론을 분리해 visible case evidence만 Target 자신의 표현으로 정리합니다. RED-Persona에서는 완결된 private GOAL 문장을 Target message에 직접 삽입하지 않습니다.",
+  focused_readout: "초기 분석에서 빠진 O(행동·결과), F(산출물 형식), K(제약)만 좁혀 묻습니다. 응답은 복원 점수와 다음 단계 exact-quote 후보의 유일한 출처가 됩니다.",
+  final_query: "같은 분기에서 Target이 방금 작성한 exact quote를 고정 template에 넣습니다. Private GOAL이나 다른 분기 문장으로 대체하지 않고 endpoint 이후에도 수정하지 않습니다.",
+  direct_final: "Focused readout과 Target-authored quotation 없이 사전 고정 final prompt를 바로 사용합니다.",
+  direct_request: "추가 문맥이나 변환 없이 원 요청에 대한 단일 Target 응답을 얻습니다.",
+  analysis: "사전에 등록된 연구 분석 축을 순서대로 누적합니다. 단계 순서는 고정이며 최종 endpoint에 따라 바뀌지 않습니다.",
+  pcsa_attacker: "고정 전략과 누적 대화로 다음 client utterance를 생성합니다.",
+  pcsa_target: "직전 attacker 발화를 누적 대화의 다음 user turn으로 받아 응답합니다.",
+  pcsa_evaluator: "직전 client–Target 쌍이 hidden GOAL 방향으로 진행했는지를 중간 JSON으로 기록합니다. 논문 최종 metric과는 별도입니다.",
+};
+
+function stageGuide(stage) {
+  if (STAGE_GUIDES[stage]) return STAGE_GUIDES[stage];
+  if (stage.startsWith("analysis_")) return STAGE_GUIDES.analysis;
+  if (stage.startsWith("pcsa_attacker_")) return STAGE_GUIDES.pcsa_attacker;
+  if (stage.startsWith("pcsa_target_")) return STAGE_GUIDES.pcsa_target;
+  if (stage.startsWith("pcsa_evaluator_")) return STAGE_GUIDES.pcsa_evaluator;
+  return "등록된 실행 계약에 따라 다음 모델 입력을 구성합니다.";
+}
+
+function appendList(root, values) {
+  root.replaceChildren();
+  values.forEach(value => root.append(el("li", "", value)));
+}
+
 function historyMode() {
   return $("#historyEnabled").checked ? "with_history" : "no_history";
 }
@@ -56,6 +109,67 @@ function jsonBlock(value) {
   const pre = el("pre");
   pre.textContent = JSON.stringify(value, null, 2);
   return pre;
+}
+
+function renderProtocolContract(node, session) {
+  const guide = PROTOCOL_GUIDES[session.protocol] || {philosophy: "등록된 프로토콜 계약을 실행합니다.", flow: [], artifacts: []};
+  $(".protocol-philosophy", node).textContent = guide.philosophy;
+  appendList($(".protocol-flow", node), guide.flow);
+  const branch = (currentCase.branches || [])[session.branch_index] || {};
+  $(".protocol-artifacts", node).textContent = JSON.stringify({
+    case_level: guide.artifacts,
+    branch_index: session.branch_index,
+    branch_direction: branch.direction || null,
+    historical_reference_run: session.historical_run || null,
+  }, null, 2);
+}
+
+function promptLayerLabels(messages) {
+  return messages.map((message, index) => {
+    const isLast = index === messages.length - 1;
+    if (message.role === "system") return `${index + 1}. system — 저장된 역할·분석 경계 계약`;
+    if (isLast && message.role === "user") return `${index + 1}. user — 현재 단계의 실제 전송 prompt (아래 편집기와 동일)`;
+    if (message.role === "assistant") return `${index + 1}. assistant — 이전 단계에서 실제로 생성된 모델 응답`;
+    return `${index + 1}. ${message.role} — 누적된 이전 연구 질문 또는 client utterance`;
+  });
+}
+
+function privateGoalBoundary(session, step) {
+  if (session.protocol === "direct_baseline") return "원 GOAL이 Target user message로 직접 전달됨";
+  if (session.protocol === "pcsa_phase2") return step.role === "Target" ? "Target에는 client utterance만 전달; GOAL은 Attacker/Evaluator prompt에만 사용" : "Attacker/Evaluator 역할에는 hidden GOAL 제공";
+  return "planner/selection audit에만 사용; 완결된 GOAL을 Target message에 직접 삽입하지 않음";
+}
+
+function traceInputs(session, step) {
+  const branch = (currentCase.branches || [])[session.branch_index] || {};
+  return {
+    case_id: currentCase.case_id,
+    persona_id: currentCase.persona_id || null,
+    persona_history_observations: (currentCase.persona_history || []).length,
+    private_goal_boundary: privateGoalBoundary(session, step),
+    question_pool_candidates: ((currentCase.question_pool || {}).candidates || []).length,
+    branch: session.protocol.startsWith("red_persona_") ? {index: session.branch_index, direction: branch.direction || null} : null,
+    historical_reference_run: session.historical_run || null,
+    conversation_messages: step.messages.length,
+    selection_or_audit: step.selection,
+  };
+}
+
+function traceOutputs(step) {
+  return {
+    before_send: ["stage", "role", "messages", "prompt", "selection", "runtime_parameters", "historical_reference_response"],
+    provider_adds: ["response.text", "provider", "model", "usage", "latency_seconds", "finish_reason"],
+    state_update: ["completed_steps append", "conversation/dialogue append", "cursor or turn advance"],
+    next_stage_dependency: step.stage === "focused_readout" ? "이 응답의 exact substring이 final_query 동적 입력 후보가 됨" : "등록된 protocol state machine이 결정",
+    endpoint_adaptation: false,
+  };
+}
+
+function renderStageTransparency(node, session, step) {
+  $(".stage-philosophy", node).textContent = stageGuide(step.stage);
+  appendList($(".prompt-layers", node), promptLayerLabels(step.messages));
+  $(".trace-inputs", node).textContent = JSON.stringify(traceInputs(session, step), null, 2);
+  $(".trace-outputs", node).textContent = JSON.stringify(traceOutputs(step), null, 2);
 }
 
 function showError(node, error) {
@@ -437,6 +551,7 @@ function createLane(session, target = {}) {
   $("#lanes").append(node);
   lanes.set(session.id, {node, session});
   focusedLaneId = session.id;
+  renderProtocolContract(node, session);
   renderCostPreview(node, session);
   renderLaneState(node, session);
   refreshLaneView();
@@ -538,6 +653,23 @@ function renderTimeline(node, steps) {
     item.append(meta);
     const response = el("pre", "response"); response.textContent = step.response.text; item.append(response);
     const details = el("details"); const summary = el("summary", "", "실제 전송 messages"); details.append(summary, jsonBlock(step.messages)); item.append(details);
+    const trace = el("details");
+    trace.append(el("summary", "", "이 단계의 prompt 철학·입력·생성 데이터"));
+    const session = lanes.get(node.dataset.sessionId).session;
+    trace.append(jsonBlock({
+      philosophy: stageGuide(step.stage),
+      input_lineage: traceInputs(session, step),
+      stored_step_record: {
+        stage: step.stage,
+        role: step.role,
+        selection: step.selection,
+        runtime_parameters: step.runtime_parameters,
+        messages: step.messages,
+        historical_reference_response: step.historical_reference_response,
+        response: step.response,
+      },
+    }));
+    item.append(trace);
     root.append(item);
   });
 }
@@ -576,6 +708,7 @@ function renderPending(node, step) {
   $(".stage-name", node).textContent = step.stage;
   const selection = $(".selection-box", node); selection.replaceChildren();
   selection.append(el("strong", "", "Prompt/질문 선택 근거"), jsonBlock(step.selection));
+  renderStageTransparency(node, lanes.get(node.dataset.sessionId).session, step);
   renderMessages($(".message-list", node), step.messages);
   $(".prompt-editor", node).value = step.prompt;
   const runtime = step.runtime_parameters || {};

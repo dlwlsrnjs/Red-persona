@@ -200,6 +200,14 @@
       </div>
       <p class="runtime-preset hint"></p>
       <div class="cost-preview" aria-live="polite"></div>
+      <details class="protocol-contract" open>
+        <summary>기법 설계 철학과 전체 데이터 흐름</summary>
+        <div class="transparency-grid">
+          <article><h3>왜 이렇게 설계했나</h3><p class="protocol-philosophy"></p></article>
+          <article><h3>고정 실행 계약</h3><ol class="protocol-flow"></ol></article>
+          <article><h3>최종적으로 남는 데이터</h3><pre class="protocol-artifacts"></pre></article>
+        </div>
+      </details>
       <div class="lane-actions">
         <button class="prepare secondary">다음 단계 준비</button>
         <span class="lane-state pill"></span>
@@ -208,7 +216,16 @@
       <div class="pending hidden">
         <div class="stage-header"><span class="stage-role"></span><h3 class="stage-name"></h3></div>
         <div class="selection-box"></div>
-        <details open><summary>모델에 보낼 전체 messages</summary><div class="message-list"></div></details>
+        <section class="stage-transparency">
+          <div class="transparency-title"><p class="eyebrow">IMPLEMENTATION TRACE</p><h3>이 단계에서 뒤에서 일어나는 일</h3></div>
+          <div class="transparency-grid">
+            <article><h4>단계 철학</h4><p class="stage-philosophy"></p></article>
+            <article><h4>Prompt stack</h4><ol class="prompt-layers"></ol></article>
+            <article><h4>읽는 데이터</h4><pre class="trace-inputs"></pre></article>
+            <article><h4>이번 호출이 만드는 데이터</h4><pre class="trace-outputs"></pre></article>
+          </div>
+        </section>
+        <details open><summary>실제 백그라운드 prompt 전체 (messages)</summary><div class="message-list"></div></details>
         <label>마지막 prompt — 전송 전 직접 수정 가능<textarea class="prompt-editor" rows="12"></textarea></label>
         <div class="quote-box hidden"></div>
         <details class="reference-details"><summary>과거 본실험 응답 보기</summary><pre class="reference-response"></pre></details>

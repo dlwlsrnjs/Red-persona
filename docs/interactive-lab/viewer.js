@@ -1,14 +1,151 @@
-const $=(s,r=document)=>r.querySelector(s);
-let caseIndex=[],currentCase=null;
-function node(tag,cls="",text=""){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=="")n.textContent=String(text);return n}
-function fail(target,error){target.textContent=error.message||String(error);target.classList.remove("hidden")}
-async function json(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}: ${url}`);return r.json()}
-async function loadIndex(){const value=await json("data/index.json");caseIndex=value.cases;renderCaseList()}
-function renderCaseList(){const q=$("#query").value.trim().toLowerCase(),outcome=$("#outcome").value;const rows=caseIndex.filter(x=>(outcome==="all"||x.outcome===outcome)&&(!q||JSON.stringify(x).toLowerCase().includes(q)));const select=$("#caseSelect");select.replaceChildren();rows.forEach(x=>{const o=node("option");o.value=x.file;o.textContent=`${x.case_id} · ${x.outcome} · ${x.persona_id||""} · ${x.crisis_label||""}`;select.append(o)});$("#caseCount").textContent=`${rows.length} cases`;return rows}
-async function openCase(file=$("#caseSelect").value){if(!file)return;currentCase=await json(`data/${file}`);renderCase()}
-function historyCards(root,history){root.replaceChildren();(history||[]).forEach((turn,i)=>{const c=node("article","timeline-item");c.append(node("h3","",`Observation ${i+1}`),node("p","",turn.user||""));const p=node("pre");p.textContent=typeof turn.persona_state==="string"?turn.persona_state:JSON.stringify(turn.persona_state,null,2);c.append(p);root.append(c)})}
-function renderCase(){const c=currentCase;$("#casePanel").classList.remove("hidden");$("#caseTitle").textContent=`${c.case_id} · ${c.persona_id||""}`;$("#persona").textContent=c.persona||"";$("#goal").textContent=c.goal||"";const badges=$("#caseBadges");badges.replaceChildren();[c.crisis_label,c.source_dataset,c.historical_score.status].forEach(x=>badges.append(node("span","",x||"—")));historyCards($("#history"),c.persona_history);historyCards($("#dialogHistory"),c.persona_history);$("#dialogPersonaTitle").textContent=`${c.persona_id||"Persona"} · ${c.case_id}`;$("#dialogPersona").textContent=c.persona||"";$("#dialogGoal").textContent=c.goal||"";renderModelResults();renderQuestions();renderProtocols()}
-function renderModelResults(){const table=node("table"),head=node("tr");["Run","Target","Protocol","R3+","B4+","HB+","Joint"].forEach(x=>head.append(node("th","",x)));table.append(head);(currentCase.model_results||[]).forEach(row=>{const s=row.score||{},tr=node("tr");[row.label,row.target_model,row.protocol,s.r3_plus,s.b4_plus,s.harmbench_positive,s.strict_joint].forEach((x,i)=>tr.append(node("td","",i>2?(x===true?"✓":x===false?"×":"—"):(x||"—"))));table.append(tr)});$("#modelResults").replaceChildren(table)}
-function renderQuestions(){const root=$("#questionPool");root.replaceChildren();((currentCase.question_pool||{}).candidates||[]).forEach((x,i)=>{const c=node("article","question");c.append(node("strong","",`${i+1}. ${x.focus||"candidate"}`),node("p","",`Case A: ${x.similar_case||""}`),node("p","",`Case B: ${x.contrast_case||""}`));const p=node("pre");p.textContent=x.research_question||"";c.append(p);root.append(c)})}
-function renderProtocols(){const root=$("#protocolRecords");root.replaceChildren();Object.entries(currentCase.protocol_scaffolds||{}).forEach(([name,value])=>{const card=node("article","question");card.append(node("strong","",name));if(!value){card.append(node("p","","저장 기록 없음"));root.append(card);return}card.append(node("p","",`Target: ${value.target_model||"—"} · turns ${(value.turns||[]).length} · branches ${(value.branches||[]).length}`));const pre=node("pre");pre.textContent=JSON.stringify({turns:value.turns,branches:value.branches},null,2);card.append(pre);root.append(card)})}
-$("#search").onclick=renderCaseList;$("#outcome").onchange=renderCaseList;$("#openCase").onclick=()=>openCase().catch(e=>fail($("#error"),e));$("#random").onclick=()=>{const rows=renderCaseList();if(rows.length)openCase(rows[Math.floor(Math.random()*rows.length)].file).catch(e=>fail($("#error"),e))};$("#personaStageButton").onclick=()=>{if(currentCase)$("#personaDialog").showModal()};$("#personaDialog .close").onclick=()=>$("#personaDialog").close();loadIndex().catch(e=>fail($("#error"),e));
+const $ = (selector, root = document) => root.querySelector(selector);
+let caseIndex = [];
+let currentCase = null;
+
+function node(tag, className = "", text = "") {
+  const value = document.createElement(tag);
+  if (className) value.className = className;
+  if (text !== "") value.textContent = String(text);
+  return value;
+}
+
+function fail(target, error) {
+  target.textContent = error.message || String(error);
+  target.classList.remove("hidden");
+}
+
+async function json(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
+  return response.json();
+}
+
+async function loadIndex() {
+  const value = await json("data/index.json");
+  caseIndex = value.cases;
+  renderCaseList();
+}
+
+function renderCaseList() {
+  const query = $("#query").value.trim().toLowerCase();
+  const outcome = $("#outcome").value;
+  const rows = caseIndex.filter(row =>
+    (outcome === "all" || row.outcome === outcome) &&
+    (!query || JSON.stringify(row).toLowerCase().includes(query))
+  );
+  const select = $("#caseSelect");
+  select.replaceChildren();
+  rows.forEach(row => {
+    const option = node("option");
+    option.value = row.file;
+    option.textContent = `${row.case_id} · ${row.outcome} · ${row.persona_id || ""} · ${row.crisis_label || ""}`;
+    select.append(option);
+  });
+  $("#caseCount").textContent = `${rows.length} cases`;
+  return rows;
+}
+
+async function openCase(file = $("#caseSelect").value) {
+  if (!file) return;
+  currentCase = await json(`data/${file}`);
+  renderCase();
+}
+
+function historyCards(root, history) {
+  root.replaceChildren();
+  (history || []).forEach((turn, index) => {
+    const card = node("article", "timeline-item");
+    card.append(node("h3", "", `Observation ${index + 1}`), node("p", "", turn.user || ""));
+    const state = node("pre");
+    state.textContent = typeof turn.persona_state === "string" ? turn.persona_state : JSON.stringify(turn.persona_state, null, 2);
+    card.append(state);
+    root.append(card);
+  });
+}
+
+function openProtocol(protocol, run = null) {
+  window.REDPersonaProtocolDetail.open({caseData: currentCase, protocol, run});
+}
+
+function renderCase() {
+  const value = currentCase;
+  $("#casePanel").classList.remove("hidden");
+  $("#caseTitle").textContent = `${value.case_id} · ${value.persona_id || ""}`;
+  $("#persona").textContent = value.persona || "";
+  $("#goal").textContent = value.goal || "";
+  const badges = $("#caseBadges");
+  badges.replaceChildren();
+  [value.crisis_label, value.source_dataset, value.historical_score.status].forEach(text => badges.append(node("span", "", text || "—")));
+  historyCards($("#history"), value.persona_history);
+  historyCards($("#dialogHistory"), value.persona_history);
+  $("#dialogPersonaTitle").textContent = `${value.persona_id || "Persona"} · ${value.case_id}`;
+  $("#dialogPersona").textContent = value.persona || "";
+  $("#dialogGoal").textContent = value.goal || "";
+  renderModelResults();
+  renderQuestions();
+  renderProtocols();
+}
+
+function renderModelResults() {
+  const table = node("table");
+  const head = node("tr");
+  ["Run", "Target", "Protocol", "R3+", "B4+", "HB+", "Joint"].forEach(value => head.append(node("th", "", value)));
+  table.append(head);
+  (currentCase.model_results || []).forEach(row => {
+    const score = row.score || {};
+    const tr = node("tr");
+    tr.append(node("td", "", row.label || "—"), node("td", "", row.target_model || "—"));
+    const protocolCell = node("td", "protocol-cell");
+    protocolCell.append(window.REDPersonaProtocolDetail.createButton(row.protocol, () => openProtocol(row.protocol, row)));
+    tr.append(protocolCell);
+    [score.r3_plus, score.b4_plus, score.harmbench_positive, score.strict_joint].forEach(value => tr.append(node("td", "", value === true ? "✓" : value === false ? "×" : "—")));
+    table.append(tr);
+  });
+  $("#modelResults").replaceChildren(table);
+}
+
+function renderQuestions() {
+  const root = $("#questionPool");
+  root.replaceChildren();
+  ((currentCase.question_pool || {}).candidates || []).forEach((value, index) => {
+    const card = node("article", "question");
+    card.append(node("strong", "", `${index + 1}. ${value.focus || "candidate"}`), node("p", "", `Case A: ${value.similar_case || ""}`), node("p", "", `Case B: ${value.contrast_case || ""}`));
+    const prompt = node("pre");
+    prompt.textContent = value.research_question || "";
+    card.append(prompt);
+    root.append(card);
+  });
+}
+
+function renderProtocols() {
+  const root = $("#protocolRecords");
+  root.replaceChildren();
+  Object.entries(currentCase.protocol_scaffolds || {}).forEach(([protocol, scaffold]) => {
+    const card = node("article", "question protocol-record-card");
+    card.append(window.REDPersonaProtocolDetail.createButton(protocol, () => openProtocol(protocol), window.REDPersonaProtocolDetail.guideFor(protocol).label));
+    if (!scaffold) {
+      card.append(node("p", "", "저장 기록 없음"));
+      root.append(card);
+      return;
+    }
+    card.append(node("p", "", `Target: ${scaffold.target_model || "—"} · turns ${(scaffold.turns || []).length} · branches ${(scaffold.branches || []).length}`));
+    const button = node("button", "primary protocol-open-button", "개괄표·트리·전체 prompt 보기");
+    button.onclick = () => openProtocol(protocol);
+    card.append(button);
+    root.append(card);
+  });
+}
+
+$("#search").onclick = renderCaseList;
+$("#outcome").onchange = renderCaseList;
+$("#openCase").onclick = () => openCase().catch(error => fail($("#error"), error));
+$("#random").onclick = () => {
+  const rows = renderCaseList();
+  if (rows.length) openCase(rows[Math.floor(Math.random() * rows.length)].file).catch(error => fail($("#error"), error));
+};
+$("#personaStageButton").onclick = () => { if (currentCase) $("#personaDialog").showModal(); };
+$("#personaDialog .close").onclick = () => $("#personaDialog").close();
+$("#protocolDialog .close").onclick = () => $("#protocolDialog").close();
+[$("#personaDialog"), $("#protocolDialog")].forEach(dialog => dialog.onclick = event => { if (event.target === dialog) dialog.close(); });
+
+loadIndex().catch(error => fail($("#error"), error));

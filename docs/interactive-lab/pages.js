@@ -6,9 +6,10 @@ const PROVIDERS = {
   huggingface: {
     label: "Hugging Face Inference",
     models: [
-      "Qwen/Qwen2.5-7B-Instruct",
-      "meta-llama/Llama-3.1-8B-Instruct",
-      "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+      "Qwen/Qwen2.5-7B-Instruct:together",
+      "Qwen/Qwen2.5-7B-Instruct:featherless-ai",
+      "meta-llama/Llama-3.1-8B-Instruct:deepinfra",
+      "microsoft/phi-4:deepinfra",
     ],
   },
 };
@@ -187,7 +188,15 @@ function renderCase() {
 }
 function renderModelResults() {
   const table = node("table"), head = node("tr"); ["Run", "Target", "Protocol", "R3+", "B4+", "HB+", "Joint"].forEach(value => head.append(node("th", "", value))); table.append(head);
-  (currentCase.model_results || []).forEach(row => { const score = row.score || {}, tr = node("tr"); [row.label, row.target_model, row.protocol, score.r3_plus, score.b4_plus, score.harmbench_positive, score.strict_joint].forEach((value, index) => tr.append(node("td", "", index > 2 ? (value === true ? "✓" : value === false ? "×" : "—") : (value || "—")))); table.append(tr); }); $("#modelResults").replaceChildren(table);
+  (currentCase.model_results || []).forEach(row => {
+    const score = row.score || {}, tr = node("tr");
+    tr.append(node("td", "", row.label || "—"), node("td", "", row.target_model || "—"));
+    const protocolCell = node("td", "protocol-cell");
+    protocolCell.append(window.REDPersonaProtocolDetail.createButton(row.protocol, () => window.REDPersonaProtocolDetail.open({caseData: currentCase, protocol: row.protocol, run: row})));
+    tr.append(protocolCell);
+    [score.r3_plus, score.b4_plus, score.harmbench_positive, score.strict_joint].forEach(value => tr.append(node("td", "", value === true ? "✓" : value === false ? "×" : "—")));
+    table.append(tr);
+  }); $("#modelResults").replaceChildren(table);
 }
 function renderQuestions() {
   const root = $("#questionPool"); root.replaceChildren(); ((currentCase.question_pool || {}).candidates || []).forEach((value, index) => { const card = node("article", "question"); card.append(node("strong", "", `${index + 1}. ${value.focus || "candidate"}`), node("p", "", `Case A: ${value.similar_case || ""}`), node("p", "", `Case B: ${value.contrast_case || ""}`)); const pre = node("pre"); pre.textContent = value.research_question || ""; card.append(pre); root.append(card); });
@@ -224,6 +233,7 @@ function addLane(options = {}) {
     if (!currentCase) throw new Error("먼저 사례를 선택하세요.");
     const session = makeSession(options), element = $("#laneTemplate").content.firstElementChild.cloneNode(true); element.dataset.id = session.id; $(".lane-label", element).textContent = `${session.provider} · ${session.model}`; $(".lane-title", element).textContent = protocolLabel(session.protocol); $(".lane-provider", element).value = session.provider; $(".lane-model", element).value = session.model; $(".lane-key", element).value = sharedKey(session.provider);
     $(".prepare", element).onclick = () => prepare(session.id); $(".send", element).onclick = () => send(session.id); $(".focus", element).onclick = () => focusLane(session.id); $(".lane-selected", element).onchange = renderProgress;
+    $(".open-protocol-detail", element).onclick = () => window.REDPersonaProtocolDetail.open({caseData: currentCase, protocol: session.protocol, liveTarget: $(".lane-model", element).value.trim()});
     $(".lane-provider", element).onchange = event => { $(".lane-key", element).value = sharedKey(event.target.value); $(".lane-model", element).value = PROVIDERS[event.target.value].models[0]; renderCost(session.id); }; $(".lane-model", element).oninput = () => renderCost(session.id);
     $(".remove", element).onclick = () => { lanes.delete(session.id); element.remove(); if (focused === session.id) focused = lanes.size ? lanes.keys().next().value : ""; refreshView(); };
     $("#lanes").append(element); lanes.set(session.id, {session, el: element}); focused = session.id; $("#runs").classList.remove("hidden"); renderProtocolContract(element, session); renderCost(session.id); renderLane(session.id); refreshView(); return session;
@@ -255,9 +265,15 @@ function prepareData(session) {
 }
 function prepare(id) { const lane = lanes.get(id); try { lane.session.pending = lane.session.pending || prepareData(lane.session); renderLane(id); return true; } catch (error) { fail($(".lane-error", lane.el), error); return false; } }
 async function providerCall(provider, key, model, messages, maxTokens) {
+  if (provider === "huggingface" && !model.includes(":")) throw new Error("Hugging Face 모델에는 명시적 provider route가 필요합니다. 예: Qwen/Qwen2.5-7B-Instruct:together. 모델 목록에서 provider가 붙은 항목을 다시 선택하세요.");
   const url = provider === "openai" ? "https://api.openai.com/v1/chat/completions" : "https://router.huggingface.co/v1/chat/completions";
   const response = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json", "Authorization": `Bearer ${key}`}, body: JSON.stringify({model, messages, temperature: 0, max_tokens: maxTokens})}); let value; try { value = await response.json(); } catch (_) { value = {}; }
-  if (!response.ok) throw new Error(value.error && value.error.message ? value.error.message : `Provider HTTP ${response.status}`);
+  if (!response.ok) {
+    const detail = value.error && value.error.message ? value.error.message : value.error || value.message || "";
+    if (provider === "huggingface" && response.status === 402) throw new Error(`Hugging Face HTTP 402 · ${model} 호출에 사용할 HF 크레딧 또는 연결 provider 결제가 없습니다. HF Billing/Inference Providers 설정을 확인하거나 OpenAI 레인으로 전환하세요.${detail ? ` (${detail})` : ""}`);
+    if (provider === "huggingface" && /not supported|provider.*enabled/i.test(String(detail))) throw new Error(`현재 HF 계정에서 ${model} route를 사용할 수 없습니다. provider suffix가 붙은 다른 항목을 선택하고 HF Inference Providers 설정에서 해당 provider를 활성화하세요. (${detail})`);
+    throw new Error(detail || `Provider HTTP ${response.status}`);
+  }
   const content = value.choices && value.choices[0] && value.choices[0].message ? value.choices[0].message.content : ""; return typeof content === "string" ? content : JSON.stringify(content);
 }
 function totalSteps(session) { if (session.protocol === "direct_baseline") return 1; if (session.protocol === "red_persona_compact") return 3; if (session.protocol === "red_persona_direct_final") return 2; return session.scaffold.turns.length + 2; }

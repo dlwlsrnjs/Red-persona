@@ -19,9 +19,10 @@ PROVIDERS = {
         "endpoint": "https://router.huggingface.co/v1/chat/completions",
         "key_hint": "hf_…",
         "models": [
-            "Qwen/Qwen2.5-7B-Instruct",
-            "meta-llama/Llama-3.1-8B-Instruct",
-            "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+            "Qwen/Qwen2.5-7B-Instruct:together",
+            "Qwen/Qwen2.5-7B-Instruct:featherless-ai",
+            "meta-llama/Llama-3.1-8B-Instruct:deepinfra",
+            "microsoft/phi-4:deepinfra",
         ],
     },
 }
@@ -61,6 +62,11 @@ def chat_completion(
         raise ProviderError("API key/token is required")
     if not model.strip():
         raise ProviderError("model is required")
+    if provider == "huggingface" and ":" not in model:
+        raise ProviderError(
+            "Hugging Face model requires an explicit provider route, for example "
+            "Qwen/Qwen2.5-7B-Instruct:together"
+        )
     if not messages or any(
         item.get("role") not in {"system", "user", "assistant"}
         or not isinstance(item.get("content"), str)
@@ -95,6 +101,21 @@ def chat_completion(
         except ValueError:
             detail_text = response.text
         # Bound error output and never include request headers (which hold the key).
+        if provider == "huggingface" and response.status_code == 402:
+            raise ProviderError(
+                "Hugging Face HTTP 402: this route has no available HF credits or connected "
+                f"provider billing for {model}. Check HF Billing/Inference Providers settings. "
+                f"Detail: {detail_text[:1000]}"
+            )
+        if provider == "huggingface" and (
+            "not supported" in detail_text.casefold()
+            or "provider" in detail_text.casefold() and "enabled" in detail_text.casefold()
+        ):
+            raise ProviderError(
+                f"Hugging Face route unavailable for {model}. Choose another model with an "
+                "explicit :provider suffix and enable that provider in HF settings. "
+                f"Detail: {detail_text[:1000]}"
+            )
         raise ProviderError(f"provider HTTP {response.status_code}: {detail_text[:1500]}")
     try:
         value = response.json()

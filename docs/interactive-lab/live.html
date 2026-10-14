@@ -76,6 +76,7 @@
           <article><h3>고정 실행 계약</h3><ol class="protocol-flow"></ol></article>
           <article><h3>최종적으로 남는 데이터</h3><pre class="protocol-artifacts"></pre></article>
         </div>
+        <button class="open-protocol-detail">과거 전체 실행 · prompt 트리 보기</button>
       </details>
       <div class="lane-actions"><button class="prepare">다음 단계 준비</button><span class="state pill"></span></div>
       <p class="lane-error error hidden"></p>
@@ -102,6 +103,18 @@
 
   <dialog id="personaDialog"><div class="dialog-head"><div><p class="eyebrow">PERSONA STAGE</p><h2 id="dialogPersonaTitle"></h2></div><button class="close">닫기</button></div><div class="dialog-grid"><article class="card"><h3>Persona</h3><pre id="dialogPersona"></pre></article><article class="card"><h3>Private GOAL</h3><pre id="dialogGoal" class="goal"></pre></article><article class="card full"><h3>History</h3><div id="dialogHistory" class="timeline"></div></article></div></dialog>
   <dialog id="progressDialog"><div class="dialog-head"><div><p class="eyebrow">PROGRESS STAGE</p><h2>실행 진행상황</h2></div><button class="close">닫기</button></div><div id="progressCards" class="progress-cards"></div></dialog>
+  <dialog id="protocolDialog" class="protocol-dialog">
+    <div class="dialog-head"><div><p class="eyebrow">PROTOCOL TRACE</p><h2 id="protocolDialogTitle"></h2><p id="protocolDialogSubtitle" class="dialog-subtitle"></p></div><button class="close">닫기</button></div>
+    <div class="protocol-dialog-body">
+      <div id="protocolRunContext" class="protocol-run-context"></div>
+      <div class="protocol-explain-grid">
+        <details open><summary>왜 이렇게 설계했나 · 상세 prompt 구성</summary><div id="protocolWhy"></div><div id="protocolPromptComposition" class="prompt-composition"></div></details>
+        <details open><summary>고정 실행 계약 · 개괄표</summary><div id="protocolOverview" class="table-wrap"></div></details>
+      </div>
+      <section class="execution-section"><div class="title"><div><p class="eyebrow">STORED EXECUTION TREE</p><h2>과거 전체 진행과 실제 prompt/response</h2></div><span class="pill">노드를 클릭해 원문 펼치기</span></div><div id="protocolTree" class="execution-tree"></div></section>
+    </div>
+  </dialog>
+  <script src="protocol-detail.js"></script>
   <script src="pages.js"></script>
 </body>
 </html>

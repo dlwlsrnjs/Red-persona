@@ -81,6 +81,7 @@ function renderCase() {
   $("#dialogPersonaTitle").textContent = `${value.persona_id || "Persona"} · ${value.case_id}`;
   $("#dialogPersona").textContent = value.persona || "";
   $("#dialogGoal").textContent = value.goal || "";
+  renderGraphExplorer();
   renderModelEndpoints();
   renderModelResults();
   renderQuestions();
@@ -104,6 +105,35 @@ function endpointMetrics(score = {}) {
     ["Joint", outcomeText(score.joint_success), score.joint_success],
   ].forEach(([label, value, positive]) => root.append(node("span", `metric-badge ${value === "—" || value === undefined ? "unknown" : positive ? "success" : "failure"}`, `${label} ${value == null ? "—" : value}`)));
   return root;
+}
+
+function renderGraphExplorer() {
+  const select = $("#graphRunSelect");
+  const graphRoot = $("#caseExecutionGraph");
+  const runs = currentCase.model_results || [];
+  const previous = select.value;
+  select.replaceChildren();
+  runs.forEach((run, index) => {
+    const option = node("option");
+    option.value = String(index);
+    const status = (run.score || {}).strict_joint === true ? "Joint 성공" : (run.score || {}).strict_joint === false ? "Joint 실패" : "미평가";
+    option.textContent = `${run.target_model || run.label || "Target"} · ${window.REDPersonaProtocolDetail.guideFor(run.protocol).label} · ${status}`;
+    select.append(option);
+  });
+  if (previous && Number(previous) < runs.length) select.value = previous;
+  const draw = () => {
+    const run = runs[Number(select.value) || 0];
+    if (!run) {
+      graphRoot.replaceChildren(node("p", "empty", "저장 실행 없음"));
+      return;
+    }
+    const scaffold = (currentCase.protocol_scaffolds || {})[run.protocol] || null;
+    window.REDPersonaProtocolDetail.renderGraph(graphRoot, currentCase, run.protocol, scaffold, run);
+    $("#graphOpenLarge").onclick = () => openProtocol(run.protocol, run);
+  };
+  select.onchange = draw;
+  $("#graphFit").onclick = () => window.REDPersonaProtocolDetail.resetGraph(graphRoot);
+  draw();
 }
 
 function renderModelEndpoints() {
@@ -141,20 +171,22 @@ function renderModelEndpoints() {
       [...tabs.children].forEach((button, buttonIndex) => button.classList.toggle("active", buttonIndex === index));
       const endpoint = endpoints[index] || {};
       const branchScore = branchScores[index] || {};
-      answerTitle.textContent = `B${index + 1} · ${endpoint.direction || branchScore.direction || "branch"}`;
+      const branch = window.REDPersonaProtocolDetail.branchGuide(endpoint.direction || branchScore.direction || "branch");
+      answerTitle.textContent = `B${index + 1} · ${branch.title}`;
       answer.textContent = endpoint.response || "(빈 응답)";
       metrics.replaceChildren(endpointMetrics(branchScore));
     };
     endpoints.forEach((endpoint, index) => {
       const branchScore = branchScores[index] || {};
+      const branch = window.REDPersonaProtocolDetail.branchGuide(endpoint.direction || branchScore.direction || "branch");
       const button = node("button", `endpoint-tab ${outcomeState(branchScore.joint_success)}`, `B${index + 1} ${outcomeText(branchScore.joint_success, "✓", "×")}`);
       button.type = "button";
-      button.title = `${endpoint.direction || branchScore.direction || "branch"} · Joint ${outcomeText(branchScore.joint_success)}`;
+      button.title = `${branch.title}: ${branch.purpose} · Joint ${outcomeText(branchScore.joint_success)}`;
       button.onclick = () => selectBranch(index);
       tabs.append(button);
     });
     card.append(tabs, answerHead, answer);
-    const treeButton = node("button", "endpoint-tree-button", "이 모델·프로토콜의 실행 트리 보기");
+    const treeButton = node("button", "endpoint-tree-button", "이 모델·프로토콜의 실행 그래프 보기");
     treeButton.type = "button";
     treeButton.onclick = () => openProtocol(run.protocol, run);
     card.append(treeButton);

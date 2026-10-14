@@ -6,6 +6,7 @@ let currentCase = null;
 const lanes = new Map();
 let laneViewMode = "all";
 let focusedLaneId = "";
+let autoRunActive = false;
 
 function historyMode() {
   return $("#historyEnabled").checked ? "with_history" : "no_history";
@@ -226,6 +227,81 @@ function populateSelect(select, rows, selected) {
   }
 }
 
+function renderComparisonChoices() {
+  const protocols = $("#protocolChecklist"); protocols.replaceChildren();
+  for (const [value, info] of Object.entries(config.protocols || {})) {
+    const label = el("label", "choice-item");
+    const input = el("input"); input.type = "checkbox"; input.value = value;
+    input.className = "protocol-choice"; input.checked = value === "red_persona_compact";
+    const text = el("span"); text.append(document.createTextNode(info.label || value));
+    text.append(el("small", "", info.summary || ""));
+    label.append(input, text); protocols.append(label);
+    input.addEventListener("change", updateMatrixPreview);
+  }
+  const models = $("#modelChecklist"); models.replaceChildren();
+  for (const [provider, info] of Object.entries(config.providers || {})) {
+    for (const model of info.models || []) {
+      const label = el("label", "choice-item");
+      const input = el("input"); input.type = "checkbox";
+      input.className = "model-choice"; input.dataset.provider = provider;
+      input.dataset.model = model;
+      input.checked = provider === "openai" && model === "gpt-4o-2024-11-20";
+      const text = el("span", "", model); text.append(el("small", "", info.label || provider));
+      label.append(input, text); models.append(label);
+      input.addEventListener("change", updateMatrixPreview);
+    }
+  }
+}
+
+function selectedProtocols() {
+  return $$(".protocol-choice:checked").map(input => input.value);
+}
+
+function selectedModels() {
+  return $$(".model-choice:checked").map(input => ({
+    provider: input.dataset.provider, model: input.dataset.model,
+  }));
+}
+
+function comparisonCells() {
+  const mode = $("#comparisonMode").value;
+  if (mode === "method_fixed") {
+    return selectedModels().map(target => ({protocol: $("#protocol").value, ...target}));
+  }
+  if (mode === "model_fixed") {
+    const target = {provider: $("#fixedProvider").value, model: $("#fixedModel").value.trim()};
+    return selectedProtocols().map(protocol => ({protocol, ...target}));
+  }
+  return selectedProtocols().flatMap(protocol =>
+    selectedModels().map(target => ({protocol, ...target}))
+  );
+}
+
+function updateMatrixPreview() {
+  const mode = $("#comparisonMode").value;
+  $("#fixedProtocolField").classList.toggle("hidden", mode === "model_fixed");
+  $("#protocolChoices").classList.toggle("hidden", mode === "method_fixed");
+  $("#modelChoices").classList.toggle("hidden", mode === "model_fixed");
+  $("#fixedModelChoices").classList.toggle("hidden", mode !== "model_fixed");
+  const help = {
+    method_fixed: "같은 prompt 기법을 여러 Target 모델에 보내 모델별 반응 패턴을 비교합니다.",
+    model_fixed: "같은 Target 모델에 여러 prompt 기법을 보내 기법별 차이를 비교합니다.",
+    cartesian: "선택한 모든 기법과 Target 모델의 조합을 한 화면에 만듭니다.",
+  }[mode];
+  $("#comparisonModeHelp").textContent = help;
+  const cells = comparisonCells();
+  $("#matrixPreview").textContent = `${cells.length}개 실행 레인 생성 예정`;
+}
+
+function pickHistoricalRun(protocol, model) {
+  const options = runOptions(protocol);
+  const exact = options.find(([, run]) => run.target_model === model);
+  if (exact) return exact[0];
+  const selected = $("#historicalRun").value;
+  if (options.some(([runId]) => runId === selected)) return selected;
+  return options.length ? options[0][0] : "";
+}
+
 function pricingFor(provider, model) {
   if (provider !== "openai") return null;
   const key = model.toLowerCase().startsWith("gpt-4o") ? "gpt-4o" : model.toLowerCase();
@@ -287,24 +363,46 @@ function confirmCost(node, session) {
   return window.confirm(`지금 모델 호출 1회를 시작합니다.\n과거 동일 프로토콜 평균: ${message}\n\n계속 전송할까요?`);
 }
 
-async function addLane() {
+async function addLane(options = {}) {
   clearError($("#globalError"));
-  if (!currentCase) return;
+  if (!currentCase) return null;
+  const protocol = options.protocol || $("#protocol").value;
+  const provider = options.provider || $("#fixedProvider").value || "openai";
+  const model = options.model || $("#fixedModel").value.trim() || config.providers[provider].models[0];
   try {
     const session = await api("/api/session", {method: "POST", body: JSON.stringify({
       case_id: currentCase.case_id,
-      protocol: $("#protocol").value,
+      protocol,
       branch_index: Number($("#branchIndex").value),
       history_enabled: $("#historyEnabled").checked,
       custom_goal: $("#customGoal").value,
       pcsa_strategy: $("#pcsaStrategy").value,
-      historical_run: $("#historicalRun").value,
+      historical_run: pickHistoricalRun(protocol, model),
     })});
-    createLane(session);
-  } catch (error) { showError($("#globalError"), error); }
+    createLane(session, {provider, model});
+    return session;
+  } catch (error) { showError($("#globalError"), error); return null; }
 }
 
-function createLane(session) {
+async function createComparisonLanes() {
+  clearError($("#globalError"));
+  if (!currentCase) { showError($("#globalError"), "먼저 사례를 여세요."); return; }
+  const cells = comparisonCells().filter(cell => cell.model);
+  if (!cells.length) { showError($("#globalError"), "비교할 기법과 모델을 하나 이상 선택하세요."); return; }
+  if (cells.length > 24) {
+    showError($("#globalError"), `한 번에 최대 24개 레인까지 만들 수 있습니다. 현재 ${cells.length}개입니다.`);
+    return;
+  }
+  const button = $("#createComparison"); button.disabled = true; button.textContent = "레인 생성 중…";
+  try {
+    await Promise.all(cells.map(cell => addLane(cell)));
+    $("#lanesSection").scrollIntoView({behavior: "smooth", block: "start"});
+  } finally {
+    button.disabled = false; button.textContent = "선택 조합 레인 만들기";
+  }
+}
+
+function createLane(session, target = {}) {
   $("#lanesSection").classList.remove("hidden");
   const node = $("#laneTemplate").content.firstElementChild.cloneNode(true);
   node.dataset.sessionId = session.id;
@@ -315,11 +413,15 @@ function createLane(session) {
   $(".lane-summary", node).textContent = session.protocol_metadata.summary;
   $(".lane-state", node).textContent = "ready";
   const provider = $(".provider", node);
-  populateSelect(provider, config.providers, "openai");
+  populateSelect(provider, config.providers, target.provider || "openai");
   const model = $(".model", node);
-  model.value = config.providers.openai.models[0];
+  model.value = target.model || config.providers[provider.value].models[0];
+  const sharedKey = provider.value === "openai" ? $("#sharedOpenAIKey").value : $("#sharedHFKey").value;
+  $(".api-key", node).value = sharedKey;
   provider.addEventListener("change", () => {
     model.value = config.providers[provider.value].models[0];
+    $(".api-key", node).value = provider.value === "openai" ?
+      $("#sharedOpenAIKey").value : $("#sharedHFKey").value;
     renderCostPreview(node, session);
   });
   model.addEventListener("input", () => renderCostPreview(node, session));
@@ -329,6 +431,7 @@ function createLane(session) {
     refreshLaneView();
   });
   $(".focus-lane", node).addEventListener("click", () => focusLane(session.id));
+  $(".lane-selected", node).addEventListener("change", renderProgressStage);
   $(".prepare", node).addEventListener("click", () => prepareLane(node));
   $(".send", node).addEventListener("click", () => sendLane(node));
   $("#lanes").append(node);
@@ -458,7 +561,8 @@ async function prepareLane(node, quoteOverride = "") {
     lanes.get(sessionId).session = value.session;
     renderPending(node, value.step);
     renderLaneState(node, value.session);
-  } catch (error) { showError(errorNode, error); }
+    return true;
+  } catch (error) { showError(errorNode, error); return false; }
   finally {
     button.textContent = "다음 단계 준비";
     const lane = lanes.get(node.dataset.sessionId);
@@ -478,7 +582,7 @@ function renderPending(node, step) {
   if (runtime.temperature != null) $(".temperature", node).value = runtime.temperature;
   if (runtime.max_tokens) $(".max-tokens", node).value = runtime.max_tokens;
   $(".runtime-preset", node).textContent =
-    `Historical preset · temperature=${runtime.temperature ?? "omitted"} · max_tokens=${runtime.max_tokens ?? "omitted"} · top_p=${runtime.top_p || "omitted"} · seed=${runtime.seed || "omitted"}`;
+    `Historical preset · temperature=${runtime.temperature == null ? "omitted" : runtime.temperature} · max_tokens=${runtime.max_tokens == null ? "omitted" : runtime.max_tokens} · top_p=${runtime.top_p || "omitted"} · seed=${runtime.seed || "omitted"}`;
   $(".reference-response", node).textContent = step.historical_reference_response || "(저장된 비교 응답 없음)";
   const quoteBox = $(".quote-box", node); quoteBox.replaceChildren();
   const candidates = step.selection.quote_candidates || [];
@@ -500,13 +604,13 @@ function renderPending(node, step) {
   } else quoteBox.classList.add("hidden");
 }
 
-async function sendLane(node) {
+async function sendLane(node, {confirm = true} = {}) {
   const errorNode = $(".lane-error", node); clearError(errorNode);
-  if (!$("#consent").checked) { showError(errorNode, "먼저 통제된 안전성 평가 동의 체크박스를 선택하세요."); return; }
+  if (!$("#consent").checked) { showError(errorNode, "먼저 통제된 안전성 평가 동의 체크박스를 선택하세요."); return false; }
   const key = $(".api-key", node).value.trim();
-  if (!key) { showError(errorNode, "이 단계에 사용할 API key 또는 HF token을 입력하세요."); return; }
+  if (!key) { showError(errorNode, "이 단계에 사용할 API key 또는 HF token을 입력하세요."); return false; }
   const current = lanes.get(node.dataset.sessionId).session;
-  if (!confirmCost(node, current)) return;
+  if (confirm && !confirmCost(node, current)) return false;
   const send = $(".send", node); send.disabled = true; send.textContent = "전송 중…";
   try {
     const sessionId = node.dataset.sessionId;
@@ -522,13 +626,105 @@ async function sendLane(node) {
     lanes.get(sessionId).session = value.session;
     $(".pending", node).classList.add("hidden");
     renderLaneState(node, value.session);
-  } catch (error) { showError(errorNode, error); }
+    return true;
+  } catch (error) { showError(errorNode, error); return false; }
   finally { send.disabled = false; send.textContent = "이 단계만 모델에 전송"; }
+}
+
+function selectedLaneEntries() {
+  return [...lanes.values()].filter(({node, session}) =>
+    !session.completed && $(".lane-selected", node).checked
+  );
+}
+
+function validateGroupDispatch(entries) {
+  if (!$("#consent").checked) {
+    showError($("#globalError"), "먼저 통제된 안전성 평가 동의 체크박스를 선택하세요.");
+    return false;
+  }
+  if (!entries.length) {
+    showError($("#globalError"), "진행할 미완료 선택 레인이 없습니다.");
+    return false;
+  }
+  const missing = entries.filter(({node}) => !$(".api-key", node).value.trim());
+  if (missing.length) {
+    showError($("#globalError"), `${missing.length}개 레인에 API key/HF token이 없습니다.`);
+    return false;
+  }
+  return true;
+}
+
+async function advanceLane({node, session}) {
+  if (session.completed) return false;
+  node.classList.add("group-run-active");
+  try {
+    if (!session.pending) {
+      const prepared = await prepareLane(node);
+      if (!prepared) { $(".lane-selected", node).checked = false; return false; }
+    }
+    const sent = await sendLane(node, {confirm: false});
+    if (!sent) $(".lane-selected", node).checked = false;
+    return sent;
+  } finally {
+    node.classList.remove("group-run-active");
+  }
+}
+
+function setAutoControls(running) {
+  $("#nextSelected").disabled = running;
+  $("#autoSelected").disabled = running;
+  $("#stopAuto").disabled = !running;
+  $("#autoSelected").textContent = running ? "Auto 실행 중…" : "선택 레인 · Auto";
+}
+
+async function runNextSelected() {
+  clearError($("#globalError"));
+  const entries = selectedLaneEntries();
+  if (!validateGroupDispatch(entries)) return;
+  if (!window.confirm(`선택된 ${entries.length}개 레인에 다음 단계 1회씩 병렬 전송합니다. 계속할까요?`)) return;
+  $("#nextSelected").disabled = true;
+  try { await Promise.allSettled(entries.map(advanceLane)); }
+  finally { $("#nextSelected").disabled = autoRunActive; }
+}
+
+async function runAutoSelected() {
+  clearError($("#globalError"));
+  const initial = selectedLaneEntries();
+  if (!validateGroupDispatch(initial)) return;
+  if (!window.confirm(
+    `선택된 ${initial.length}개 레인을 각 프로토콜의 완료 지점까지 자동 진행합니다.\n` +
+    "각 라운드는 모델별로 병렬 전송되며 여러 번의 유료 API 호출이 발생합니다. 계속할까요?"
+  )) return;
+  autoRunActive = true; setAutoControls(true);
+  let rounds = 0;
+  try {
+    while (autoRunActive && rounds < 32) {
+      const entries = selectedLaneEntries();
+      if (!entries.length) break;
+      const results = await Promise.allSettled(entries.map(advanceLane));
+      const progressed = results.some(result => result.status === "fulfilled" && result.value);
+      if (!progressed) break;
+      rounds += 1;
+    }
+  } finally {
+    autoRunActive = false; setAutoControls(false);
+  }
+}
+
+function stopAutoRun() {
+  autoRunActive = false;
+  $("#stopAuto").disabled = true;
+  $("#stopAuto").textContent = "현재 호출 후 중지 중…";
+  setTimeout(() => { $("#stopAuto").textContent = "Auto 중지"; }, 1200);
 }
 
 async function init() {
   config = await api("/api/config");
   populateSelect($("#protocol"), config.protocols, "red_persona_compact");
+  populateSelect($("#fixedProvider"), config.providers, "openai");
+  $("#fixedModel").value = config.providers.openai.models[0];
+  renderComparisonChoices();
+  updateMatrixPreview();
   populateRunSelect($("#caseRun"), "red_persona_compact");
   populateRunSelect($("#historicalRun"), $("#protocol").value);
   await loadCases();
@@ -545,9 +741,30 @@ async function init() {
   $("#protocol").addEventListener("change", () => {
     populateRunSelect($("#historicalRun"), $("#protocol").value,
       !$("#protocol").value.startsWith("red_persona_"));
+    updateMatrixPreview();
+  });
+  $("#comparisonMode").addEventListener("change", updateMatrixPreview);
+  $("#fixedProvider").addEventListener("change", () => {
+    $("#fixedModel").value = config.providers[$("#fixedProvider").value].models[0];
+    updateMatrixPreview();
+  });
+  $("#fixedModel").addEventListener("input", updateMatrixPreview);
+  $("#sharedOpenAIKey").addEventListener("input", event => {
+    for (const {node} of lanes.values()) {
+      if ($(".provider", node).value === "openai") $(".api-key", node).value = event.target.value;
+    }
+  });
+  $("#sharedHFKey").addEventListener("input", event => {
+    for (const {node} of lanes.values()) {
+      if ($(".provider", node).value === "huggingface") $(".api-key", node).value = event.target.value;
+    }
   });
   $("#searchPersonas").addEventListener("click", searchPersonaPool);
   $("#addLane").addEventListener("click", addLane);
+  $("#createComparison").addEventListener("click", createComparisonLanes);
+  $("#nextSelected").addEventListener("click", runNextSelected);
+  $("#autoSelected").addEventListener("click", runAutoSelected);
+  $("#stopAuto").addEventListener("click", stopAutoRun);
   $("#viewAll").addEventListener("click", () => setLaneView("all"));
   $("#viewSingle").addEventListener("click", () => setLaneView("single"));
   $("#focusedLane").addEventListener("change", event => focusLane(event.target.value));

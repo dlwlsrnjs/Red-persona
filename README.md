@@ -7,7 +7,10 @@ API 키를 브라우저에서만 입력하고 RED-Persona와 baseline prompt를 
 Final-197 성공/실패 표본 선택, persona/history와 질문 풀 감사, custom GOAL, OpenAI 및
 Hugging Face Inference 연결을 제공한다. 자세한 실행법과 보안 계약은
 [`interactive_lab/README_KO.md`](persona_redteam/interactive_lab/README_KO.md)에 있다.
-한 레인 집중/여러 레인 비교와 personaㆍ진행상황 전체화면을 지원한다. GitHub Pages용
+한 레인 집중/여러 레인 비교와 personaㆍ진행상황 전체화면을 지원한다. 기법을 고정해 여러
+모델을 비교하거나 모델을 고정해 여러 기법을 비교할 수 있고, 선택한 기법×모델 교차 레인도
+자동 생성한다. 선택 레인에 한 단계씩 보내는 Step과 완료까지 진행하는 명시적 Auto 모드를
+제공한다. GitHub Pages용
 브라우저 실행본은 [`docs/interactive-lab/`](docs/interactive-lab/)에 있으며 배포 주소는
 <https://dlwlsrnjs.github.io/Red-persona/>다.
 배포 첫 화면에서 API 호출이 전혀 없는 `Dataset Viewer`와 사용자가 매 호출을 승인하는

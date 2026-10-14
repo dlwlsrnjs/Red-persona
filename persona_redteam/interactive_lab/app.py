@@ -112,7 +112,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "security": {
                         "api_keys_stored": False,
                         "api_keys_logged": False,
-                        "automatic_dispatch": False,
+                        "automatic_dispatch": "explicit_user_started_auto_mode_only",
                         "default_bind": "127.0.0.1",
                     },
                 })
@@ -243,7 +243,7 @@ def main() -> None:
     STATE = State()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"RED-Persona Interactive Lab: http://{args.host}:{args.port}")
-    print("API keys stay in the browser input and are sent only with an explicit step click.")
+    print("API keys stay in browser inputs; dispatch starts only from an explicit Step/Auto action.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

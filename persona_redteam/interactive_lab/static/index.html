@@ -14,8 +14,8 @@
       <p class="subtitle">저장된 197개 사례와 알고리즘을 한 단계씩 검사하고, 클릭한 요청만 모델에 전송합니다.</p>
     </div>
     <div class="security-card">
-      <strong>Manual-send only</strong>
-      <span>키 저장 없음 · 자동 전송 없음 · 기본 localhost</span>
+      <strong>Controlled dispatch</strong>
+      <span>키 저장 없음 · Step/Auto는 명시적으로 시작 · 기본 localhost</span>
       <label><input id="consent" type="checkbox"> 통제된 안전성 평가 목적으로만 사용합니다.</label>
     </div>
   </header>
@@ -98,14 +98,24 @@
 
     <section id="runBuilder" class="panel hidden">
       <div class="section-title">
-        <div><span class="step-number">03</span><h2>비교 실행 레인 만들기</h2></div>
-        <span class="pill">여러 레인을 나란히 실행 가능</span>
+        <div><span class="step-number">03</span><h2>비교 축과 실행 레인</h2></div>
+        <span class="pill">기법 고정 · 모델 고정 · 교차 비교</span>
+      </div>
+      <div class="comparison-intro">
+        <label>무엇을 비교할지 먼저 선택
+          <select id="comparisonMode">
+            <option value="method_fixed">기법 고정 → 여러 모델 비교</option>
+            <option value="model_fixed">모델 고정 → 여러 기법 비교</option>
+            <option value="cartesian">여러 기법 × 여러 모델 교차 비교</option>
+          </select>
+        </label>
+        <p id="comparisonModeHelp" class="hint"></p>
       </div>
       <div class="builder-grid">
-        <label>알고리즘
+        <label id="fixedProtocolField">고정 기법
           <select id="protocol"></select>
         </label>
-        <label>단계별 참조 실행/모델
+        <label>단계별 참조 실행
           <select id="historicalRun"></select>
         </label>
         <label>최종 분기
@@ -125,17 +135,46 @@
           </select>
         </label>
       </div>
+      <div class="matrix-grid">
+        <fieldset id="protocolChoices" class="choice-fieldset">
+          <legend>동시에 비교할 기법</legend>
+          <div id="protocolChecklist" class="choice-list"></div>
+        </fieldset>
+        <fieldset id="modelChoices" class="choice-fieldset">
+          <legend>동시에 비교할 Target 모델</legend>
+          <div id="modelChecklist" class="choice-list"></div>
+        </fieldset>
+        <fieldset id="fixedModelChoices" class="choice-fieldset hidden">
+          <legend>고정 Target 모델</legend>
+          <label>Provider<select id="fixedProvider"></select></label>
+          <label>Model<input id="fixedModel"></label>
+        </fieldset>
+      </div>
+      <details class="shared-credentials">
+        <summary>공용 API 키 입력 (생성되는 레인의 브라우저 메모리에만 복사)</summary>
+        <div class="credentials-grid">
+          <label>OpenAI API key<input id="sharedOpenAIKey" type="password" autocomplete="off" placeholder="sk-…"></label>
+          <label>Hugging Face token<input id="sharedHFKey" type="password" autocomplete="off" placeholder="hf_…"></label>
+        </div>
+      </details>
       <label>직접 입력 GOAL (비우면 선택 사례의 원 GOAL 사용)
         <textarea id="customGoal" rows="3" placeholder="사용자가 직접 비교할 goal query"></textarea>
       </label>
       <p class="hint">Custom GOAL은 Direct/PCSA에는 그대로 반영됩니다. RED-Persona에서는 기존 사례의 persona·질문 scaffold를 유지하므로, prompt를 전송 전에 직접 수정해 정합성을 확인하세요.</p>
-      <button id="addLane" class="primary large">실행 레인 추가</button>
+      <div class="builder-actions">
+        <button id="createComparison" class="primary large">선택 조합 레인 만들기</button>
+        <button id="addLane" class="secondary large">현재 고정값으로 1개만 추가</button>
+        <span id="matrixPreview" class="pill"></span>
+      </div>
     </section>
 
     <section id="lanesSection" class="hidden">
       <div class="section-title standalone">
         <div><span class="step-number">04</span><h2>단계별 실행</h2></div>
         <div class="view-toolbar" role="group" aria-label="실행 레인 표시 방식">
+          <button id="nextSelected" class="accent">선택 레인 · 다음</button>
+          <button id="autoSelected" class="primary">선택 레인 · Auto</button>
+          <button id="stopAuto" class="danger" disabled>Auto 중지</button>
           <button id="viewAll" class="view-toggle active">여러 레인 비교</button>
           <button id="viewSingle" class="view-toggle">한 레인 집중</button>
           <select id="focusedLane" aria-label="집중해서 볼 실행 레인"></select>
@@ -149,7 +188,7 @@
   <template id="laneTemplate">
     <article class="lane panel">
       <div class="lane-head">
-        <div><p class="eyebrow lane-protocol"></p><h2 class="lane-title"></h2><p class="lane-summary hint"></p></div>
+        <div><label class="lane-select-label"><input class="lane-selected" type="checkbox" checked> 일괄 실행에 포함</label><p class="eyebrow lane-protocol"></p><h2 class="lane-title"></h2><p class="lane-summary hint"></p></div>
         <div class="lane-head-actions"><button class="ghost focus-lane">이 레인만 보기</button><button class="ghost remove-lane">닫기</button></div>
       </div>
       <div class="provider-grid">

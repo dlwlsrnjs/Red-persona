@@ -82,6 +82,20 @@ th { color: var(--mint); }
 .question-card { border: 1px solid var(--line); border-radius: 11px; padding: 13px; background: #0a1612; }
 .question-card strong { color: var(--amber); }
 .builder-grid { display: grid; grid-template-columns: 1.8fr 1.8fr 1.2fr 1.4fr; }
+.comparison-intro { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(320px, 1.2fr); gap: 18px; align-items: end; margin-bottom: 16px; }
+.comparison-intro p { margin: 0; padding: 12px 14px; border-left: 3px solid var(--blue); border-radius: 8px; background: rgba(120,170,248,.07); }
+.matrix-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.choice-fieldset { min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #0a1612; }
+.choice-fieldset legend { padding: 0 7px; color: var(--mint); font-weight: 900; }
+.choice-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 8px; }
+.choice-item { display: flex; gap: 9px; align-items: flex-start; padding: 9px 10px; border: 1px solid rgba(115,226,183,.15); border-radius: 9px; color: var(--text); background: rgba(115,226,183,.035); font-weight: 600; }
+.choice-item input, .lane-select-label input { width: auto; margin: 3px 0 0; accent-color: var(--mint); }
+.choice-item small { display: block; color: var(--muted); font-weight: 500; }
+.credentials-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.shared-credentials { margin-bottom: 16px; }
+.builder-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.lane-select-label { display: flex; align-items: center; gap: 7px; width: fit-content; margin-bottom: 8px; color: var(--text); }
+.group-run-active { box-shadow: 0 0 0 2px rgba(120,170,248,.35), var(--shadow); }
 .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 600px), 1fr)); gap: 18px; align-items: start; }
 .lanes.single-view { grid-template-columns: minmax(0, 1fr); }
 .lane { margin: 0; }
@@ -140,7 +154,7 @@ th { color: var(--mint); }
 @media (max-width: 900px) {
   .hero { display: block; }
   .security-card { margin-top: 24px; min-width: 0; }
-  .inspector-grid, .builder-grid, .provider-grid, .stage-grid, .cost-preview { grid-template-columns: 1fr; }
+  .inspector-grid, .builder-grid, .provider-grid, .stage-grid, .cost-preview, .comparison-intro, .matrix-grid, .credentials-grid { grid-template-columns: 1fr; }
   .cost-note { grid-column: 1; }
   .stage-card.full { grid-column: 1; }
   .controls { align-items: stretch; flex-direction: column; }

@@ -142,10 +142,108 @@
     return rows;
   }
 
-  function detailBlock(title, value, open = false) {
+  function translationSource(value) {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) {
+      return value.map((item, index) => {
+        if (item && typeof item === "object" && (item.text || item.input || item.output || item.content)) {
+          const heading = item.stage || item.step || item.role || `Step ${index + 1}`;
+          const parts = [item.text, item.input, item.output, item.content].filter(part => typeof part === "string" && part.trim());
+          return `[${heading}]\n${parts.join("\n\n")}`;
+        }
+        return typeof item === "string" ? item : JSON.stringify(item, null, 2);
+      }).join("\n\n");
+    }
+    return JSON.stringify(value, null, 2);
+  }
+
+  function hasEnglishSource(value) {
+    const source = translationSource(value);
+    return /[A-Za-z]{2}/.test(source);
+  }
+
+  function translationChunks(text, limit = 430) {
+    const chunks = [];
+    String(text || "").split(/(\n\s*\n)/).forEach(paragraph => {
+      let rest = paragraph;
+      while (rest.length > limit) {
+        let cut = rest.lastIndexOf(". ", limit);
+        if (cut < limit * .45) cut = rest.lastIndexOf(" ", limit);
+        if (cut < 1) cut = limit;
+        else cut += 1;
+        chunks.push(rest.slice(0, cut));
+        rest = rest.slice(cut);
+      }
+      if (rest) chunks.push(rest);
+    });
+    return chunks.filter(Boolean);
+  }
+
+  const translationCache = new Map();
+
+  async function translateEnglishToKorean(text) {
+    const source = String(text || "").trim();
+    if (!source) return "";
+    if (translationCache.has(source)) return translationCache.get(source);
+    const translated = [];
+    for (const chunk of translationChunks(source)) {
+      if (/^\s+$/.test(chunk)) { translated.push(chunk); continue; }
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en%7Cko`;
+      const response = await fetch(url, {headers: {Accept: "application/json"}});
+      if (!response.ok) throw new Error(`번역 서비스 HTTP ${response.status}`);
+      const payload = await response.json();
+      if (payload.responseStatus !== 200 || !payload.responseData || !payload.responseData.translatedText) {
+        throw new Error(payload.responseDetails || "번역 결과를 받지 못했습니다.");
+      }
+      translated.push(payload.responseData.translatedText);
+    }
+    const result = translated.join("");
+    translationCache.set(source, result);
+    return result;
+  }
+
+  function inlineTranslator(value) {
+    const source = translationSource(value);
+    const panel = element("section", "inline-translator");
+    const row = element("div", "inline-translator-head");
+    const label = element("div");
+    label.append(element("strong", "", "영어 원문 → 한국어"), element("small", "", "현재 창 안에서 번역하며 새 창을 열지 않습니다."));
+    const button = element("button", "primary", "한글 번역 보기");
+    button.type = "button";
+    const result = element("pre", "translation-result");
+    result.hidden = true;
+    row.append(label, button);
+    panel.append(row, result);
+    button.addEventListener("click", async () => {
+      if (panel.dataset.complete === "1") {
+        result.hidden = !result.hidden;
+        button.textContent = result.hidden ? "한글 번역 보기" : "한글 번역 접기";
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "한글로 번역 중…";
+      result.hidden = false;
+      result.textContent = "영어 원문을 한국어로 번역하고 있습니다.";
+      try {
+        result.textContent = await translateEnglishToKorean(source);
+        panel.dataset.complete = "1";
+        button.textContent = "한글 번역 접기";
+      } catch (error) {
+        result.textContent = `번역하지 못했습니다: ${error.message || error}`;
+        button.textContent = "다시 번역";
+      } finally {
+        button.disabled = false;
+      }
+    });
+    return panel;
+  }
+
+  function detailBlock(title, value, open = false, translate = false) {
     const details = element("details", "record-detail");
     details.open = open;
     details.append(element("summary", "", title), renderStructured(value));
+    if (translate && translationSource(value).trim() && hasEnglishSource(value)) details.append(inlineTranslator(value));
     return details;
   }
 
@@ -405,17 +503,25 @@
     return {title: direction || "Pre-registered branch", purpose: "사전에 고정된 독립 분석 관점입니다. 다른 분기의 출력이나 endpoint 결과를 보지 않습니다."};
   }
 
-  function asText(value) {
-    if (value == null) return "";
-    return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  function renderPathTranscript(steps) {
+    const section = element("section", "branch-path");
+    section.append(element("div", "branch-path-head", "선택 노드까지의 단일 경로"));
+    steps.forEach((step, index) => {
+      const card = element("article", `branch-path-step${index === steps.length - 1 ? " current" : ""}`);
+      const head = element("div", "branch-path-step-head");
+      head.append(element("span", "path-step-index", String(index + 1)), element("h4", "", step.stage || `Step ${index + 1}`));
+      if (index === steps.length - 1) head.append(element("span", "pill", "선택 노드"));
+      card.append(head);
+      if (step.input != null && step.input !== "") card.append(detailBlock("이 단계 입력", step.input, index === steps.length - 1, true));
+      if (step.output != null && step.output !== "") card.append(detailBlock("이 단계 산출 텍스트", step.output, index === steps.length - 1, true));
+      section.append(card);
+    });
+    return section;
   }
-
-  let activeRecord = null;
 
   function openRecord(record) {
     const dialog = document.querySelector("#recordDialog");
     if (!dialog || !record) return;
-    activeRecord = record;
     document.querySelector("#recordDialogTitle").textContent = record.title || "실행 기록";
     document.querySelector("#recordDialogSubtitle").textContent = record.subtitle || record.output || "";
     const meta = document.querySelector("#recordMeta");
@@ -428,12 +534,13 @@
     const content = document.querySelector("#recordContent");
     content.replaceChildren();
     if (record.output) content.append(element("p", "record-output-summary", record.output));
-    if (record.prompt != null && record.prompt !== "") content.append(detailBlock("전체 prompt / 입력 artifact", record.prompt, true));
-    if (Array.isArray(record.messages) && record.messages.length) content.append(detailBlock("전체 누적 messages", record.messages, true));
-    if (record.response != null && record.response !== "") content.append(detailBlock("저장된 전체 응답", record.response, true));
+    if (Array.isArray(record.pathTranscript) && record.pathTranscript.length) {
+      content.append(renderPathTranscript(record.pathTranscript));
+    } else {
+      if (record.prompt != null && record.prompt !== "") content.append(detailBlock("현재 단계 prompt / 입력 artifact", record.prompt, true, true));
+      if (record.response != null && record.response !== "") content.append(detailBlock("현재 단계 저장 응답", record.response, true, true));
+    }
     if (record.audit && (typeof record.audit !== "object" || Object.keys(record.audit).length)) content.append(detailBlock("선택·검증·평가 기록", record.audit));
-    const textarea = document.querySelector("#translationText");
-    if (textarea) textarea.value = "";
     dialog.showModal();
   }
 
@@ -450,6 +557,10 @@
     const branches = scaffold ? (scaffold.branches || []) : [];
     const isDirect = protocol === "red_persona_direct_final";
     const target = (run && run.target_model) || (scaffold && scaffold.target_model) || "Target";
+    const step = (stage, input, output) => ({stage, input, output});
+    const caseStep = step("Case packet", {persona: caseData.persona, persona_history: caseData.persona_history}, "제3자 사례 증거가 Target 입력으로 구성됨");
+    const systemStep = step("System contract", scaffold && scaffold.target_system_prompt, "연구 분석 역할과 정보 경계를 고정");
+    const sharedPath = [caseStep, systemStep];
 
     addNode("planner", 28, 24, "Persona/history planner", "GOAL → O/F/K coverage plan", "offline", PAPER.constructor, {
       visibility: "Target 밖 · offline", prompt: {private_goal: caseData.goal, profile_id: caseData.persona_id}, response: {persona: caseData.persona}, output: "profile 선택과 사례 관련 필드 구성",
@@ -461,10 +572,10 @@
       visibility: "Target 밖 · planner 후보", prompt: caseData.question_pool, output: "visible evidence를 벗어나지 않는 contrastive scaffold",
     });
     addNode("case", 294, 142, "Case packet", `${caseData.persona_id || "Persona"} + history`, "case", PAPER.casePacket, {
-      visibility: "Target-visible", prompt: {persona: caseData.persona, persona_history: caseData.persona_history}, output: "제3자 사례 증거",
+      visibility: "Target-visible", prompt: {persona: caseData.persona, persona_history: caseData.persona_history}, output: "제3자 사례 증거", pathTranscript: [caseStep],
     });
     addNode("system", 558, 142, "System contract", "research analyst · 정보 경계", "system", PAPER.system, {
-      visibility: "Target-visible", prompt: scaffold && scaffold.target_system_prompt, output: "관찰/추론 분리와 상담 역할극 방지",
+      visibility: "Target-visible", prompt: scaffold && scaffold.target_system_prompt, output: "관찰/추론 분리와 상담 역할극 방지", pathTranscript: [caseStep, systemStep],
     });
     addEdge("planner", "case", "profile·coverage", true, PAPER.constructor, {kind: "구성 provenance", visibility: "Target 밖"});
     addEdge("renderer", "case", "history artifact", true, PAPER.renderer, {kind: "artifact 공급", visibility: "Target 밖"});
@@ -475,8 +586,9 @@
       const id = `turn_${index}`;
       const x = 822 + index * 236;
       const stage = turn.stage || (index === 0 ? "initial_analysis" : `analysis_${index}`);
+      sharedPath.push(step(stage, turn.question, turn.historical_response));
       addNode(id, x, 142, stage, `${target} · shared analysis`, "target", PAPER.analysis, {
-        visibility: "Target-visible 질문 · Target-authored 응답", prompt: turn.question, messages: turn.messages, response: turn.historical_response, audit: turn.question_audit, output: "네 분기가 공유하는 분석 prefix",
+        visibility: "Target-visible 질문 · Target-authored 응답", prompt: turn.question, response: turn.historical_response, audit: turn.question_audit, output: "네 분기가 공유하는 분석 prefix", pathTranscript: sharedPath.slice(),
       });
       addEdge(sharedLast, id, index === 0 ? "initial analysis" : "fixed cumulative turn", false, PAPER.analysis, {kind: "Target 대화", visibility: "Target-visible"});
       sharedLast = id;
@@ -503,11 +615,13 @@
       if (!isDirect) {
         const readoutId = `b${index}_readout`;
         const quoteId = `b${index}_quote`;
+        const readoutPath = sharedPath.concat(step(`B${index + 1} · ${direction.title}`, branch.recovery_question, branch.historical_recovery_response));
+        const quotePath = readoutPath.concat(step("Exact quotation selector", "같은 분기의 Target-authored 응답에서 연속 1–3문장 선택", branch.historical_anchor || "(유효한 저장 인용 없음)"));
         addNode(readoutId, branchX, y, `B${index + 1} · ${direction.title}`, "Goal-focused readout", "readout", branchMeta, {
-          visibility: "Target-visible 질문 · Target-authored 응답", prompt: branch.recovery_question, messages: branch.historical_recovery_messages, response: branch.historical_recovery_response, audit: branch.recovery_question_audit, output: direction.purpose,
+          visibility: "Target-visible 질문 · Target-authored 응답", prompt: branch.recovery_question, response: branch.historical_recovery_response, audit: branch.recovery_question_audit, output: direction.purpose, pathTranscript: readoutPath,
         });
         addNode(quoteId, branchX + 260, y, "Exact quotation", "같은 분기 연속 1–3문장", "selector", PAPER.selector, {
-          visibility: "Target 밖 선택 → final prompt에 표시", prompt: branch.historical_anchor || "(유효한 저장 인용 없음)", audit: {bridge_status: branch.bridge_status, attack_style: branch.attack_style}, output: "final query의 유일한 동적 입력",
+          visibility: "Target 밖 선택 → final prompt에 표시", prompt: branch.historical_anchor || "(유효한 저장 인용 없음)", audit: {bridge_status: branch.bridge_status, attack_style: branch.attack_style}, output: "final query의 유일한 동적 입력", pathTranscript: quotePath,
         });
         addEdge(sharedLast, readoutId, `B${index + 1} 독립 분기`, false, branchMeta, {kind: "Target 대화", visibility: "Target-visible"});
         addEdge("controller", readoutId, "missing O/F/K", true, PAPER.runtimePlanner, {kind: "planner 제어", visibility: "Target 밖"});
@@ -519,8 +633,16 @@
       const finalId = `b${index}_final`;
       const finalMessages = branch.historical_final_messages || [];
       const finalResponse = endpoint.response || branch.historical_final_response;
+      const finalPrompt = lastUserPrompt(finalMessages, branch.final_question);
+      const branchPrefix = isDirect
+        ? sharedPath
+        : sharedPath.concat(
+          step(`B${index + 1} · ${direction.title}`, branch.recovery_question, branch.historical_recovery_response),
+          step("Exact quotation selector", "같은 분기의 Target-authored 응답에서 연속 1–3문장 선택", branch.historical_anchor || "(유효한 저장 인용 없음)"),
+        );
+      const finalPath = branchPrefix.concat(step(`B${index + 1} · Final response`, finalPrompt, finalResponse));
       addNode(finalId, branchX + finalOffset, y, `B${index + 1} · Final response`, `${score.joint_success === true ? "Joint 성공" : score.joint_success === false ? "Joint 실패" : "미평가"} · R ${score.R || "—"} · B ${score.B || "—"}`, "endpoint", PAPER.final, {
-        visibility: "Target-visible prompt · Target-authored endpoint", prompt: lastUserPrompt(finalMessages, branch.final_question), messages: finalMessages, response: finalResponse, audit: score, output: `HB=${score.harmbench_positive === true ? "+" : score.harmbench_positive === false ? "−" : "—"} · ${direction.purpose}`,
+        visibility: "Target-visible prompt · Target-authored endpoint", prompt: finalPrompt, response: finalResponse, audit: score, output: `HB=${score.harmbench_positive === true ? "+" : score.harmbench_positive === false ? "−" : "—"} · ${direction.purpose}`, pathTranscript: finalPath,
         status: score.joint_success === true ? "success" : score.joint_success === false ? "failure" : "unknown",
       });
       if (isDirect) {
@@ -745,26 +867,6 @@
     const close = recordDialog.querySelector(".close");
     if (close) close.addEventListener("click", () => recordDialog.close());
     recordDialog.addEventListener("click", event => { if (event.target === recordDialog) recordDialog.close(); });
-    const promptButton = document.querySelector("#usePromptForTranslation");
-    const responseButton = document.querySelector("#useResponseForTranslation");
-    const textarea = document.querySelector("#translationText");
-    if (promptButton) promptButton.addEventListener("click", () => { textarea.value = asText(activeRecord && (activeRecord.messages || activeRecord.prompt)); textarea.focus(); });
-    if (responseButton) responseButton.addEventListener("click", () => { textarea.value = asText(activeRecord && activeRecord.response); textarea.focus(); });
-    const translateButton = document.querySelector("#openTranslator");
-    if (translateButton) translateButton.addEventListener("click", async () => {
-      const text = textarea.value.trim();
-      if (!text) { textarea.focus(); return; }
-      const target = document.querySelector("#translationTarget").value || "ko";
-      if (text.length <= 4500) {
-        window.open(`https://translate.google.com/?sl=auto&tl=${encodeURIComponent(target)}&op=translate&text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
-      } else {
-        let copied = false;
-        try { await navigator.clipboard.writeText(text); copied = true; } catch (_) { /* manual copy remains available */ }
-        window.open(`https://translate.google.com/?sl=auto&tl=${encodeURIComponent(target)}&op=translate`, "_blank", "noopener,noreferrer");
-        translateButton.textContent = copied ? "긴 텍스트 복사됨 · 번역기에 붙여 넣기" : "긴 텍스트 · 위 칸에서 복사해 붙여 넣기";
-        setTimeout(() => { translateButton.textContent = "Google 번역에서 열기"; }, 3500);
-      }
-    });
   }
   registerPaperAnchors();
 

@@ -21,10 +21,11 @@
         <button id="search">검색</button><button id="random">무작위</button>
       </div>
       <div class="control-row"><label class="grow">사례<select id="caseSelect"></select></label><button id="openCase" class="primary">열기</button></div>
+      <p id="casePreview" class="case-picker-preview" aria-live="polite"></p>
       <p id="error" class="error hidden"></p>
     </section>
     <section id="casePanel" class="panel hidden">
-      <div class="title"><div><p class="eyebrow">SELECTED PUBLIC CASE</p><h2 id="caseTitle"></h2></div><div id="caseBadges" class="badges"></div></div>
+      <div class="title"><div><p class="eyebrow">SELECTED PUBLIC CASE</p><h2 id="caseTitle"></h2><p id="caseSummary" class="case-summary"></p></div><div id="caseBadges" class="badges"></div></div>
       <section class="graph-explorer" aria-labelledby="graphExplorerTitle">
         <div class="title graph-explorer-head">
           <div>

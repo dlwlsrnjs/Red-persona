@@ -2,6 +2,21 @@ const $ = (selector, root = document) => root.querySelector(selector);
 let caseIndex = [];
 let currentCase = null;
 
+const CATEGORY = {
+  "self-harm": {label: "자해·신체 손상", summary: "자신의 신체에 손상을 가하거나 손상의 조건을 묻는 위해 요청"},
+  "suicidal_ideation": {label: "자살·사망 관련", summary: "자살 또는 사망 결과와 관련된 위해 요청"},
+  "substance_abuse_or_withdrawal": {label: "물질 오남용", summary: "물질 사용, 효과 강화 또는 조합과 관련된 위해 요청"},
+  "risk_taking_behaviours": {label: "고위험 행동", summary: "위험 행동의 실행 또는 회피·은폐와 관련된 위해 요청"},
+};
+
+function categoryInfo(value) {
+  return CATEGORY[value] || {label: value || "미분류", summary: "고위험 정신건강 관련 요청"};
+}
+
+function outcomeLabel(value) {
+  return value === "success" ? "저장 결과: 성공" : value === "failure" ? "저장 결과: 실패" : "저장 결과: 미평가";
+}
+
 function node(tag, className = "", text = "") {
   const value = document.createElement(tag);
   if (className) value.className = className;
@@ -31,18 +46,34 @@ function renderCaseList() {
   const outcome = $("#outcome").value;
   const rows = caseIndex.filter(row =>
     (outcome === "all" || row.outcome === outcome) &&
-    (!query || JSON.stringify(row).toLowerCase().includes(query))
+    (!query || `${JSON.stringify(row)} ${categoryInfo(row.crisis_label).label} ${categoryInfo(row.crisis_label).summary}`.toLowerCase().includes(query))
   );
   const select = $("#caseSelect");
+  const previous = select.value;
   select.replaceChildren();
   rows.forEach(row => {
     const option = node("option");
     option.value = row.file;
-    option.textContent = `${row.case_id} · ${row.outcome} · ${row.persona_id || ""} · ${row.crisis_label || ""}`;
+    option.textContent = `[${categoryInfo(row.crisis_label).label}] · ${outcomeLabel(row.outcome)} · ${row.case_id} · ${row.persona_id || ""}`;
     select.append(option);
   });
+  if (previous && rows.some(row => row.file === previous)) select.value = previous;
+  select.onchange = () => renderCasePreview();
+  renderCasePreview();
   $("#caseCount").textContent = `${rows.length} cases`;
   return rows;
+}
+
+function renderCasePreview() {
+  const preview = $("#casePreview");
+  const row = caseIndex.find(item => item.file === $("#caseSelect").value);
+  if (!row) { preview.textContent = "표시할 사례가 없습니다."; return; }
+  const category = categoryInfo(row.crisis_label);
+  preview.replaceChildren(
+    node("strong", "", `범주 · ${category.label}`),
+    node("span", "", category.summary),
+    node("span", "", outcomeLabel(row.outcome)),
+  );
 }
 
 async function openCase(file = $("#caseSelect").value) {
@@ -71,11 +102,13 @@ function renderCase() {
   const value = currentCase;
   $("#casePanel").classList.remove("hidden");
   $("#caseTitle").textContent = `${value.case_id} · ${value.persona_id || ""}`;
+  const category = categoryInfo(value.crisis_label);
+  $("#caseSummary").textContent = `위해 범주: ${category.label} · ${category.summary} · H${value.harm_level || "—"}`;
   $("#persona").textContent = value.persona || "";
   $("#goal").textContent = value.goal || "";
   const badges = $("#caseBadges");
   badges.replaceChildren();
-  [value.crisis_label, value.source_dataset, value.historical_score.status].forEach(text => badges.append(node("span", "", text || "—")));
+  [category.label, value.source_dataset, outcomeLabel(value.historical_score.status)].forEach(text => badges.append(node("span", "", text || "—")));
   historyCards($("#history"), value.persona_history);
   historyCards($("#dialogHistory"), value.persona_history);
   $("#dialogPersonaTitle").textContent = `${value.persona_id || "Persona"} · ${value.case_id}`;

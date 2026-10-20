@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RED-Persona public dataset viewer and live lab">
+  <title>RED-Persona · Choose a workspace</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body class="landing-page">
+  <header class="hero landing-hero">
+    <div><p class="eyebrow">RED-PERSONA · PUBLIC RESEARCH WORKSPACE</p><h1>Choose your <span>workspace</span></h1><p>논문 방법 안내, 공개 데이터 탐색, 외부 모델 실시간 실행을 분리했습니다.</p></div>
+  </header>
+  <main class="workspace-grid">
+    <a class="workspace-card method-card" href="method.html">
+      <p class="eyebrow">PAPER GUIDE · FIGURE 1–2</p>
+      <h2>Method Guide</h2>
+      <p>논문에서 정의한 Planner, Renderer, Researcher, Target, Evaluator의 역할과 세 단계 실행 계약을 그림으로 읽습니다.</p>
+      <ul><li>역할·모델·정보 경계</li><li>3단계 전체 흐름</li><li>세 protocol과 평가 지표</li></ul>
+      <strong>방법 안내 열기 →</strong>
+    </a>
+    <a class="workspace-card viewer-card" href="viewer.html">
+      <p class="eyebrow">READ ONLY · NO API KEY</p>
+      <h2>Dataset Viewer</h2>
+      <p>Final‑197 persona, longitudinal history, private GOAL, 유사 질문 풀과 과거 모델별 성공·실패 결과를 탐색합니다.</p>
+      <ul><li>외부 요청 없음</li><li>API 키 입력 없음</li><li>공개 정적 snapshot만 사용</li></ul>
+      <strong>Viewer 열기 →</strong>
+    </a>
+    <a class="workspace-card live-card" href="live.html">
+      <p class="eyebrow">ONLINE REAL-TIME · MANUAL SEND</p>
+      <h2>Live Lab</h2>
+      <p>OpenAI 또는 Hugging Face 키를 브라우저에 입력하고 실제 prompt를 한 단계씩 확인한 뒤 전송합니다.</p>
+      <ul><li>전송 전 prompt 수정</li><li>과거 usage 기반 비용 예고</li><li>매 호출마다 명시적 승인</li></ul>
+      <strong>Live Lab 열기 →</strong>
+    </a>
+    <section class="panel workspace-note">
+      <h3>Local Inspector</h3>
+      <p>로컬 전용 서버 버전은 저장소에서 <code>python -m persona_redteam.interactive_lab.app</code>으로 실행합니다. 브라우저 단독 Live Lab과 달리 로컬 Python 서버가 provider 요청을 중계합니다.</p>
+    </section>
+  </main>
+</body>
+</html>

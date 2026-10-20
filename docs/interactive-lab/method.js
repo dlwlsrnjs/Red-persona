@@ -33,4 +33,30 @@
     dialog.querySelector(".close").addEventListener("click", () => dialog.close());
     dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
   }
+  const steps = [...document.querySelectorAll("[data-walkthrough-step]")];
+  const slots = [...document.querySelectorAll("[data-prompt-step]")];
+  let current = 0, timer;
+  function render(index) {
+    if (!steps.length) return;
+    current = Math.max(0, Math.min(index, steps.length - 1));
+    steps.forEach((node, i) => { node.classList.toggle("active", i === current); node.classList.toggle("complete", i < current); });
+    slots.forEach((node, i) => node.classList.toggle("visible", i <= current));
+    document.querySelector("#walkthroughStatus").textContent = `${current + 1} / ${steps.length}`;
+    document.querySelector(".walkthrough-progress span").style.width = `${(current + 1) / steps.length * 100}%`;
+    document.querySelector("#walkthroughPrev").disabled = current === 0;
+    document.querySelector("#walkthroughNext").disabled = current === steps.length - 1;
+  }
+  function stop() { clearInterval(timer); timer = null; const button = document.querySelector("#walkthroughPlay"); if (button) button.textContent = "자동 재생"; }
+  const previousButton = document.querySelector("#walkthroughPrev");
+  const nextButton = document.querySelector("#walkthroughNext");
+  const playButton = document.querySelector("#walkthroughPlay");
+  if (previousButton) previousButton.addEventListener("click", () => { stop(); render(current - 1); });
+  if (nextButton) nextButton.addEventListener("click", () => { stop(); render(current + 1); });
+  if (playButton) playButton.addEventListener("click", () => {
+    if (timer) return stop();
+    if (current === steps.length - 1) render(0);
+    document.querySelector("#walkthroughPlay").textContent = "일시 정지";
+    timer = setInterval(() => current === steps.length - 1 ? stop() : render(current + 1), 1800);
+  });
+  render(0);
 })();

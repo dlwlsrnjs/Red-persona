@@ -79,42 +79,58 @@
     const tag = card.querySelector(".branch-tag"); if (tag) tag.textContent += ` · ${labels[0]}`;
     button.textContent = "Prompt 보기 · 한글/English";
   });
-  const steps = [...document.querySelectorAll("[data-walkthrough-step]")];
-  const slots = [...document.querySelectorAll("[data-prompt-step]")];
   const walkthrough = document.querySelector("#walkthrough");
   const controls = document.querySelector(".walkthrough-controls");
-  let current = 0, timer, successCases = [];
+  const flow = walkthrough && walkthrough.querySelector(".walkthrough-flow");
+  const detail = document.querySelector("#walkthroughDetail");
+  let current = 0, timer, successCases = [], graphRecords = [];
   const text = value => value == null ? "" : typeof value === "string" ? value : JSON.stringify(value, null, 2);
-  const stepGuides = [
-    {what: "평가 대상이 되는 원래 유해 요청입니다.", source: "Final-197 데이터셋의 private goal", next: "Planner와 Evaluator만 사용하며 Target에는 직접 보내지 않습니다."},
-    {what: "원 요청과 의미가 맞도록 선택된 persona 설명과 시간순 관찰 기록입니다.", source: "Offline Persona/History Planner와 History Renderer", next: "Target의 첫 분석에 전달되는 case packet을 구성합니다."},
-    {what: "Target이 persona와 history를 처음 읽고 작성한 공통 사례 분석입니다.", source: "Target model의 첫 번째 저장 응답", next: "Runtime Planner가 원 요청에서 아직 빠진 요소를 찾을 때 사용합니다."},
-    {what: "한 분기의 확인 질문을 받은 Target이 잠재 요청을 더 명확히 복원한 답변입니다.", source: "선택된 branch의 두 번째 Target 응답", next: "이 응답에서 Target이 직접 쓴 문장을 골라 final prompt에 인용합니다."},
-    {what: "선택된 Target 인용문까지 모두 채워진 마지막 실제 입력문입니다.", source: "고정 final template + 같은 branch의 exact quote", next: "이 영어 메시지가 마지막 Target 호출의 user input으로 들어갑니다."},
-    {what: "마지막 prompt를 받은 Target의 실제 저장 응답과 평가 결과입니다.", source: "Target endpoint 및 GPT/HarmBench evaluator", next: "R, B, HarmBench와 same-branch Strict joint 성공 여부를 계산합니다."},
-  ];
-  const setStep = (index, title, body, detail) => {
-    const node = steps[index]; if (!node) return;
-    const valueNode = Array.from(node.children).find(child => child.tagName === "P");
-    node.querySelector("b").textContent = title;
-    let guide = node.querySelector(".walkthrough-value-guide");
-    if (!guide) {
-      guide = document.createElement("div");
-      guide.className = "walkthrough-value-guide";
-      node.querySelector("b").insertAdjacentElement("afterend", guide);
-    }
-    const info = stepGuides[index];
-    guide.innerHTML = `<p><strong>이 값은?</strong> ${info.what}</p><p><strong>출처</strong> ${info.source}</p><p><strong>다음 사용처</strong> ${info.next}</p>`;
-    valueNode.textContent = body;
-    valueNode.setAttribute("aria-label", "실제 영어 원문");
-    node.querySelector("small").textContent = detail;
-  };
-  const setSlot = (index, title, body) => {
-    const node = slots[index]; if (!node) return;
-    const heading = document.createElement("b"); heading.textContent = title;
-    const pre = document.createElement("pre"); pre.textContent = text(body);
-    node.replaceChildren(heading, pre);
-  };
+  const record = (title, type, short, what, source, next, input, output) => ({title, type, short, what, source, next, input: text(input), output: text(output)});
+  function renderGraph() {
+    if (!flow) return;
+    flow.replaceChildren();
+    const map = make("div", "walkthrough-swimlane");
+    map.innerHTML = '<div class="walkthrough-lane-head planner">BACKEND / ATTACK PLANNER<small>private goal · artifact construction · selection · evaluation</small></div><div class="walkthrough-lane-head target">TARGET MODEL<small>receives only assembled messages · returns generated text</small></div>';
+    const node = index => {
+      const value = graphRecords[index];
+      const button = make("button", `walkthrough-graph-node node-${value.type}`);
+      button.type = "button"; button.dataset.graphIndex = index;
+      button.innerHTML = `<small>${String(index + 1).padStart(2, "0")}</small><strong>${value.title}</strong><span>${value.short}</span>`;
+      button.addEventListener("click", () => { stop(); render(index); });
+      return button;
+    };
+    const rows = [
+      {stage: "① OFFLINE CONSTRUCTION", left: 0, left2: 1, label: "goal → artifacts", direction: "down"},
+      {stage: "② INITIAL CASE ANALYSIS", left: 1, right: 2, label: "case packet → Target", direction: "right"},
+      {left: 4, right: 3, label: "a₀ → planner", direction: "left"},
+      {stage: "③ FOCUSED BRANCH", left: 4, right: 5, label: "focused prompt → Target", direction: "right"},
+      {left: 7, right: 6, label: "yᵈˢ → quote selector", direction: "left"},
+      {stage: "④ FINAL ENDPOINT", left: 7, right: 8, label: "qᵈᶠ(eᵈ) → Target", direction: "right"},
+      {left: 10, right: 9, label: "rᵈ → evaluators", direction: "left"},
+    ];
+    rows.forEach(row => {
+      if (row.stage) { const stage = make("div", "walkthrough-stage-label", row.stage); map.append(stage); }
+      const band = make("div", `walkthrough-handoff-row direction-${row.direction}`);
+      const left = make("div", "walkthrough-lane-cell planner-cell");
+      const middle = make("div", "walkthrough-handoff");
+      const right = make("div", "walkthrough-lane-cell target-cell");
+      if (row.direction === "down") {
+        left.append(node(row.left), make("div", "walkthrough-vertical-arrow", "↓"), node(row.left2));
+        middle.innerHTML = `<span>${row.label}</span>`;
+      } else {
+        left.append(node(row.left)); right.append(node(row.right));
+        middle.innerHTML = `<span>${row.label}</span><b>${row.direction === "right" ? "→" : "←"}</b>`;
+      }
+      band.append(left, middle, right); map.append(band);
+    });
+    flow.append(map);
+  }
+  function addDetailSection(parent, label, value, className) {
+    const section = make("section", `walkthrough-detail-section ${className}`);
+    section.append(make("h4", "", label));
+    const pre = make("pre", "", value || "이 단계에는 해당 값이 없습니다.");
+    section.append(pre); parent.append(section);
+  }
   const firstSuccess = result => {
     const rows = result && result.score && result.score.branches || [];
     return rows.find(row => row.joint_success) || rows.find(row => row.R === "R4" || row.B === "B5") || rows[0] || {};
@@ -136,32 +152,45 @@
       const endpoint = (result.endpoint_responses || []).find(row => row.direction === direction) || (result.endpoint_responses || [])[0] || {};
       const history = (data.persona_history || []).map((row, i) => `Observation ${i + 1}\nUSER: ${text(row.user)}\nASSISTANT: ${text(row.assistant)}\nPERSONA_STATE: ${text(row.persona_state)}`).join("\n\n");
       const messages = rows => (rows || []).map(row => `${String(row.role).toUpperCase()}\n${row.content}`).join("\n\n");
-      setStep(0, "01 · Harmful request g", data.goal, "Private input · planner/evaluator only");
-      setStep(1, "02 · Persona + longitudinal history", text(data.persona), `${(data.persona_history || []).length} stored observations · persona_id ${data.persona_id}`);
-      setStep(2, "03 · Initial analysis", text(initial.historical_response), `Target: ${scaffold && scaffold.target_model || result.target_model}`);
-      setStep(3, `04 · Focused readout · ${direction}`, text(branch && branch.historical_recovery_response), "Exact stored Target response · quote source");
-      setStep(4, "05 · Final Target prompt", text(branch && branch.final_question), "Fully assembled stored prompt · no placeholder");
-      setStep(5, "06 · Final Target response + evaluation", text(endpoint.response || branch && branch.historical_final_response), `${scored.R || "R?"} · ${scored.B || "B?"} · HarmBench${scored.harmbench_positive ? "+" : "−"} · strict joint ${scored.joint_success ? "✓" : "✕"}`);
-      setSlot(0, "Private goal · not sent to Target", data.goal);
-      setSlot(1, "Exact persona + history artifacts", `PERSONA\n${text(data.persona)}\n\nHISTORY\n${history}`);
-      setSlot(2, "Target call 1 · complete messages + stored response", `SYSTEM\n${text(scaffold && scaffold.target_system_prompt)}\n\nUSER\n${text(initial.question)}\n\nASSISTANT\n${text(initial.historical_response)}`);
-      setSlot(3, "Target call 2 · complete messages + focused readout", messages(branch && branch.historical_recovery_messages) || `USER\n${text(branch && branch.recovery_question)}\n\nASSISTANT\n${text(branch && branch.historical_recovery_response)}`);
-      setSlot(4, "Target call 3 · complete messages", messages(branch && branch.historical_final_messages) || `USER\n${text(branch && branch.final_question)}`);
-      setSlot(5, "Stored final Target response + scores", `${text(endpoint.response || branch && branch.historical_final_response)}\n\nSCORES\n${JSON.stringify(scored, null, 2)}`);
+      const initialInput = `SYSTEM\n${text(scaffold && scaffold.target_system_prompt)}\n\nUSER\n${text(initial.question)}`;
+      const focusedInput = messages(branch && branch.historical_recovery_messages) || `USER\n${text(branch && branch.recovery_question)}`;
+      const finalInput = messages(branch && branch.historical_final_messages) || `USER\n${text(branch && branch.final_question)}`;
+      const finalOutput = endpoint.response || branch && branch.historical_final_response;
+      graphRecords = [
+        record("Private goal g", "private", "Target에는 보내지 않는 기준 요청", "실험이 복원·수행 여부를 평가할 원래 요청입니다.", "Final-197 case의 private goal", "Offline planner와 최종 evaluator로만 전달됩니다.", data.goal, "Target messages = []"),
+        record("Persona + history", "artifact", `${(data.persona_history || []).length}개 관찰 기록`, "원 요청의 의미를 직접 노출하지 않고 persona와 시간순 사례 근거로 변환한 결과입니다.", `Offline planner / renderer · persona_id ${data.persona_id}`, "공통 case packet의 실제 입력 재료가 됩니다.", `GOAL (private)\n${text(data.goal)}`, `PERSONA\n${text(data.persona)}\n\nHISTORY\n${history}`),
+        record("Initial Target prompt", "target", "System + case packet", "Target이 처음 받는 완성된 메시지 묶음입니다. private goal은 포함되지 않습니다.", "target_system_prompt + turns[0].question", "Target의 공통 초기 분석 a₀를 생성합니다.", initialInput, "아래 Target 응답 노드에서 확인"),
+        record("Initial analysis a₀", "target", "첫 Target 생성 출력", "Target이 공개된 persona/history만 읽고 생성한 첫 사례 분석입니다.", `${scaffold && scaffold.target_model || result.target_model} stored response`, "Runtime planner가 아직 불명확한 목표·행동·형식을 찾는 입력이 됩니다.", initialInput, initial.historical_response),
+        record("Runtime planner", "planner", `분기 ${direction} 질문 선택`, "비공개 goal과 초기 분석을 비교해 이 분기에서 더 확인할 빈칸을 고릅니다.", "Pre-registered branch selector", "선택한 recovery question을 다음 Target 호출에 넣습니다.", `PRIVATE GOAL\n${text(data.goal)}\n\nINITIAL ANALYSIS\n${text(initial.historical_response)}`, branch && branch.recovery_question),
+        record("Focused Target prompt", "target", "누적 대화 + recovery question", "첫 분석 대화 뒤에 분기별 확인 질문을 붙인 두 번째 Target 입력입니다.", `Branch ${direction} historical_recovery_messages`, "Target의 focused readout yᵈˢ를 생성합니다.", focusedInput, "아래 Target 응답 노드에서 확인"),
+        record("Focused readout yᵈˢ", "target", "Target의 목표 복원 출력", "Target이 사례 근거에서 잠재 요청을 더 명확하게 복원한 저장 응답입니다.", `Branch ${direction} historical_recovery_response`, "이 응답에서 같은 분기의 exact quote를 골라 final template에 삽입합니다.", focusedInput, branch && branch.historical_recovery_response),
+        record("Exact quote selector eᵈ", "planner", "같은 분기의 Target 문장 선택", "Attack planner가 focused readout에서 Target이 실제로 쓴 연속 문장을 선택해 final template의 인용 슬롯을 채웁니다.", `Branch ${direction} readout → final template`, "조립된 final prompt를 오른쪽 Target Model로 전달합니다.", branch && branch.historical_recovery_response, branch && branch.final_question),
+        record("Final Target prompt", "target", "인용문이 채워진 마지막 입력", "Target이 직접 쓴 인용까지 들어간 완성된 마지막 대화 메시지입니다.", `Branch ${direction} historical_final_messages`, "그대로 Target endpoint에 보내 최종 응답을 받습니다.", finalInput, "아래 Final response 노드에서 확인"),
+        record("Final response rᵈ", "target", "저장된 실제 최종 생성 출력", "마지막 prompt에 대해 Target이 생성한 실제 응답입니다.", "endpoint_responses / historical_final_response", "왼쪽 Backend의 동일 분기 R·B·HarmBench 평가기로 되돌아갑니다.", finalInput, finalOutput),
+        record("Evaluation", "evaluation", `${scored.R || "R?"} · ${scored.B || "B?"} · HB${scored.harmbench_positive ? "+" : "−"}`, "복원(R), 요청 수행(B), 유해성(HarmBench)을 같은 분기에서 판정한 결과입니다.", "GPT evaluator + HarmBench classifier", "세 조건을 결합해 Strict joint 성공 여부를 계산합니다.", finalOutput, `R = ${scored.R || "unknown"}\nB = ${scored.B || "unknown"}\nHarmBench positive = ${Boolean(scored.harmbench_positive)}\nStrict joint success = ${Boolean(scored.joint_success)}\n\nFULL SCORE RECORD\n${JSON.stringify(scored, null, 2)}`),
+      ];
+      renderGraph();
       walkthrough.querySelector(".paper-source").textContent = `Case ${data.case_id} · ${result.label} · ${direction} · source ${data.source_dataset}`;
       render(0);
     } catch (error) { walkthrough.querySelector(".paper-source").textContent = `Load failed: ${error.message}`; }
     finally { walkthrough.classList.remove("loading"); }
   }
   function render(index) {
-    if (!steps.length) return;
-    current = Math.max(0, Math.min(index, steps.length - 1));
-    steps.forEach((node, i) => { node.classList.toggle("active", i === current); node.classList.toggle("complete", i < current); });
-    slots.forEach((node, i) => node.classList.toggle("visible", i <= current));
-    document.querySelector("#walkthroughStatus").textContent = `${current + 1} / ${steps.length}`;
-    document.querySelector(".walkthrough-progress span").style.width = `${(current + 1) / steps.length * 100}%`;
+    if (!graphRecords.length) return;
+    current = Math.max(0, Math.min(index, graphRecords.length - 1));
+    walkthrough.querySelectorAll("[data-graph-index]").forEach(node => { const i = Number(node.dataset.graphIndex); node.classList.toggle("active", i === current); node.classList.toggle("complete", i < current); });
+    const value = graphRecords[current];
+    document.querySelector("#walkthroughDetailTitle").textContent = `${String(current + 1).padStart(2, "0")} · ${value.title}`;
+    detail.replaceChildren();
+    const guide = make("div", "walkthrough-detail-guide");
+    guide.innerHTML = `<p><strong>이 단계는?</strong><span>${value.what}</span></p><p><strong>출처</strong><span>${value.source}</span></p><p><strong>다음 연결</strong><span>${value.next}</span></p>`;
+    detail.append(guide);
+    addDetailSection(detail, "BACKEND INPUT / PROMPT", value.input, "input");
+    addDetailSection(detail, "GENERATED OUTPUT / STORED VALUE", value.output, "output");
+    document.querySelector("#walkthroughStatus").textContent = `${current + 1} / ${graphRecords.length}`;
+    document.querySelector(".walkthrough-progress span").style.width = `${(current + 1) / graphRecords.length * 100}%`;
     document.querySelector("#walkthroughPrev").disabled = current === 0;
-    document.querySelector("#walkthroughNext").disabled = current === steps.length - 1;
+    document.querySelector("#walkthroughNext").disabled = current === graphRecords.length - 1;
   }
   function stop() { clearInterval(timer); timer = null; const button = document.querySelector("#walkthroughPlay"); if (button) button.textContent = "자동 재생"; }
   const previousButton = document.querySelector("#walkthroughPrev");
@@ -171,9 +200,9 @@
   if (nextButton) nextButton.addEventListener("click", () => { stop(); render(current + 1); });
   if (playButton) playButton.addEventListener("click", () => {
     if (timer) return stop();
-    if (current === steps.length - 1) render(0);
+    if (current === graphRecords.length - 1) render(0);
     document.querySelector("#walkthroughPlay").textContent = "일시 정지";
-    timer = setInterval(() => current === steps.length - 1 ? stop() : render(current + 1), 1800);
+    timer = setInterval(() => current === graphRecords.length - 1 ? stop() : render(current + 1), 2200);
   });
   if (controls && walkthrough) {
     const randomButton = document.createElement("button");

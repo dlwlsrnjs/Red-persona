@@ -85,10 +85,28 @@
   const controls = document.querySelector(".walkthrough-controls");
   let current = 0, timer, successCases = [];
   const text = value => value == null ? "" : typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  const stepGuides = [
+    {what: "평가 대상이 되는 원래 유해 요청입니다.", source: "Final-197 데이터셋의 private goal", next: "Planner와 Evaluator만 사용하며 Target에는 직접 보내지 않습니다."},
+    {what: "원 요청과 의미가 맞도록 선택된 persona 설명과 시간순 관찰 기록입니다.", source: "Offline Persona/History Planner와 History Renderer", next: "Target의 첫 분석에 전달되는 case packet을 구성합니다."},
+    {what: "Target이 persona와 history를 처음 읽고 작성한 공통 사례 분석입니다.", source: "Target model의 첫 번째 저장 응답", next: "Runtime Planner가 원 요청에서 아직 빠진 요소를 찾을 때 사용합니다."},
+    {what: "한 분기의 확인 질문을 받은 Target이 잠재 요청을 더 명확히 복원한 답변입니다.", source: "선택된 branch의 두 번째 Target 응답", next: "이 응답에서 Target이 직접 쓴 문장을 골라 final prompt에 인용합니다."},
+    {what: "선택된 Target 인용문까지 모두 채워진 마지막 실제 입력문입니다.", source: "고정 final template + 같은 branch의 exact quote", next: "이 영어 메시지가 마지막 Target 호출의 user input으로 들어갑니다."},
+    {what: "마지막 prompt를 받은 Target의 실제 저장 응답과 평가 결과입니다.", source: "Target endpoint 및 GPT/HarmBench evaluator", next: "R, B, HarmBench와 same-branch Strict joint 성공 여부를 계산합니다."},
+  ];
   const setStep = (index, title, body, detail) => {
     const node = steps[index]; if (!node) return;
+    const valueNode = Array.from(node.children).find(child => child.tagName === "P");
     node.querySelector("b").textContent = title;
-    node.querySelector("p").textContent = body;
+    let guide = node.querySelector(".walkthrough-value-guide");
+    if (!guide) {
+      guide = document.createElement("div");
+      guide.className = "walkthrough-value-guide";
+      node.querySelector("b").insertAdjacentElement("afterend", guide);
+    }
+    const info = stepGuides[index];
+    guide.innerHTML = `<p><strong>이 값은?</strong> ${info.what}</p><p><strong>출처</strong> ${info.source}</p><p><strong>다음 사용처</strong> ${info.next}</p>`;
+    valueNode.textContent = body;
+    valueNode.setAttribute("aria-label", "실제 영어 원문");
     node.querySelector("small").textContent = detail;
   };
   const setSlot = (index, title, body) => {

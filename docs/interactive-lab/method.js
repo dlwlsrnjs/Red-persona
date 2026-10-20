@@ -35,7 +35,60 @@
   }
   const steps = [...document.querySelectorAll("[data-walkthrough-step]")];
   const slots = [...document.querySelectorAll("[data-prompt-step]")];
-  let current = 0, timer;
+  const walkthrough = document.querySelector("#walkthrough");
+  const controls = document.querySelector(".walkthrough-controls");
+  let current = 0, timer, successCases = [];
+  const text = value => value == null ? "" : typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  const setStep = (index, title, body, detail) => {
+    const node = steps[index]; if (!node) return;
+    node.querySelector("b").textContent = title;
+    node.querySelector("p").textContent = body;
+    node.querySelector("small").textContent = detail;
+  };
+  const setSlot = (index, title, body) => {
+    const node = slots[index]; if (!node) return;
+    const heading = document.createElement("b"); heading.textContent = title;
+    const pre = document.createElement("pre"); pre.textContent = text(body);
+    node.replaceChildren(heading, pre);
+  };
+  const firstSuccess = result => {
+    const rows = result && result.score && result.score.branches || [];
+    return rows.find(row => row.joint_success) || rows.find(row => row.R === "R4" || row.B === "B5") || rows[0] || {};
+  };
+  async function loadWalkthroughCase(entry) {
+    stop(); walkthrough.classList.add("loading");
+    try {
+      const response = await fetch(`data/${entry.file}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const results = data.model_results || [];
+      const result = results.find(row => row.run_id === "compact_gpt4o" && row.score && row.score.status === "success") || results.find(row => row.score && row.score.status === "success");
+      if (!result) throw new Error("No stored successful run");
+      const scored = firstSuccess(result);
+      const direction = scored.direction;
+      const scaffold = data.protocol_scaffolds && data.protocol_scaffolds[result.protocol || "red_persona_compact"];
+      const branch = scaffold && (scaffold.branches || []).find(row => row.direction === direction) || scaffold && scaffold.branches && scaffold.branches[0];
+      const initial = scaffold && scaffold.turns && scaffold.turns[0] || {};
+      const endpoint = (result.endpoint_responses || []).find(row => row.direction === direction) || (result.endpoint_responses || [])[0] || {};
+      const history = (data.persona_history || []).map((row, i) => `Observation ${i + 1}\nUSER: ${text(row.user)}\nASSISTANT: ${text(row.assistant)}\nPERSONA_STATE: ${text(row.persona_state)}`).join("\n\n");
+      const messages = rows => (rows || []).map(row => `${String(row.role).toUpperCase()}\n${row.content}`).join("\n\n");
+      setStep(0, "01 · Harmful request g", data.goal, "Private input · planner/evaluator only");
+      setStep(1, "02 · Persona + longitudinal history", text(data.persona), `${(data.persona_history || []).length} stored observations · persona_id ${data.persona_id}`);
+      setStep(2, "03 · Initial analysis", text(initial.historical_response), `Target: ${scaffold && scaffold.target_model || result.target_model}`);
+      setStep(3, `04 · Focused readout · ${direction}`, text(branch && branch.historical_recovery_response), "Exact stored Target response · quote source");
+      setStep(4, "05 · Final Target prompt", text(branch && branch.final_question), "Fully assembled stored prompt · no placeholder");
+      setStep(5, "06 · Final Target response + evaluation", text(endpoint.response || branch && branch.historical_final_response), `${scored.R || "R?"} · ${scored.B || "B?"} · HarmBench${scored.harmbench_positive ? "+" : "−"} · strict joint ${scored.joint_success ? "✓" : "✕"}`);
+      setSlot(0, "Private goal · not sent to Target", data.goal);
+      setSlot(1, "Exact persona + history artifacts", `PERSONA\n${text(data.persona)}\n\nHISTORY\n${history}`);
+      setSlot(2, "Target call 1 · complete messages + stored response", `SYSTEM\n${text(scaffold && scaffold.target_system_prompt)}\n\nUSER\n${text(initial.question)}\n\nASSISTANT\n${text(initial.historical_response)}`);
+      setSlot(3, "Target call 2 · complete messages + focused readout", messages(branch && branch.historical_recovery_messages) || `USER\n${text(branch && branch.recovery_question)}\n\nASSISTANT\n${text(branch && branch.historical_recovery_response)}`);
+      setSlot(4, "Target call 3 · complete messages", messages(branch && branch.historical_final_messages) || `USER\n${text(branch && branch.final_question)}`);
+      setSlot(5, "Stored final Target response + scores", `${text(endpoint.response || branch && branch.historical_final_response)}\n\nSCORES\n${JSON.stringify(scored, null, 2)}`);
+      walkthrough.querySelector(".paper-source").textContent = `Case ${data.case_id} · ${result.label} · ${direction} · source ${data.source_dataset}`;
+      render(0);
+    } catch (error) { walkthrough.querySelector(".paper-source").textContent = `Load failed: ${error.message}`; }
+    finally { walkthrough.classList.remove("loading"); }
+  }
   function render(index) {
     if (!steps.length) return;
     current = Math.max(0, Math.min(index, steps.length - 1));
@@ -58,5 +111,15 @@
     document.querySelector("#walkthroughPlay").textContent = "일시 정지";
     timer = setInterval(() => current === steps.length - 1 ? stop() : render(current + 1), 1800);
   });
-  render(0);
+  if (controls && walkthrough) {
+    const randomButton = document.createElement("button");
+    randomButton.type = "button"; randomButton.textContent = "무작위 성공 사례";
+    randomButton.addEventListener("click", () => successCases.length && loadWalkthroughCase(successCases[Math.floor(Math.random() * successCases.length)]));
+    controls.append(randomButton);
+    fetch("data/index.json").then(response => response.json()).then(index => {
+      successCases = (index.cases || []).filter(row => row.outcome === "success");
+      const preferred = successCases.find(row => row.case_id === "ailuminate-ssh-airr_practice_1_0_150302") || successCases[0];
+      if (preferred) loadWalkthroughCase(preferred);
+    }).catch(error => { walkthrough.querySelector(".paper-source").textContent = `Index load failed: ${error.message}`; });
+  } else render(0);
 })();

@@ -14,8 +14,19 @@
   </header>
 
   <main>
+    <section class="panel direct-playground">
+      <div class="title"><div><p class="eyebrow">YOUR INPUT · REAL MODEL CALL</p><h2>01 · 직접 입력해서 실행</h2><p class="section-lede">저장 사례를 고르지 않아도 됩니다. 아래에 직접 prompt를 입력하면 선택한 외부 모델로 실제 전송되고, 이어서 대화할 수 있습니다.</p></div><span class="pill">API key는 브라우저 메모리에만 유지</span></div>
+      <div class="direct-runtime-grid"><label>Provider<select id="directProvider"><option value="openai">OpenAI</option><option value="huggingface">Hugging Face Inference</option></select></label><label>Model<input id="directModel" value="gpt-4o-2024-11-20"></label><label>API key / HF token<input id="directKey" type="password" autocomplete="off" placeholder="sk-… 또는 hf_…"></label><label>Max tokens<input id="directMax" type="number" min="1" value="1000"></label></div>
+      <details class="direct-system"><summary>선택 사항 · System prompt 직접 입력</summary><textarea id="directSystem" rows="5" placeholder="비워두면 user prompt만 전송합니다."></textarea></details>
+      <label class="direct-prompt-label">내가 보낼 prompt<textarea id="directPrompt" rows="7" placeholder="모델에 실제로 보낼 내용을 여기에 입력하세요."></textarea></label>
+      <label class="consent-row"><input id="directConsent" type="checkbox"> 내 API 키로 실제 외부 모델 호출이 발생하며 비용이 청구될 수 있음을 확인했습니다.</label>
+      <div class="direct-actions"><button id="directSend" class="primary">내 prompt 실제 전송</button><button id="directReset">대화 초기화</button><span id="directStatus" class="pill">0 turns</span></div>
+      <p id="directError" class="error hidden"></p>
+      <section class="direct-output"><div class="direct-output-head"><h3>실제 모델 응답</h3><span>이전 메시지를 유지해 후속 prompt를 이어서 보낼 수 있습니다.</span></div><div id="directConversation" class="direct-conversation"><p class="empty">아직 전송한 prompt가 없습니다.</p></div></section>
+    </section>
+
     <section class="panel picker">
-      <div class="title"><h2>01 · 사례 선택</h2><span id="caseCount" class="pill">loading</span></div>
+      <div class="title"><div><p class="eyebrow">OPTIONAL · STORED DATASET REPLAY</p><h2>02 · 저장 사례로 RED-Persona 실행</h2><p class="section-lede">아래는 공개된 197개 사례의 저장 protocol을 단계별로 재실행하거나 모델별로 비교하는 고급 모드입니다.</p></div><span id="caseCount" class="pill">loading</span></div>
       <div class="control-row">
         <label>결과<select id="outcome"><option value="all">전체</option><option value="success">성공</option><option value="failure">실패</option></select></label>
         <label class="grow">ID / Persona 검색<input id="query" placeholder="case ID, persona ID, crisis label"></label>
@@ -38,7 +49,7 @@
     </section>
 
     <section id="builder" class="panel hidden">
-      <div class="title"><h2>02 · 비교 축과 실행 레인</h2><span class="pill">기법 고정 · 모델 고정 · 교차 비교</span></div>
+      <div class="title"><h2>03 · 비교 축과 실행 레인</h2><span class="pill">기법 고정 · 모델 고정 · 교차 비교</span></div>
       <div class="comparison-intro">
         <label>비교 모드<select id="comparisonMode"><option value="method_fixed">기법 고정 → 여러 모델</option><option value="model_fixed">모델 고정 → 여러 기법</option><option value="cartesian">여러 기법 × 여러 모델</option></select></label>
         <p id="comparisonHelp" class="cost-note"></p>
@@ -58,7 +69,7 @@
     </section>
 
     <section id="runs" class="hidden">
-      <div class="run-toolbar"><div><h2>03 · 단계별 실행</h2><p>Step은 선택 레인에 한 단계씩, Auto는 완료까지 병렬 진행합니다.</p></div><div class="view-buttons"><button id="nextSelected" class="primary">선택 레인 · 다음</button><button id="autoSelected" class="primary">선택 레인 · Auto</button><button id="stopAuto" disabled>Auto 중지</button><button id="allView" class="active">여러 레인</button><button id="singleView">한 레인</button><select id="lanePicker"></select></div></div>
+      <div class="run-toolbar"><div><h2>04 · 단계별 실행</h2><p>Step은 선택 레인에 한 단계씩, Auto는 완료까지 병렬 진행합니다.</p></div><div class="view-buttons"><button id="nextSelected" class="primary">선택 레인 · 다음</button><button id="autoSelected" class="primary">선택 레인 · Auto</button><button id="stopAuto" disabled>Auto 중지</button><button id="allView" class="active">여러 레인</button><button id="singleView">한 레인</button><select id="lanePicker"></select></div></div>
       <div id="lanes" class="lanes"></div>
     </section>
   </main>

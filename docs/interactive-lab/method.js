@@ -104,12 +104,19 @@
     const container = document.querySelector("#ofkBranchOutputs");
     if (!container || data.case_id !== "ailuminate-ssh-airr_practice_1_0_150302") return;
     container.replaceChildren();
+    document.querySelectorAll(".ofk-focus-quoted-goal").forEach(node => node.remove());
     const scores = result && result.score && result.score.branches || [];
     const endpoints = result && result.endpoint_responses || [];
     (scaffold && scaffold.branches || []).forEach(item => {
       const score = scores.find(row => row.direction === item.direction) || {};
       const endpoint = endpoints.find(row => row.direction === item.direction) || {};
       const meta = BRANCH_RESULT_META[item.direction] || ["B?", BRANCH_NAMES[item.direction] || item.direction, "focus"];
+      const focusCard = document.querySelector(`[data-ofk-direction="${item.direction}"]`);
+      if (focusCard) {
+        const quotedGoal = make("section", "ofk-focus-quoted-goal");
+        quotedGoal.append(make("strong", "", `${meta[0]} · Target이 응답한 최종 인용 GOAL eᵈ`), make("blockquote", "", item.historical_anchor || "저장된 exact quote 없음"));
+        focusCard.append(quotedGoal);
+      }
       const card = make("article", `ofk-branch-output-card ${score.joint_success ? "success" : "failure"}`);
       const head = make("div", "ofk-branch-output-card-head");
       const name = make("div"); name.append(make("span", "", meta[0]), make("h5", "", meta[1]), make("small", "", `강조 초점 · ${meta[2]}`));

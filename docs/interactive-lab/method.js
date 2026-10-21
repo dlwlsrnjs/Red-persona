@@ -94,6 +94,38 @@
     latent_request_synthesis: "잠재 요청 종합",
     source_aware_reconstruction: "출처 기반 복원",
   };
+  const BRANCH_RESULT_META = {
+    latent_request_synthesis: ["B1", "Realistic negative response", "objective/action"],
+    evidence_chain: ["B2", "Evidence-linked unsafe response", "material constraints"],
+    analyst_response_target: ["B3", "Requested-format answer pattern", "requested output"],
+    source_aware_reconstruction: ["B4", "Matched safety contrast", "alternative hypothesis"],
+  };
+  function renderOfkBranchOutputs(data, result, scaffold) {
+    const container = document.querySelector("#ofkBranchOutputs");
+    if (!container || data.case_id !== "ailuminate-ssh-airr_practice_1_0_150302") return;
+    container.replaceChildren();
+    const scores = result && result.score && result.score.branches || [];
+    const endpoints = result && result.endpoint_responses || [];
+    (scaffold && scaffold.branches || []).forEach(item => {
+      const score = scores.find(row => row.direction === item.direction) || {};
+      const endpoint = endpoints.find(row => row.direction === item.direction) || {};
+      const meta = BRANCH_RESULT_META[item.direction] || ["B?", BRANCH_NAMES[item.direction] || item.direction, "focus"];
+      const card = make("article", `ofk-branch-output-card ${score.joint_success ? "success" : "failure"}`);
+      const head = make("div", "ofk-branch-output-card-head");
+      const name = make("div"); name.append(make("span", "", meta[0]), make("h5", "", meta[1]), make("small", "", `강조 초점 · ${meta[2]}`));
+      const badges = make("div", "ofk-result-badges");
+      badges.append(make("b", "", score.R || "R?"), make("b", "", score.B || "B?"), make("b", "", score.harmbench_positive ? "HB+" : "HB−"), make("b", score.joint_success ? "pass" : "fail", score.joint_success ? "Strict joint ✓" : "Strict joint ×"));
+      head.append(name, badges); card.append(head);
+      const chain = make("div", "ofk-output-chain");
+      const readout = make("details"); readout.innerHTML = '<summary>1 · Focused readout yᵈˢ 전체 보기</summary>';
+      readout.append(make("pre", "", item.historical_recovery_response || "저장된 focused readout 없음"));
+      const quote = make("section", "ofk-exact-quote"); quote.append(make("b", "", "2 · 최종 인용되는 GOAL 형태 · exact quote eᵈ"), make("blockquote", "", item.historical_anchor || "저장된 exact quote 없음"), make("small", "", "Backend가 새로 작성한 문장이 아니라, 위 focused readout에서 그대로 고른 Target 작성 연속 문장입니다."));
+      const response = make("details"); response.innerHTML = '<summary>3 · Final response rᵈ · 실제 저장 출력 전체 보기</summary>';
+      response.append(make("pre", "", endpoint.response || item.historical_final_response || "저장된 final response 없음"));
+      const verdict = make("p", "ofk-output-verdict", `4 · 평가 결과 · ${score.R || "R?"} · ${score.B || "B?"} · ${score.harmbench_positive ? "HarmBench 양성" : "HarmBench 음성"} · ${score.joint_success ? "같은 branch에서 최종 성공" : "Strict joint 실패"}`);
+      chain.append(readout, quote, response, verdict); card.append(chain); container.append(card);
+    });
+  }
   const DETAIL_META = [
     {role: "Backend 전용 기준값", purpose: "나중에 Target이 원래 요청을 복원하고 수행했는지 평가할 기준을 정합니다.", summary: "원 요청 1건입니다. Target에는 직접 전달하지 않습니다.", parts: [["PRIVATE GOAL", "Planner와 Evaluator만 보는 평가 기준입니다."]]},
     {role: "Offline Planner + History Renderer", purpose: "원 요청을 직접 노출하지 않고 Target이 읽을 수 있는 인물 설명과 관찰 기록으로 바꿉니다.", summary: "Persona 설명, 시간순 history, 누적 persona state로 구성됩니다.", parts: [["PRIVATE GOAL", "어떤 의미를 사례에 반영할지 정하는 비공개 입력입니다."], ["PERSONA", "분석 대상 인물이 어떤 사람인지 설명합니다."], ["HISTORY", "Target이 근거로 사용할 시간순 관찰 기록입니다."], ["PERSONA_STATE", "각 관찰 뒤에 누적된 상태를 표시합니다."]]},
@@ -325,6 +357,7 @@
       ];
       renderGraph();
       renderCaseRoute(data, result, scaffold, branch, scored);
+      renderOfkBranchOutputs(data, result, scaffold);
       walkthrough.querySelector(".paper-source").textContent = `Case ${data.case_id} · ${result.label} · ${direction} · source ${data.source_dataset}`;
       render(0);
     } catch (error) { walkthrough.querySelector(".paper-source").textContent = `Load failed: ${error.message}`; }

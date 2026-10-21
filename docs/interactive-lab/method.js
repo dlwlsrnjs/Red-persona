@@ -145,10 +145,21 @@
     if (!value || !/[A-Za-z]/.test(value)) return value;
     if (translationCache.has(value)) return translationCache.get(value);
     let translated = "";
+    let nativeReady = false;
     if ("Translator" in window && typeof window.Translator.create === "function") {
-      const translator = await window.Translator.create({sourceLanguage: "en", targetLanguage: "ko"});
-      for (const chunk of translationChunks(value)) translated += `${await translator.translate(chunk)}\n`;
-    } else {
+      try {
+        const availability = typeof window.Translator.availability === "function" ? await window.Translator.availability({sourceLanguage: "en", targetLanguage: "ko"}) : "unavailable";
+        nativeReady = availability === "available" || availability === "readily";
+        if (nativeReady) {
+          const translator = await window.Translator.create({sourceLanguage: "en", targetLanguage: "ko"});
+          for (const chunk of translationChunks(value)) translated += `${await translator.translate(chunk)}\n`;
+        }
+      } catch (error) {
+        nativeReady = false;
+        translated = "";
+      }
+    }
+    if (!nativeReady) {
       const parts = [];
       for (const chunk of translationChunks(value, 450)) {
         const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en%7Cko`;

@@ -20,6 +20,17 @@
   <main class="method-main">
     <section class="panel walkthrough" id="walkthrough">
       <div class="title"><div><p class="eyebrow">SUCCESS CASE · INTERACTIVE STORED REPLAY</p><h2>한 사례가 Target prompt와 최종 응답으로 이어지는 과정</h2><p class="section-lede">구조도의 화살표는 실제 전달 방향입니다. 왼쪽 Backend/Attack Planner와 오른쪽 Target Model 사이를 오가는 값을 클릭하면, 해당 단계의 실제 입력과 저장된 출력을 검사할 수 있습니다.</p></div><span class="pill" id="walkthroughStatus">1 / 11</span></div>
+      <div class="walkthrough-example">
+        <div class="walkthrough-example-head"><div><p class="eyebrow">먼저 이렇게 읽어보세요</p><h3>예시 한 줄 흐름</h3></div><p><b>→</b>는 Target으로 보내는 입력, <b>←</b>는 Target이 만든 결과가 Planner로 돌아오는 방향입니다. 각 단계를 누르면 아래 구조도와 실제 값이 함께 선택됩니다.</p></div>
+        <div class="walkthrough-example-path">
+          <button type="button" data-example-node="0"><small>1 · BACKEND</small><strong>비공개 요청으로<br>사례 기록 구성</strong></button><span>→</span>
+          <button type="button" data-example-node="2"><small>2 · TARGET INPUT</small><strong>사례 packet을<br>Target에 전달</strong></button><span>←</span>
+          <button type="button" data-example-node="4"><small>3 · PLANNER</small><strong>Target 분석에서<br>빠진 요소 확인</strong></button><span>→</span>
+          <button type="button" data-example-node="5"><small>4 · TARGET INPUT</small><strong>확인 prompt를<br>다시 전달</strong></button><span>←</span>
+          <button type="button" data-example-node="7"><small>5 · BACKEND</small><strong>Target 문장을 골라<br>최종 prompt 조립</strong></button><span>→</span>
+          <button type="button" data-example-node="10"><small>6 · RESULT</small><strong>최종 응답을 받아<br>R·B·HB 평가</strong></button>
+        </div>
+      </div>
       <div class="walkthrough-legend"><span class="private">비공개 입력</span><span class="artifact">오프라인 산출물</span><span class="target">Target 호출·응답</span><span class="planner">Planner 처리</span><span class="evaluation">평가</span></div>
       <div class="walkthrough-controls"><button id="walkthroughPrev" type="button">← 이전</button><div class="walkthrough-progress"><span></span></div><button id="walkthroughNext" class="primary" type="button">다음 →</button><button id="walkthroughPlay" type="button">자동 재생</button></div>
       <div class="walkthrough-grid">

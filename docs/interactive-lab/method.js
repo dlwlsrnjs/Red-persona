@@ -83,7 +83,8 @@
   const controls = document.querySelector(".walkthrough-controls");
   const flow = walkthrough && walkthrough.querySelector(".walkthrough-flow");
   const detail = document.querySelector("#walkthroughDetail");
-  let current = 0, timer, successCases = [], graphRecords = [];
+  let current = 0, timer, successCases = [], graphRecords = [], detailLanguage = "en", detailRenderId = 0;
+  const translationCache = new Map();
   const text = value => value == null ? "" : typeof value === "string" ? value : JSON.stringify(value, null, 2);
   const record = (title, type, short, what, source, next, input, output) => ({title, type, short, what, source, next, input: text(input), output: text(output)});
   function renderGraph() {
@@ -130,6 +131,69 @@
     section.append(make("h4", "", label));
     const pre = make("pre", "", value || "이 단계에는 해당 값이 없습니다.");
     section.append(pre); parent.append(section);
+  }
+  const translationChunks = (value, limit = 3500) => {
+    const chunks = []; let rest = value || "";
+    while (rest.length > limit) {
+      let cut = Math.max(rest.lastIndexOf("\n\n", limit), rest.lastIndexOf("\n", limit), rest.lastIndexOf(" ", limit));
+      if (cut < Math.min(300, limit / 2)) cut = limit;
+      chunks.push(rest.slice(0, cut)); rest = rest.slice(cut);
+    }
+    if (rest) chunks.push(rest); return chunks;
+  };
+  async function translateToKorean(value) {
+    if (!value || !/[A-Za-z]/.test(value)) return value;
+    if (translationCache.has(value)) return translationCache.get(value);
+    let translated = "";
+    if ("Translator" in window && typeof window.Translator.create === "function") {
+      const translator = await window.Translator.create({sourceLanguage: "en", targetLanguage: "ko"});
+      for (const chunk of translationChunks(value)) translated += `${await translator.translate(chunk)}\n`;
+    } else {
+      const parts = [];
+      for (const chunk of translationChunks(value, 450)) {
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en%7Cko`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        if (!payload.responseData || !payload.responseData.translatedText) throw new Error("번역 응답 없음");
+        parts.push(payload.responseData.translatedText);
+      }
+      translated = parts.join("\n");
+    }
+    translated = translated.trim();
+    translationCache.set(value, translated); return translated;
+  }
+  async function renderDetail(value) {
+    const renderId = ++detailRenderId;
+    document.querySelector("#walkthroughDetailTitle").textContent = `${String(current + 1).padStart(2, "0")} · ${value.title}`;
+    detail.replaceChildren();
+    const guide = make("div", "walkthrough-detail-guide");
+    guide.innerHTML = `<p><strong>이 단계는?</strong><span>${value.what}</span></p><p><strong>출처</strong><span>${value.source}</span></p><p><strong>다음 연결</strong><span>${value.next}</span></p>`;
+    detail.append(guide);
+    const toolbar = make("div", "walkthrough-language-toolbar");
+    toolbar.innerHTML = `<div><strong>프롬프트·결과 표시</strong><small>${detailLanguage === "ko" ? "영문 원문을 자동 번역한 설명용 한글" : "데이터에 저장된 실제 영문 원문"}</small></div><div><button type="button" data-detail-language="en" class="${detailLanguage === "en" ? "active" : ""}">English 원문</button><button type="button" data-detail-language="ko" class="${detailLanguage === "ko" ? "active" : ""}">한글 번역</button></div>`;
+    detail.append(toolbar);
+    toolbar.querySelectorAll("[data-detail-language]").forEach(button => button.addEventListener("click", () => {
+      detailLanguage = button.dataset.detailLanguage;
+      renderDetail(graphRecords[current]);
+    }));
+    let input = value.input, output = value.output;
+    if (detailLanguage === "ko") {
+      addDetailSection(detail, "BACKEND INPUT / PROMPT · 번역 중…", "영문 원문을 한글로 번역하고 있습니다.", "input loading");
+      addDetailSection(detail, "GENERATED OUTPUT / STORED VALUE · 번역 중…", "내용이 길면 잠시 시간이 걸릴 수 있습니다.", "output loading");
+      try {
+        [input, output] = await Promise.all([translateToKorean(value.input), translateToKorean(value.output)]);
+      } catch (error) {
+        if (renderId !== detailRenderId) return;
+        detail.querySelectorAll(".walkthrough-detail-section pre").forEach(node => { node.textContent = `번역을 불러오지 못했습니다 (${error.message}). English 원문 버튼으로 실제 저장값을 확인해 주세요.`; });
+        return;
+      }
+      if (renderId !== detailRenderId) return;
+      detail.querySelectorAll(".walkthrough-detail-section").forEach(node => node.remove());
+    }
+    addDetailSection(detail, detailLanguage === "ko" ? "BACKEND INPUT / PROMPT · 한글 번역" : "BACKEND INPUT / PROMPT · ENGLISH ORIGINAL", input, "input");
+    addDetailSection(detail, detailLanguage === "ko" ? "GENERATED OUTPUT / STORED VALUE · 한글 번역" : "GENERATED OUTPUT / STORED VALUE · ENGLISH ORIGINAL", output, "output");
+    if (detailLanguage === "ko") detail.append(make("p", "walkthrough-translation-note", "※ 이해를 돕기 위한 자동 번역입니다. 실험에 실제 사용된 값은 English 원문입니다."));
   }
   const firstSuccess = result => {
     const rows = result && result.score && result.score.branches || [];
@@ -179,14 +243,9 @@
     if (!graphRecords.length) return;
     current = Math.max(0, Math.min(index, graphRecords.length - 1));
     walkthrough.querySelectorAll("[data-graph-index]").forEach(node => { const i = Number(node.dataset.graphIndex); node.classList.toggle("active", i === current); node.classList.toggle("complete", i < current); });
+    walkthrough.querySelectorAll("[data-example-node]").forEach(node => node.classList.toggle("active", Number(node.dataset.exampleNode) === current));
     const value = graphRecords[current];
-    document.querySelector("#walkthroughDetailTitle").textContent = `${String(current + 1).padStart(2, "0")} · ${value.title}`;
-    detail.replaceChildren();
-    const guide = make("div", "walkthrough-detail-guide");
-    guide.innerHTML = `<p><strong>이 단계는?</strong><span>${value.what}</span></p><p><strong>출처</strong><span>${value.source}</span></p><p><strong>다음 연결</strong><span>${value.next}</span></p>`;
-    detail.append(guide);
-    addDetailSection(detail, "BACKEND INPUT / PROMPT", value.input, "input");
-    addDetailSection(detail, "GENERATED OUTPUT / STORED VALUE", value.output, "output");
+    renderDetail(value);
     document.querySelector("#walkthroughStatus").textContent = `${current + 1} / ${graphRecords.length}`;
     document.querySelector(".walkthrough-progress span").style.width = `${(current + 1) / graphRecords.length * 100}%`;
     document.querySelector("#walkthroughPrev").disabled = current === 0;
@@ -196,6 +255,7 @@
   const previousButton = document.querySelector("#walkthroughPrev");
   const nextButton = document.querySelector("#walkthroughNext");
   const playButton = document.querySelector("#walkthroughPlay");
+  document.querySelectorAll("[data-example-node]").forEach(button => button.addEventListener("click", () => { stop(); render(Number(button.dataset.exampleNode)); document.querySelector(".walkthrough-grid").scrollIntoView({behavior: "smooth", block: "start"}); }));
   if (previousButton) previousButton.addEventListener("click", () => { stop(); render(current - 1); });
   if (nextButton) nextButton.addEventListener("click", () => { stop(); render(current + 1); });
   if (playButton) playButton.addEventListener("click", () => {

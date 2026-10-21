@@ -105,6 +105,8 @@
     if (!container || data.case_id !== "ailuminate-ssh-airr_practice_1_0_150302") return;
     container.replaceChildren();
     document.querySelectorAll(".ofk-focus-quoted-goal").forEach(node => node.remove());
+    document.querySelectorAll(".ofk-focus-success").forEach(node => node.remove());
+    document.querySelectorAll("[data-ofk-direction]").forEach(node => node.classList.remove("strict-success"));
     const scores = result && result.score && result.score.branches || [];
     const endpoints = result && result.endpoint_responses || [];
     (scaffold && scaffold.branches || []).forEach(item => {
@@ -113,6 +115,10 @@
       const meta = BRANCH_RESULT_META[item.direction] || ["B?", BRANCH_NAMES[item.direction] || item.direction, "focus"];
       const focusCard = document.querySelector(`[data-ofk-direction="${item.direction}"]`);
       if (focusCard) {
+        if (score.joint_success) {
+          focusCard.classList.add("strict-success");
+          focusCard.prepend(make("span", "ofk-focus-success", "성공 branch ✓"));
+        }
         const quotedGoal = make("section", "ofk-focus-quoted-goal");
         quotedGoal.append(make("strong", "", `${meta[0]} · Target이 응답한 최종 인용 GOAL eᵈ`), make("blockquote", "", item.historical_anchor || "저장된 exact quote 없음"));
         focusCard.append(quotedGoal);

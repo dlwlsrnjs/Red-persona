@@ -53,6 +53,7 @@ const STAGE_GUIDES = {
 let caseIndex = [], currentCase = null, viewMode = "all", focused = "";
 let usageEstimates = {}, pricingEstimate = {}, autoRunActive = false;
 const lanes = new Map();
+let directConversation = [];
 
 function node(tag, className = "", text = "") {
   const element = document.createElement(tag);
@@ -108,6 +109,49 @@ function renderStageTransparency(element, session, step) {
 }
 function fail(target, error) { target.textContent = error.message || String(error); target.classList.remove("hidden"); }
 function clearError(target) { target.textContent = ""; target.classList.add("hidden"); }
+function renderDirectConversation() {
+  const root = $("#directConversation"); if (!root) return;
+  root.replaceChildren();
+  if (!directConversation.length) root.append(node("p", "empty", "아직 전송한 prompt가 없습니다."));
+  directConversation.filter(message => message.role !== "system").forEach((message, index) => {
+    const card = node("article", `direct-message ${message.role}`);
+    card.append(node("strong", "", message.role === "user" ? `내 입력 ${Math.floor(index / 2) + 1}` : "모델 응답"));
+    const pre = node("pre"); pre.textContent = message.content; card.append(pre); root.append(card);
+  });
+  const turns = directConversation.filter(message => message.role === "assistant").length;
+  $("#directStatus").textContent = `${turns} turns`;
+}
+function resetDirectConversation() {
+  directConversation = [];
+  $("#directPrompt").value = "";
+  clearError($("#directError"));
+  renderDirectConversation();
+}
+async function sendDirectPrompt() {
+  const error = $("#directError"); clearError(error);
+  const prompt = $("#directPrompt").value.trim(), key = $("#directKey").value.trim();
+  const provider = $("#directProvider").value, model = $("#directModel").value.trim();
+  if (!prompt) return fail(error, new Error("실제로 보낼 prompt를 입력하세요."));
+  if (!key) return fail(error, new Error("선택한 provider의 API key 또는 token을 입력하세요."));
+  if (!model) return fail(error, new Error("호출할 모델 이름을 입력하세요."));
+  if (!$("#directConsent").checked) return fail(error, new Error("실제 외부 호출과 비용 가능성 확인란을 선택하세요."));
+  const messages = directConversation.length ? [...directConversation, {role: "user", content: prompt}] : [];
+  if (!directConversation.length) {
+    const system = $("#directSystem").value.trim();
+    if (system) messages.push({role: "system", content: system});
+    messages.push({role: "user", content: prompt});
+  }
+  const button = $("#directSend"); button.disabled = true; button.textContent = "실제 모델 호출 중…";
+  try {
+    const response = await providerCall(provider, key, model, messages, Number($("#directMax").value) || 1000);
+    directConversation = [...messages, {role: "assistant", content: response}];
+    $("#directPrompt").value = "";
+    renderDirectConversation();
+    const lastMessage = $("#directConversation").lastElementChild;
+    if (lastMessage) lastMessage.scrollIntoView({behavior: "smooth", block: "nearest"});
+  } catch (errorValue) { fail(error, errorValue); }
+  finally { button.disabled = false; button.textContent = "내 prompt 실제 전송"; }
+}
 async function json(url) { const response = await fetch(url); if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`); return response.json(); }
 function tokens(text) { return new Set((text.toLowerCase().match(/[a-z0-9']+/g) || []).filter(value => value.length > 2)); }
 function bestQuote(text, goal) {
@@ -348,6 +392,8 @@ function renderProgress() {
 }
 
 $("#search").onclick = renderCaseList; $("#outcome").onchange = renderCaseList; $("#openCase").onclick = () => openCase().catch(error => fail($("#error"), error));
+$("#directProvider").onchange = event => { $("#directModel").value = PROVIDERS[event.target.value].models[0]; $("#directKey").placeholder = event.target.value === "openai" ? "sk-…" : "hf_…"; };
+$("#directSend").onclick = sendDirectPrompt; $("#directReset").onclick = resetDirectConversation;
 $("#random").onclick = () => { const rows = renderCaseList(); if (rows.length) openCase(rows[Math.floor(Math.random() * rows.length)].file).catch(error => fail($("#error"), error)); };
 $("#provider").onchange = event => { $("#model").value = PROVIDERS[event.target.value].models[0]; updateMatrixPreview(); }; $("#model").oninput = updateMatrixPreview; $("#protocol").onchange = updateMatrixPreview; $("#comparisonMode").onchange = updateMatrixPreview;
 $("#openaiKey").oninput = event => { for (const lane of lanes.values()) if ($(".lane-provider", lane.el).value === "openai") $(".lane-key", lane.el).value = event.target.value; };

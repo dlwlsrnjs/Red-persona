@@ -1,0 +1,405 @@
+{
+  "schema_version": "reviewer-slurm-audit-v1",
+  "measurement": "allocated GPU-hours = AllocTRES gres/gpu \u00d7 ElapsedRaw / 3600",
+  "groups": {
+    "source500_primary_shared_pipeline": {
+      "description": "Shared multi-method source-500 generation jobs; retained rows were later reused by Final197.",
+      "requested_job_ids": [
+        32378,
+        32380,
+        32382
+      ],
+      "jobs_with_gpu_allocation": [
+        {
+          "job_id": 32378,
+          "job_name": "redpersona-9x2",
+          "state": "COMPLETED",
+          "elapsed_seconds": 8373,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 16.280833333333334,
+          "start": "2026-10-09T23:09:09",
+          "end": "2026-10-10T01:28:42"
+        },
+        {
+          "job_id": 32380,
+          "job_name": "redpersona-9x2",
+          "state": "COMPLETED",
+          "elapsed_seconds": 89,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 0.17305555555555555,
+          "start": "2026-10-10T01:28:42",
+          "end": "2026-10-10T01:30:11"
+        },
+        {
+          "job_id": 32382,
+          "job_name": "redpersona-9x2",
+          "state": "COMPLETED",
+          "elapsed_seconds": 9805,
+          "allocated_gpus": 2,
+          "allocated_gpu_hours": 5.447222222222222,
+          "start": "2026-10-10T01:30:11",
+          "end": "2026-10-10T04:13:36"
+        }
+      ],
+      "allocated_gpu_hours": 21.901111111111113
+    },
+    "final197_primary_shared_pipeline": {
+      "description": "Final197 fresh/retry generation across multiple targets and methods in shared GPU jobs.",
+      "requested_job_ids": [
+        32446,
+        32449,
+        32451,
+        32452
+      ],
+      "jobs_with_gpu_allocation": [
+        {
+          "job_id": 32446,
+          "job_name": "final197-sA",
+          "state": "COMPLETED",
+          "elapsed_seconds": 2121,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 4.1241666666666665,
+          "start": "2026-10-10T21:30:04",
+          "end": "2026-10-10T22:05:25"
+        },
+        {
+          "job_id": 32449,
+          "job_name": "final197-sB",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 2098,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 4.079444444444444,
+          "start": "2026-10-10T21:32:10",
+          "end": "2026-10-10T22:07:08"
+        },
+        {
+          "job_id": 32451,
+          "job_name": "final197-cres",
+          "state": "COMPLETED",
+          "elapsed_seconds": 2193,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 4.264166666666667,
+          "start": "2026-10-10T22:07:25",
+          "end": "2026-10-10T22:43:58"
+        },
+        {
+          "job_id": 32452,
+          "job_name": "final197-pcsa",
+          "state": "COMPLETED",
+          "elapsed_seconds": 11392,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 22.15111111111111,
+          "start": "2026-10-10T22:07:40",
+          "end": "2026-10-11T01:17:32"
+        }
+      ],
+      "allocated_gpu_hours": 34.61888888888889
+    },
+    "final197_setup_failed_or_superseded": {
+      "description": "Failed/superseded Final197 setup attempts; disclosed as overhead, not added to primary cost.",
+      "requested_job_ids": [
+        32442,
+        32444,
+        32447
+      ],
+      "jobs_with_gpu_allocation": [
+        {
+          "job_id": 32442,
+          "job_name": "final197-r154",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 172,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 0.33444444444444443,
+          "start": "2026-10-10T21:21:38",
+          "end": "2026-10-10T21:24:30"
+        },
+        {
+          "job_id": 32444,
+          "job_name": "final197-r154",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 279,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 0.5425,
+          "start": "2026-10-10T21:24:59",
+          "end": "2026-10-10T21:29:38"
+        },
+        {
+          "job_id": 32447,
+          "job_name": "final197-sB",
+          "state": "FAILED",
+          "elapsed_seconds": 41,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 0.07972222222222222,
+          "start": "2026-10-10T21:30:09",
+          "end": "2026-10-10T21:30:50"
+        }
+      ],
+      "allocated_gpu_hours": 0.9566666666666667
+    },
+    "final197_harmbench": {
+      "description": "Two local HarmBench halves for the Final197 campaign.",
+      "requested_job_ids": [
+        32454,
+        32455
+      ],
+      "jobs_with_gpu_allocation": [
+        {
+          "job_id": 32454,
+          "job_name": "f197-hb-half",
+          "state": "COMPLETED",
+          "elapsed_seconds": 410,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 0.7972222222222223,
+          "start": "2026-10-11T01:24:48",
+          "end": "2026-10-11T01:31:38"
+        },
+        {
+          "job_id": 32455,
+          "job_name": "f197-hb-half",
+          "state": "COMPLETED",
+          "elapsed_seconds": 363,
+          "allocated_gpus": 7,
+          "allocated_gpu_hours": 0.7058333333333333,
+          "start": "2026-10-11T01:25:05",
+          "end": "2026-10-11T01:31:08"
+        }
+      ],
+      "allocated_gpu_hours": 1.5030555555555556
+    },
+    "factorial_harmbench_all_attempts": {
+      "description": "All non-parent GPU attempts used while completing the follow-up/quotation factorial HarmBench labels.",
+      "requested_job_ids": [
+        59254,
+        59255,
+        59256,
+        59257,
+        59258,
+        59259,
+        59260,
+        59261,
+        59262,
+        59263,
+        59264,
+        59265,
+        59266,
+        59267,
+        59268,
+        59269,
+        59270,
+        59271,
+        59272,
+        59273,
+        59274,
+        59275
+      ],
+      "jobs_with_gpu_allocation": [
+        {
+          "job_id": 59254,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 719,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.19972222222222222,
+          "start": "2026-11-24T02:11:08",
+          "end": "2026-11-24T02:23:07"
+        },
+        {
+          "job_id": 59255,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 718,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.19944444444444445,
+          "start": "2026-11-24T02:11:09",
+          "end": "2026-11-24T02:23:07"
+        },
+        {
+          "job_id": 59257,
+          "job_name": "factorial-hb",
+          "state": "FAILED",
+          "elapsed_seconds": 972,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.27,
+          "start": "2026-11-24T02:25:31",
+          "end": "2026-11-24T02:41:43"
+        },
+        {
+          "job_id": 59258,
+          "job_name": "factorial-hb",
+          "state": "FAILED",
+          "elapsed_seconds": 946,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.2627777777777778,
+          "start": "2026-11-24T02:25:31",
+          "end": "2026-11-24T02:41:17"
+        },
+        {
+          "job_id": 59259,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 43,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.011944444444444445,
+          "start": "2026-11-24T02:41:17",
+          "end": "2026-11-24T02:42:00"
+        },
+        {
+          "job_id": 59260,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 16,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.0044444444444444444,
+          "start": "2026-11-24T02:41:44",
+          "end": "2026-11-24T02:42:00"
+        },
+        {
+          "job_id": 59262,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 400,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.1111111111111111,
+          "start": "2026-11-24T02:42:22",
+          "end": "2026-11-24T02:49:02"
+        },
+        {
+          "job_id": 59263,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 399,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.11083333333333334,
+          "start": "2026-11-24T02:42:23",
+          "end": "2026-11-24T02:49:02"
+        },
+        {
+          "job_id": 59265,
+          "job_name": "factorial-hb",
+          "state": "FAILED",
+          "elapsed_seconds": 71,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.01972222222222222,
+          "start": "2026-11-24T02:49:25",
+          "end": "2026-11-24T02:50:36"
+        },
+        {
+          "job_id": 59266,
+          "job_name": "factorial-hb",
+          "state": "FAILED",
+          "elapsed_seconds": 57,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.015833333333333335,
+          "start": "2026-11-24T02:49:26",
+          "end": "2026-11-24T02:50:23"
+        },
+        {
+          "job_id": 59267,
+          "job_name": "factorial-hb",
+          "state": "FAILED",
+          "elapsed_seconds": 40,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.011111111111111112,
+          "start": "2026-11-24T02:50:23",
+          "end": "2026-11-24T02:51:03"
+        },
+        {
+          "job_id": 59268,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 46,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.012777777777777779,
+          "start": "2026-11-24T02:50:37",
+          "end": "2026-11-24T02:51:23"
+        },
+        {
+          "job_id": 59269,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 20,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.005555555555555556,
+          "start": "2026-11-24T02:51:03",
+          "end": "2026-11-24T02:51:23"
+        },
+        {
+          "job_id": 59271,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 56,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.015555555555555555,
+          "start": "2026-11-24T02:51:54",
+          "end": "2026-11-24T02:52:50"
+        },
+        {
+          "job_id": 59272,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 56,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.015555555555555555,
+          "start": "2026-11-24T02:51:54",
+          "end": "2026-11-24T02:52:50"
+        },
+        {
+          "job_id": 59273,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 67,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.01861111111111111,
+          "start": "2026-11-24T02:53:13",
+          "end": "2026-11-24T02:54:20"
+        },
+        {
+          "job_id": 59274,
+          "job_name": "factorial-hb",
+          "state": "CANCELLED by 1032",
+          "elapsed_seconds": 1216,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.3377777777777778,
+          "start": "2026-11-24T02:54:39",
+          "end": "2026-11-24T03:14:55"
+        },
+        {
+          "job_id": 59275,
+          "job_name": "factorial-hb",
+          "state": "COMPLETED",
+          "elapsed_seconds": 194,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.05388888888888889,
+          "start": "2026-11-24T03:15:13",
+          "end": "2026-11-24T03:18:27"
+        }
+      ],
+      "allocated_gpu_hours": 1.6766666666666665
+    },
+    "length_depth_harmbench": {
+      "description": "Local HarmBench inference for the length-depth control.",
+      "requested_job_ids": [
+        59533
+      ],
+      "jobs_with_gpu_allocation": [
+        {
+          "job_id": 59533,
+          "job_name": "red-depth-hb",
+          "state": "COMPLETED",
+          "elapsed_seconds": 57,
+          "allocated_gpus": 1,
+          "allocated_gpu_hours": 0.015833333333333335,
+          "start": "2026-11-25T05:49:27",
+          "end": "2026-11-25T05:50:24"
+        }
+      ],
+      "allocated_gpu_hours": 0.015833333333333335
+    }
+  },
+  "limits": [
+    "Allocated GPU-hours are scheduler reservations, not measured GPU utilization or energy.",
+    "Shared jobs ran multiple methods/targets concurrently; per-method GPU-hour attribution is not identifiable.",
+    "The source-500 total is reported separately and is not proportionally imputed onto selected Final197 rows.",
+    "Local attacker/scorer input-token histories remain unavailable because the PyRIT memory database was not retained."
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": "reviewer-safe-release-v1",
+  "privacy_contract": "Label-only artifacts. Prompts, goals, personas, quotations, model response text, evaluator rationales, and original case identifiers are excluded. Case/row identifiers are salted deterministic hashes.",
+  "counts": {
+    "external_baseline": 3546,
+    "red_compact": 788,
+    "factorial_2x2": 3152
+  },
+  "factorial_conditions": {
+    "direct_final_only": 788,
+    "followup_only": 788,
+    "quotation_only": 788,
+    "compact": 788
+  },
+  "known_missingness": "CARES labels are unavailable in the retained existing direct/compact branch records and are null there; cares_available distinguishes structural missingness from an evaluator label.",
+  "files": {
+    "external_baseline_labels.jsonl": {
+      "bytes": 1072348,
+      "sha256": "39e6d7ab95bc5787e06053c67a1960647614ad7737f45ae080f680f2e8dbe70c"
+    },
+    "factorial_2x2_labels.jsonl": {
+      "bytes": 1179845,
+      "sha256": "36b08907d2759c077bba56e0cfaa39aea099c1cb521cb4c22ba189bc9be2cde5"
+    },
+    "factorial_aggregates/factorial_2x2_strict_joint_summary.csv": {
+      "bytes": 462,
+      "sha256": "5538cc616455d176ba1acc223d264119feca0c7b647576422e957c6f621bc105"
+    },
+    "factorial_aggregates/factorial_2x2_strict_joint_summary.json": {
+      "bytes": 2338,
+      "sha256": "b211cd97823d83304f8100de7189f551058ec04d3bea48c64b8d3ee5045e73fe"
+    },
+    "factorial_aggregates/factorial_paired_statistics.json": {
+      "bytes": 6834,
+      "sha256": "b62d7be56af19faca26737671a06d9f242bc330c74ed4c9541d2d1f94cf9b0f2"
+    },
+    "factorial_aggregates/factorial_summary.csv": {
+      "bytes": 466,
+      "sha256": "bfe64294356fba1bededc1423330423a2dd4e464e45b3d3aeb2a4b2b59925516"
+    },
+    "factorial_aggregates/factorial_summary.json": {
+      "bytes": 22009,
+      "sha256": "1131bf7086b5120543994d3b38d1db57b6d255e9ef558141296cf58dd40a9fb7"
+    },
+    "factorial_aggregates/generation_summary.json": {
+      "bytes": 782,
+      "sha256": "9e73a73ed80ca31bd282b3b0c041ffc2c26e8248531b7972bd3dfa2849cf9060"
+    },
+    "red_compact_labels.jsonl": {
+      "bytes": 286631,
+      "sha256": "66d999a2e2770f7fe6ac84f6336eb0ab1dda42f4ff64ff1e34a0f6d0077acc20"
+    }
+  }
+}

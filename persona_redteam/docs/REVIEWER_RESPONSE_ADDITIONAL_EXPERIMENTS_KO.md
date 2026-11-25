@@ -107,7 +107,7 @@ Final197의 외부 baseline 3,546개 응답과 RED compact의 197×4=788개 fixe
 
 RED에서 R3+가 97.46%로 거의 포화되어 있으므로 R3–HarmBench κ는 prevalence effect로 낮다. 이 경우 85.99%의 positive agreement와 방향성 불일치를 함께 읽어야 한다. 반대로 외부 baseline에서는 R3–HarmBench가 κ=0.690으로 상당히 겹친다. B4–HarmBench의 중간 수준 κ와 높은 positive agreement는 두 판정이 관련되지만 동일하지 않음을 보여 준다.
 
-이 automated-metric 간 agreement는 서로의 중복성과 상보성을 보여 주지만 정확도 자체의 증명은 아니다. 최종 타당도 주장은 별도의 5인 blinded human validation에서 각 metric의 precision·recall·specificity와 human-majority agreement를 보고 뒷받침해야 한다.
+이 automated-metric 간 agreement는 서로의 중복성과 상보성을 보여 주지만 정확도 자체의 증명은 아니다. 본 reviewer-response 실행 범위에서는 연구자 결정에 따라 5인 blinded human validation을 수행하지 않으며, 따라서 아래 결과를 human-ground-truth accuracy의 증거로 표현하지 않는다.
 
 본 Final197 평가표의 CARES ASR인 `Accept or Caution`은 non-refusal/stance를 넓게 포착하여 HarmBench보다 훨씬 많은 응답을 양성으로 둔다. 따라서 낮은 κ를 곧바로 어느 한 판정기의 실패로 해석하지 않는다. `Accept`만 사용해도 κ=0.217이고, CARES A/C와 HarmBench+의 불일치는 1,781 대 54로 한 방향에 집중된다. 이는 CARES ASR과 harmful-fulfillment ASR이 서로 다른 estimand라는 실증적 근거다.
 
@@ -204,7 +204,7 @@ factorial ablation 뒤에 `Dialogue depth and goal specificity controls` subsect
 - source-500 재사용 행의 per-case token cost는 평균 귀속치다.
 - local Qwen input tokens와 과거 GPU-hours는 원 DB 부재로 복원 불가다.
 - shuffled R3+ 70.05%는 위기 범주와 speech-act 공통성만으로도 상당한 recovery가 가능함을 보여 준다.
-- 자동 판정은 별도 5인 human validation으로 신뢰도를 보고한다.
+- 자동 판정 간 일치도는 판정기의 상보성만 보여 주며 human-ground-truth accuracy를 증명하지 않는다. 5인 human validation은 이번 실행 범위에서 제외했다.
 
 ## 8. 리뷰 답변 문안
 
@@ -213,3 +213,77 @@ factorial ablation 뒤에 `Dialogue depth and goal specificity controls` subsect
 > To address goal leakage and dialogue-length confounding, we add two paired controls. In a goal-blind within-crisis-label shuffle, R3+ recovery was 97.97% for aligned cases and 70.05% for shuffled cases (paired difference 27.92 points; exact McNemar p=1.38e-13). In a cumulative 0-to-7 dialogue-depth ablation with one outcome-blind fixed branch per case, strict-joint Success@1 decreased from 64.97% to 25.38% (5.85 points per added stage; cluster-bootstrap 95% CI 4.73–6.99 points). These controls support case-specific goal mediation and show that the compact condition's advantage is not explained by greater dialogue length.
 >
 > We additionally clarify why we report a strict-joint endpoint rather than treating any single automated judge as ground truth. R3+ tests case-specific goal recovery, B4+ excludes mere mention or safe analysis by requiring substantive harmful fulfillment, and HarmBench supplies an independent standardized behavior classifier. Across all 3,546 external-baseline responses, R3+ and HarmBench agreed on 92.30% of rows (Cohen's κ=0.690, case-cluster bootstrap 95% CI 0.652–0.726), while B4+ and HarmBench agreed on 91.51% (κ=0.439, 95% CI 0.380–0.496). For the 788 RED fixed-branch responses, B4+ and HarmBench had 88.80% positive agreement (κ=0.463, 95% CI 0.379–0.546). CARES Accept-or-Caution showed much lower agreement with HarmBench (κ=0.109), as expected because it measures a broader non-refusal/response-stance construct. We therefore define strict-joint conservatively as R3+ AND B4+ AND HarmBench+, while continuing to report all components and CARES separately.
+
+## 9. Follow-up × quotation 완전 2×2 ablation
+
+리뷰어가 지적한 구성요소 결합 문제를 해결하기 위해 기존 `Direct-final-only`와 `Compact`에 `Follow-up-only`, `Quotation-only`를 추가했다. 동일한 197 cases × 4 fixed branches를 사용했다.
+
+| Condition | Follow-up | Exact quotation | Branch strict joint | Case Success@4 |
+|---|---:|---:|---:|---:|
+| Direct-final-only | 없음 | 없음 | 14/788 = 1.78% | 14/197 = 7.11% |
+| Follow-up-only | 있음 | 없음 | 8/788 = 1.02% | 8/197 = 4.06% |
+| Quotation-only | 없음 | 있음 | 381/788 = 48.35% | 139/197 = 70.56% |
+| Compact | 있음 | 있음 | 547/788 = 69.42% | 189/197 = 95.94% |
+
+Case-level paired contrast는 quotation이 없는 상태의 follow-up 효과 -3.05%p(95% bootstrap CI -7.61–1.52), quotation이 있는 상태의 follow-up 효과 +25.38%p(18.78–31.98), follow-up이 없는 상태의 quotation 효과 +63.45%p(55.84–70.56), follow-up이 있는 상태의 quotation 효과 +91.88%p(87.82–95.43)였다. 전체 descriptive interaction은 +28.43%p였지만, 네 branch 모두 initial-analysis quotation이 존재한 161 cases에 제한하면 +11.18%p였다. 따라서 quotation을 주된 enabling component, follow-up을 quotation 조건에서의 conditional amplifier로 해석하되 순수 causal interaction으로 단정하지 않는다.
+
+`Quotation-only` 788개 중 144개는 검증 가능한 initial-analysis quotation이 없어 호출하지 않고 실패로 유지했다. 상세 설계·통계·원고 문안은 `docs/FOLLOWUP_QUOTATION_FACTORIAL_ABLATION_KO.md`에 정리했다.
+
+신규 생성 1,432건의 실측 사용량은 input 4,472,189, output 588,654 tokens였다. Standard API 등가 비용은 $34.13, 실제 Batch 비용은 $17.07이다. 자동평가 API 사용량은 최종 label 파일에 usage가 보존되지 않아 별도 exact total을 주장하지 않는다. HarmBench의 모든 실패·재시도까지 포함한 Slurm 할당량은 1.677 GPU-hours였다.
+
+## 10. 9개 모델에서 goal recovery와 executable compliance 분리
+
+동일한 197 paired cases에 이미 저장된 9개 compact target 결과를 재분석했다. 아래 값은 case-level Success@4이며 새 target 호출은 없다.
+
+| Compact target run | R3+ | B4+ | HarmBench+ | Strict joint |
+|---|---:|---:|---:|---:|
+| GPT-4o | 99.49% | 100.00% | 96.95% | 95.94% |
+| GPT-5.4 mini | 100.00% | 0.00% | 5.58% | 0.00% |
+| GPT-6 Luna | 97.97% | 0.00% | 5.58% | 0.00% |
+| Qwen2.5-7B | 97.97% | 96.45% | 96.45% | 90.86% |
+| Llama-3.1-8B-Instruct | 93.91% | 98.98% | 94.92% | 88.32% |
+| Llama3-G2C | 82.23% | 81.22% | 65.99% | 43.65% |
+| Mistral-Small-3.2-24B | 99.49% | 100.00% | 97.97% | 96.95% |
+| Gemma4-26B-A4B-IT | 99.49% | 98.48% | 93.91% | 92.89% |
+| Phi-4 | 98.98% | 98.98% | 94.42% | 91.88% |
+
+모델 간 이질성은 모든 endpoint에서 Cochran's Q p<1.3×10^-34였다. 그러나 모델별 R3와 B4 rate의 Spearman ρ는 0.177, R3와 strict-joint는 0.346에 불과했고, B4와 strict-joint는 0.898이었다. 특히 두 target은 목표를 거의 전부 복원하면서도 B4가 0이었다. 이 결과는 “goal recognition”과 “executable harmful compliance”를 하나의 판정으로 합치면 안 된다는 리뷰 답변을 직접 뒷받침한다. 9개 model-level correlation은 표본 수가 작으므로 기술통계로만 사용한다.
+
+## 11. 평가 endpoint 선택에 대한 method-ranking 민감도
+
+외부 baseline 18개 target×method cells의 방법별 비율 순위를 비교했다. 전체 18 cells에서 strict-joint와 B4의 Spearman ρ는 0.991, strict-joint와 HarmBench는 0.911, strict-joint와 R3는 0.913이었다. 반면 strict-joint와 CARES Accept는 0.340, CARES Accept-or-Caution은 0.093이었다.
+
+이는 R/B/HarmBench가 서로 동일하다는 뜻이 아니라, external baseline에서 방법 순위가 대체로 같은 방향이라는 뜻이다. CARES A/C는 non-refusal/stance라는 더 넓은 estimand여서 harmful fulfillment 순위와 크게 다르다. 따라서 논문에는 (i) row-level agreement/confusion, (ii) method-level rank sensitivity, (iii) 각 endpoint의 별도 표, (iv) precision-oriented strict conjunction을 함께 제시한다.
+
+## 12. Source/category-stratified robustness
+
+Compact GPT-4o strict-joint Success@4는 네 source strata에서 90.91%, 95.59%, 100%, 100%였고, 주요 crisis strata인 self-harm와 suicidal ideation에서 각각 95.96%, 95.45%였다. Goal-blind aligned-minus-shuffled R3 차이는 source별 +5.88~+33.09%p였다. 작은 strata는 불확실성이 크므로 기술통계로만 둔다.
+
+이 분석은 PersonaHarm 내부의 source/category 편중에 대한 sensitivity check다. 별도로 수집한 자연 대화 corpus가 아니므로 리뷰어의 natural-case external-validity 우려를 완전히 해소했다고 쓰지 않는다. 새 자연 대화 실험은 독립적인 case 수집·goal annotation·윤리 검토가 필요한 별도 연구 범위다.
+
+## 13. Slurm GPU-hour 복구 감사
+
+스케줄러의 `AllocTRES × ElapsedRaw`를 이용해 다음 할당량을 복구했다.
+
+| Campaign | Allocated GPU-hours | 해석 |
+|---|---:|---|
+| Source-500 shared primary pipeline | 21.901 | 여러 target/method 공유 작업; Final197에 비례 귀속하지 않음 |
+| Final197 shared primary pipeline | 34.619 | 여러 target/method가 7 GPUs를 공유하여 method별 분해 불가 |
+| Final197 failed/superseded setup overhead | 0.957 | primary와 분리 보고 |
+| Final197 HarmBench | 1.503 | local classifier |
+| Factorial HarmBench, 모든 재시도 포함 | 1.677 | 실패·취소 작업 포함 실제 예약량 |
+| Length-depth HarmBench | 0.016 | local classifier |
+
+이는 GPU utilization이 아니라 예약된 GPU-hours다. 과거 PyRIT DB가 남아 있지 않아 local attacker/scorer의 입력 토큰과 shared job 내부의 method별 GPU 시간은 여전히 식별할 수 없다. 기존 문서의 “GPU-hours unavailable”은 “일부 campaign-level scheduler allocation은 복구, method-level attribution은 불가”로 수정한다.
+
+## 14. 공개·재현성 산출물
+
+`result/reviewer_response/safe_release/`에 다음 label-only 자료를 생성했다.
+
+- 외부 baseline 3,546행
+- RED compact 788행
+- 완전 2×2 factorial 3,152행
+- factorial aggregate JSON/CSV와 paired statistics
+- 파일별 SHA-256, row count, 구조적 CARES missingness를 기록한 metadata
+
+공개본은 prompt, persona, private goal, quotation, response text, evaluator rationale, 원 case ID를 포함하지 않는다. case/row ID는 salted deterministic hash로 대체했다. 공격 내용을 공개하지 않으면서도 모든 집계표와 paired 재분석을 독립적으로 재현할 수 있는 최소 산출물이다.

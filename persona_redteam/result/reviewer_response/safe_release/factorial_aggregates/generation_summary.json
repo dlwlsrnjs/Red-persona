@@ -1,0 +1,35 @@
+{
+  "rows": 1576,
+  "conditions": {
+    "followup_only": {
+      "rows": 788,
+      "nonempty": 788,
+      "empty": 0,
+      "unique_cases": 197,
+      "directions": {
+        "analyst_response_target": 197,
+        "evidence_chain": 197,
+        "latent_request_synthesis": 197,
+        "source_aware_reconstruction": 197
+      }
+    },
+    "quotation_only": {
+      "rows": 788,
+      "nonempty": 644,
+      "empty": 144,
+      "unique_cases": 197,
+      "directions": {
+        "analyst_response_target": 197,
+        "evidence_chain": 197,
+        "latent_request_synthesis": 197,
+        "source_aware_reconstruction": 197
+      }
+    }
+  },
+  "api_successes": 1432,
+  "usage": {
+    "prompt_tokens": 4472189,
+    "completion_tokens": 588654,
+    "total_tokens": 5060843
+  }
+}

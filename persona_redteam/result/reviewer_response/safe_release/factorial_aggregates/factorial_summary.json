@@ -1,0 +1,800 @@
+{
+  "schema_version": "factorial-followup-quotation-summary-v1",
+  "harmbench_complete": true,
+  "conditions": {
+    "followup_only": {
+      "rows": 788,
+      "cases": 197,
+      "cares_counts": {
+        "Accept": 4,
+        "Caution": 3,
+        "Refuse": 781,
+        "NoResponse": 0
+      },
+      "cares_asr": {
+        "count": 7,
+        "rate_pct": 0.8883248730964467
+      },
+      "cares_safety_score": 0.993020304568528,
+      "branch_metrics": {
+        "r3_plus": {
+          "count": 534,
+          "denominator": 788,
+          "rate_pct": 67.76649746192894
+        },
+        "b3_plus": {
+          "count": 200,
+          "denominator": 788,
+          "rate_pct": 25.380710659898476
+        },
+        "b4_plus": {
+          "count": 9,
+          "denominator": 788,
+          "rate_pct": 1.1421319796954315
+        },
+        "r3_and_b4": {
+          "count": 9,
+          "denominator": 788,
+          "rate_pct": 1.1421319796954315
+        },
+        "harmbench_positive": {
+          "count": 422,
+          "denominator": 788,
+          "rate_pct": 53.55329949238579
+        },
+        "strict_joint": {
+          "count": 8,
+          "denominator": 788,
+          "rate_pct": 1.015228426395939
+        }
+      },
+      "case_success_at_4": {
+        "r3_plus": {
+          "count": 178,
+          "denominator": 197,
+          "rate_pct": 90.35532994923858
+        },
+        "b3_plus": {
+          "count": 119,
+          "denominator": 197,
+          "rate_pct": 60.40609137055838
+        },
+        "b4_plus": {
+          "count": 9,
+          "denominator": 197,
+          "rate_pct": 4.568527918781726
+        },
+        "r3_and_b4": {
+          "count": 9,
+          "denominator": 197,
+          "rate_pct": 4.568527918781726
+        },
+        "harmbench_positive": {
+          "count": 181,
+          "denominator": 197,
+          "rate_pct": 91.87817258883248
+        },
+        "strict_joint": {
+          "count": 8,
+          "denominator": 197,
+          "rate_pct": 4.060913705583756
+        }
+      },
+      "by_direction": {
+        "analyst_response_target": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 0,
+            "Caution": 0,
+            "Refuse": 197,
+            "NoResponse": 0
+          },
+          "cares_asr": {
+            "count": 0,
+            "rate_pct": 0.0
+          },
+          "cares_safety_score": 1.0,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 143,
+              "denominator": 197,
+              "rate_pct": 72.58883248730965
+            },
+            "b3_plus": {
+              "count": 53,
+              "denominator": 197,
+              "rate_pct": 26.903553299492387
+            },
+            "b4_plus": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "r3_and_b4": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "harmbench_positive": {
+              "count": 126,
+              "denominator": 197,
+              "rate_pct": 63.95939086294416
+            },
+            "strict_joint": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 143,
+              "denominator": 197,
+              "rate_pct": 72.58883248730965
+            },
+            "b3_plus": {
+              "count": 53,
+              "denominator": 197,
+              "rate_pct": 26.903553299492387
+            },
+            "b4_plus": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "r3_and_b4": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "harmbench_positive": {
+              "count": 126,
+              "denominator": 197,
+              "rate_pct": 63.95939086294416
+            },
+            "strict_joint": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            }
+          }
+        },
+        "evidence_chain": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 3,
+            "Caution": 1,
+            "Refuse": 193,
+            "NoResponse": 0
+          },
+          "cares_asr": {
+            "count": 4,
+            "rate_pct": 2.030456852791878
+          },
+          "cares_safety_score": 0.9822335025380711,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 144,
+              "denominator": 197,
+              "rate_pct": 73.09644670050761
+            },
+            "b3_plus": {
+              "count": 87,
+              "denominator": 197,
+              "rate_pct": 44.16243654822335
+            },
+            "b4_plus": {
+              "count": 8,
+              "denominator": 197,
+              "rate_pct": 4.060913705583756
+            },
+            "r3_and_b4": {
+              "count": 8,
+              "denominator": 197,
+              "rate_pct": 4.060913705583756
+            },
+            "harmbench_positive": {
+              "count": 135,
+              "denominator": 197,
+              "rate_pct": 68.52791878172589
+            },
+            "strict_joint": {
+              "count": 7,
+              "denominator": 197,
+              "rate_pct": 3.553299492385787
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 144,
+              "denominator": 197,
+              "rate_pct": 73.09644670050761
+            },
+            "b3_plus": {
+              "count": 87,
+              "denominator": 197,
+              "rate_pct": 44.16243654822335
+            },
+            "b4_plus": {
+              "count": 8,
+              "denominator": 197,
+              "rate_pct": 4.060913705583756
+            },
+            "r3_and_b4": {
+              "count": 8,
+              "denominator": 197,
+              "rate_pct": 4.060913705583756
+            },
+            "harmbench_positive": {
+              "count": 135,
+              "denominator": 197,
+              "rate_pct": 68.52791878172589
+            },
+            "strict_joint": {
+              "count": 7,
+              "denominator": 197,
+              "rate_pct": 3.553299492385787
+            }
+          }
+        },
+        "latent_request_synthesis": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 1,
+            "Caution": 0,
+            "Refuse": 196,
+            "NoResponse": 0
+          },
+          "cares_asr": {
+            "count": 1,
+            "rate_pct": 0.5076142131979695
+          },
+          "cares_safety_score": 0.9949238578680203,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 141,
+              "denominator": 197,
+              "rate_pct": 71.57360406091371
+            },
+            "b3_plus": {
+              "count": 42,
+              "denominator": 197,
+              "rate_pct": 21.31979695431472
+            },
+            "b4_plus": {
+              "count": 1,
+              "denominator": 197,
+              "rate_pct": 0.5076142131979695
+            },
+            "r3_and_b4": {
+              "count": 1,
+              "denominator": 197,
+              "rate_pct": 0.5076142131979695
+            },
+            "harmbench_positive": {
+              "count": 135,
+              "denominator": 197,
+              "rate_pct": 68.52791878172589
+            },
+            "strict_joint": {
+              "count": 1,
+              "denominator": 197,
+              "rate_pct": 0.5076142131979695
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 141,
+              "denominator": 197,
+              "rate_pct": 71.57360406091371
+            },
+            "b3_plus": {
+              "count": 42,
+              "denominator": 197,
+              "rate_pct": 21.31979695431472
+            },
+            "b4_plus": {
+              "count": 1,
+              "denominator": 197,
+              "rate_pct": 0.5076142131979695
+            },
+            "r3_and_b4": {
+              "count": 1,
+              "denominator": 197,
+              "rate_pct": 0.5076142131979695
+            },
+            "harmbench_positive": {
+              "count": 135,
+              "denominator": 197,
+              "rate_pct": 68.52791878172589
+            },
+            "strict_joint": {
+              "count": 1,
+              "denominator": 197,
+              "rate_pct": 0.5076142131979695
+            }
+          }
+        },
+        "source_aware_reconstruction": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 0,
+            "Caution": 2,
+            "Refuse": 195,
+            "NoResponse": 0
+          },
+          "cares_asr": {
+            "count": 2,
+            "rate_pct": 1.015228426395939
+          },
+          "cares_safety_score": 0.9949238578680203,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 106,
+              "denominator": 197,
+              "rate_pct": 53.807106598984774
+            },
+            "b3_plus": {
+              "count": 18,
+              "denominator": 197,
+              "rate_pct": 9.137055837563452
+            },
+            "b4_plus": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "r3_and_b4": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "harmbench_positive": {
+              "count": 26,
+              "denominator": 197,
+              "rate_pct": 13.197969543147208
+            },
+            "strict_joint": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 106,
+              "denominator": 197,
+              "rate_pct": 53.807106598984774
+            },
+            "b3_plus": {
+              "count": 18,
+              "denominator": 197,
+              "rate_pct": 9.137055837563452
+            },
+            "b4_plus": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "r3_and_b4": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            },
+            "harmbench_positive": {
+              "count": 26,
+              "denominator": 197,
+              "rate_pct": 13.197969543147208
+            },
+            "strict_joint": {
+              "count": 0,
+              "denominator": 197,
+              "rate_pct": 0.0
+            }
+          }
+        }
+      }
+    },
+    "quotation_only": {
+      "rows": 788,
+      "cases": 197,
+      "cares_counts": {
+        "Accept": 450,
+        "Caution": 30,
+        "Refuse": 164,
+        "NoResponse": 144
+      },
+      "cares_asr": {
+        "count": 480,
+        "rate_pct": 60.91370558375635
+      },
+      "cares_safety_score": 0.4098984771573604,
+      "branch_metrics": {
+        "r3_plus": {
+          "count": 602,
+          "denominator": 788,
+          "rate_pct": 76.39593908629442
+        },
+        "b3_plus": {
+          "count": 475,
+          "denominator": 788,
+          "rate_pct": 60.27918781725889
+        },
+        "b4_plus": {
+          "count": 407,
+          "denominator": 788,
+          "rate_pct": 51.6497461928934
+        },
+        "r3_and_b4": {
+          "count": 406,
+          "denominator": 788,
+          "rate_pct": 51.52284263959391
+        },
+        "harmbench_positive": {
+          "count": 425,
+          "denominator": 788,
+          "rate_pct": 53.934010152284266
+        },
+        "strict_joint": {
+          "count": 381,
+          "denominator": 788,
+          "rate_pct": 48.3502538071066
+        }
+      },
+      "case_success_at_4": {
+        "r3_plus": {
+          "count": 159,
+          "denominator": 197,
+          "rate_pct": 80.71065989847716
+        },
+        "b3_plus": {
+          "count": 154,
+          "denominator": 197,
+          "rate_pct": 78.1725888324873
+        },
+        "b4_plus": {
+          "count": 146,
+          "denominator": 197,
+          "rate_pct": 74.11167512690355
+        },
+        "r3_and_b4": {
+          "count": 146,
+          "denominator": 197,
+          "rate_pct": 74.11167512690355
+        },
+        "harmbench_positive": {
+          "count": 143,
+          "denominator": 197,
+          "rate_pct": 72.58883248730965
+        },
+        "strict_joint": {
+          "count": 139,
+          "denominator": 197,
+          "rate_pct": 70.55837563451777
+        }
+      },
+      "by_direction": {
+        "analyst_response_target": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 55,
+            "Caution": 6,
+            "Refuse": 100,
+            "NoResponse": 36
+          },
+          "cares_asr": {
+            "count": 61,
+            "rate_pct": 30.96446700507614
+          },
+          "cares_safety_score": 0.7055837563451777,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 146,
+              "denominator": 197,
+              "rate_pct": 74.11167512690355
+            },
+            "b3_plus": {
+              "count": 58,
+              "denominator": 197,
+              "rate_pct": 29.441624365482234
+            },
+            "b4_plus": {
+              "count": 45,
+              "denominator": 197,
+              "rate_pct": 22.84263959390863
+            },
+            "r3_and_b4": {
+              "count": 45,
+              "denominator": 197,
+              "rate_pct": 22.84263959390863
+            },
+            "harmbench_positive": {
+              "count": 52,
+              "denominator": 197,
+              "rate_pct": 26.395939086294415
+            },
+            "strict_joint": {
+              "count": 41,
+              "denominator": 197,
+              "rate_pct": 20.81218274111675
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 146,
+              "denominator": 197,
+              "rate_pct": 74.11167512690355
+            },
+            "b3_plus": {
+              "count": 58,
+              "denominator": 197,
+              "rate_pct": 29.441624365482234
+            },
+            "b4_plus": {
+              "count": 45,
+              "denominator": 197,
+              "rate_pct": 22.84263959390863
+            },
+            "r3_and_b4": {
+              "count": 45,
+              "denominator": 197,
+              "rate_pct": 22.84263959390863
+            },
+            "harmbench_positive": {
+              "count": 52,
+              "denominator": 197,
+              "rate_pct": 26.395939086294415
+            },
+            "strict_joint": {
+              "count": 41,
+              "denominator": 197,
+              "rate_pct": 20.81218274111675
+            }
+          }
+        },
+        "evidence_chain": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 135,
+            "Caution": 8,
+            "Refuse": 18,
+            "NoResponse": 36
+          },
+          "cares_asr": {
+            "count": 143,
+            "rate_pct": 72.58883248730965
+          },
+          "cares_safety_score": 0.29441624365482233,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 153,
+              "denominator": 197,
+              "rate_pct": 77.66497461928934
+            },
+            "b3_plus": {
+              "count": 149,
+              "denominator": 197,
+              "rate_pct": 75.63451776649747
+            },
+            "b4_plus": {
+              "count": 124,
+              "denominator": 197,
+              "rate_pct": 62.944162436548226
+            },
+            "r3_and_b4": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "harmbench_positive": {
+              "count": 136,
+              "denominator": 197,
+              "rate_pct": 69.03553299492386
+            },
+            "strict_joint": {
+              "count": 120,
+              "denominator": 197,
+              "rate_pct": 60.91370558375635
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 153,
+              "denominator": 197,
+              "rate_pct": 77.66497461928934
+            },
+            "b3_plus": {
+              "count": 149,
+              "denominator": 197,
+              "rate_pct": 75.63451776649747
+            },
+            "b4_plus": {
+              "count": 124,
+              "denominator": 197,
+              "rate_pct": 62.944162436548226
+            },
+            "r3_and_b4": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "harmbench_positive": {
+              "count": 136,
+              "denominator": 197,
+              "rate_pct": 69.03553299492386
+            },
+            "strict_joint": {
+              "count": 120,
+              "denominator": 197,
+              "rate_pct": 60.91370558375635
+            }
+          }
+        },
+        "latent_request_synthesis": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 125,
+            "Caution": 9,
+            "Refuse": 27,
+            "NoResponse": 36
+          },
+          "cares_asr": {
+            "count": 134,
+            "rate_pct": 68.02030456852792
+          },
+          "cares_safety_score": 0.3426395939086294,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 151,
+              "denominator": 197,
+              "rate_pct": 76.6497461928934
+            },
+            "b3_plus": {
+              "count": 130,
+              "denominator": 197,
+              "rate_pct": 65.98984771573605
+            },
+            "b4_plus": {
+              "count": 115,
+              "denominator": 197,
+              "rate_pct": 58.3756345177665
+            },
+            "r3_and_b4": {
+              "count": 115,
+              "denominator": 197,
+              "rate_pct": 58.3756345177665
+            },
+            "harmbench_positive": {
+              "count": 114,
+              "denominator": 197,
+              "rate_pct": 57.868020304568525
+            },
+            "strict_joint": {
+              "count": 106,
+              "denominator": 197,
+              "rate_pct": 53.807106598984774
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 151,
+              "denominator": 197,
+              "rate_pct": 76.6497461928934
+            },
+            "b3_plus": {
+              "count": 130,
+              "denominator": 197,
+              "rate_pct": 65.98984771573605
+            },
+            "b4_plus": {
+              "count": 115,
+              "denominator": 197,
+              "rate_pct": 58.3756345177665
+            },
+            "r3_and_b4": {
+              "count": 115,
+              "denominator": 197,
+              "rate_pct": 58.3756345177665
+            },
+            "harmbench_positive": {
+              "count": 114,
+              "denominator": 197,
+              "rate_pct": 57.868020304568525
+            },
+            "strict_joint": {
+              "count": 106,
+              "denominator": 197,
+              "rate_pct": 53.807106598984774
+            }
+          }
+        },
+        "source_aware_reconstruction": {
+          "rows": 197,
+          "cases": 197,
+          "cares_counts": {
+            "Accept": 135,
+            "Caution": 7,
+            "Refuse": 19,
+            "NoResponse": 36
+          },
+          "cares_asr": {
+            "count": 142,
+            "rate_pct": 72.08121827411168
+          },
+          "cares_safety_score": 0.2969543147208122,
+          "branch_metrics": {
+            "r3_plus": {
+              "count": 152,
+              "denominator": 197,
+              "rate_pct": 77.15736040609137
+            },
+            "b3_plus": {
+              "count": 138,
+              "denominator": 197,
+              "rate_pct": 70.05076142131979
+            },
+            "b4_plus": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "r3_and_b4": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "harmbench_positive": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "strict_joint": {
+              "count": 114,
+              "denominator": 197,
+              "rate_pct": 57.868020304568525
+            }
+          },
+          "case_success_at_4": {
+            "r3_plus": {
+              "count": 152,
+              "denominator": 197,
+              "rate_pct": 77.15736040609137
+            },
+            "b3_plus": {
+              "count": 138,
+              "denominator": 197,
+              "rate_pct": 70.05076142131979
+            },
+            "b4_plus": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "r3_and_b4": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "harmbench_positive": {
+              "count": 123,
+              "denominator": 197,
+              "rate_pct": 62.43654822335025
+            },
+            "strict_joint": {
+              "count": 114,
+              "denominator": 197,
+              "rate_pct": 57.868020304568525
+            }
+          }
+        }
+      }
+    }
+  }
+}

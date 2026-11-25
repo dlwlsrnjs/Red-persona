@@ -1,0 +1,889 @@
+{
+  "schema_version": "reviewer-source-strata-v1",
+  "cases": 197,
+  "compact_gpt4o": {
+    "by_source_dataset": [
+      {
+        "stratum": "ailuminate_v1_0_demo_ssh",
+        "cases": 22,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 22,
+            "total": 22,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8513451253913791,
+              1.0
+            ]
+          },
+          "b4_plus": {
+            "count": 22,
+            "total": 22,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8513451253913791,
+              1.0
+            ]
+          },
+          "harmbench_positive": {
+            "count": 20,
+            "total": 22,
+            "rate": 0.9090909090909091,
+            "wilson_95": [
+              0.7218505315839417,
+              0.9747045710090046
+            ]
+          },
+          "strict_joint": {
+            "count": 20,
+            "total": 22,
+            "rate": 0.9090909090909091,
+            "wilson_95": [
+              0.7218505315839417,
+              0.9747045710090046
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 84,
+            "total": 88,
+            "rate": 0.9545454545454546,
+            "wilson_95": [
+              0.8888825522678235,
+              0.9821837507640928
+            ]
+          },
+          "b4_plus": {
+            "count": 69,
+            "total": 88,
+            "rate": 0.7840909090909091,
+            "wilson_95": [
+              0.6872246863441354,
+              0.8571917530508122
+            ]
+          },
+          "harmbench_positive": {
+            "count": 57,
+            "total": 88,
+            "rate": 0.6477272727272727,
+            "wilson_95": [
+              0.5436598679108756,
+              0.7394366805744971
+            ]
+          },
+          "strict_joint": {
+            "count": 52,
+            "total": 88,
+            "rate": 0.5909090909090909,
+            "wilson_95": [
+              0.4864808526118738,
+              0.6877324079945095
+            ]
+          }
+        }
+      },
+      {
+        "stratum": "beavertails_evaluation_v1_self_harm",
+        "cases": 22,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 22,
+            "total": 22,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8513451253913791,
+              1.0
+            ]
+          },
+          "b4_plus": {
+            "count": 22,
+            "total": 22,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8513451253913791,
+              1.0
+            ]
+          },
+          "harmbench_positive": {
+            "count": 22,
+            "total": 22,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8513451253913791,
+              1.0
+            ]
+          },
+          "strict_joint": {
+            "count": 22,
+            "total": 22,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8513451253913791,
+              1.0
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 87,
+            "total": 88,
+            "rate": 0.9886363636363636,
+            "wilson_95": [
+              0.9384050610770144,
+              0.9979912146822955
+            ]
+          },
+          "b4_plus": {
+            "count": 75,
+            "total": 88,
+            "rate": 0.8522727272727273,
+            "wilson_95": [
+              0.7634888952813075,
+              0.9115874895684275
+            ]
+          },
+          "harmbench_positive": {
+            "count": 79,
+            "total": 88,
+            "rate": 0.8977272727272727,
+            "wilson_95": [
+              0.8169275157647539,
+              0.9452554993881727
+            ]
+          },
+          "strict_joint": {
+            "count": 71,
+            "total": 88,
+            "rate": 0.8068181818181818,
+            "wilson_95": [
+              0.7122293318676104,
+              0.8757404226789328
+            ]
+          }
+        }
+      },
+      {
+        "stratum": "jmir_between_help_and_harm_reviewed_256",
+        "cases": 136,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 135,
+            "total": 136,
+            "rate": 0.9926470588235294,
+            "wilson_95": [
+              0.9595271460044779,
+              0.9987008439639042
+            ]
+          },
+          "b4_plus": {
+            "count": 136,
+            "total": 136,
+            "rate": 1.0,
+            "wilson_95": [
+              0.9725299002664176,
+              1.0
+            ]
+          },
+          "harmbench_positive": {
+            "count": 132,
+            "total": 136,
+            "rate": 0.9705882352941176,
+            "wilson_95": [
+              0.9268181220474307,
+              0.9885041370268446
+            ]
+          },
+          "strict_joint": {
+            "count": 130,
+            "total": 136,
+            "rate": 0.9558823529411765,
+            "wilson_95": [
+              0.9070924554902227,
+              0.9796259829879816
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 529,
+            "total": 544,
+            "rate": 0.9724264705882353,
+            "wilson_95": [
+              0.9550075192241733,
+              0.9832201225947891
+            ]
+          },
+          "b4_plus": {
+            "count": 458,
+            "total": 544,
+            "rate": 0.8419117647058824,
+            "wilson_95": [
+              0.8088708796627111,
+              0.8701576860117131
+            ]
+          },
+          "harmbench_positive": {
+            "count": 405,
+            "total": 544,
+            "rate": 0.7444852941176471,
+            "wilson_95": [
+              0.7062085761812769,
+              0.7793333551880695
+            ]
+          },
+          "strict_joint": {
+            "count": 375,
+            "total": 544,
+            "rate": 0.6893382352941176,
+            "wilson_95": [
+              0.6492370560211441,
+              0.7267841389491015
+            ]
+          }
+        }
+      },
+      {
+        "stratum": "mvrcii_safety_harmful_text_candidates",
+        "cases": 17,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 17,
+            "total": 17,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8156818649911483,
+              1.0
+            ]
+          },
+          "b4_plus": {
+            "count": 17,
+            "total": 17,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8156818649911483,
+              1.0
+            ]
+          },
+          "harmbench_positive": {
+            "count": 17,
+            "total": 17,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8156818649911483,
+              1.0
+            ]
+          },
+          "strict_joint": {
+            "count": 17,
+            "total": 17,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8156818649911483,
+              1.0
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 68,
+            "total": 68,
+            "rate": 1.0,
+            "wilson_95": [
+              0.9465286634799296,
+              1.0000000000000002
+            ]
+          },
+          "b4_plus": {
+            "count": 53,
+            "total": 68,
+            "rate": 0.7794117647058824,
+            "wilson_95": [
+              0.6674326122885067,
+              0.861509876126748
+            ]
+          },
+          "harmbench_positive": {
+            "count": 54,
+            "total": 68,
+            "rate": 0.7941176470588235,
+            "wilson_95": [
+              0.683577175548106,
+              0.8732043912047937
+            ]
+          },
+          "strict_joint": {
+            "count": 49,
+            "total": 68,
+            "rate": 0.7205882352941176,
+            "wilson_95": [
+              0.604365654302676,
+              0.8132205207619988
+            ]
+          }
+        }
+      }
+    ],
+    "by_crisis_label": [
+      {
+        "stratum": "risk_taking_behaviours",
+        "cases": 3,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 3,
+            "total": 3,
+            "rate": 1.0,
+            "wilson_95": [
+              0.4385029682449546,
+              1.0
+            ]
+          },
+          "b4_plus": {
+            "count": 3,
+            "total": 3,
+            "rate": 1.0,
+            "wilson_95": [
+              0.4385029682449546,
+              1.0
+            ]
+          },
+          "harmbench_positive": {
+            "count": 3,
+            "total": 3,
+            "rate": 1.0,
+            "wilson_95": [
+              0.4385029682449546,
+              1.0
+            ]
+          },
+          "strict_joint": {
+            "count": 3,
+            "total": 3,
+            "rate": 1.0,
+            "wilson_95": [
+              0.4385029682449546,
+              1.0
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 12,
+            "total": 12,
+            "rate": 1.0,
+            "wilson_95": [
+              0.7575059933447592,
+              1.0
+            ]
+          },
+          "b4_plus": {
+            "count": 11,
+            "total": 12,
+            "rate": 0.9166666666666666,
+            "wilson_95": [
+              0.646120088858883,
+              0.9851349055950829
+            ]
+          },
+          "harmbench_positive": {
+            "count": 9,
+            "total": 12,
+            "rate": 0.75,
+            "wilson_95": [
+              0.46769466506643426,
+              0.9110583316059453
+            ]
+          },
+          "strict_joint": {
+            "count": 9,
+            "total": 12,
+            "rate": 0.75,
+            "wilson_95": [
+              0.46769466506643426,
+              0.9110583316059453
+            ]
+          }
+        }
+      },
+      {
+        "stratum": "self-harm",
+        "cases": 99,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 99,
+            "total": 99,
+            "rate": 1.0,
+            "wilson_95": [
+              0.9626467879321726,
+              1.0
+            ]
+          },
+          "b4_plus": {
+            "count": 99,
+            "total": 99,
+            "rate": 1.0,
+            "wilson_95": [
+              0.9626467879321726,
+              1.0
+            ]
+          },
+          "harmbench_positive": {
+            "count": 95,
+            "total": 99,
+            "rate": 0.9595959595959596,
+            "wilson_95": [
+              0.9006797874974577,
+              0.9841773610058524
+            ]
+          },
+          "strict_joint": {
+            "count": 95,
+            "total": 99,
+            "rate": 0.9595959595959596,
+            "wilson_95": [
+              0.9006797874974577,
+              0.9841773610058524
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 390,
+            "total": 396,
+            "rate": 0.9848484848484849,
+            "wilson_95": [
+              0.9673427419536582,
+              0.9930379077483076
+            ]
+          },
+          "b4_plus": {
+            "count": 348,
+            "total": 396,
+            "rate": 0.8787878787878788,
+            "wilson_95": [
+              0.8429519939209886,
+              0.9073453886586722
+            ]
+          },
+          "harmbench_positive": {
+            "count": 294,
+            "total": 396,
+            "rate": 0.7424242424242424,
+            "wilson_95": [
+              0.697168912786024,
+              0.7830214120649589
+            ]
+          },
+          "strict_joint": {
+            "count": 275,
+            "total": 396,
+            "rate": 0.6944444444444444,
+            "wilson_95": [
+              0.6473866304664545,
+              0.737766025924438
+            ]
+          }
+        }
+      },
+      {
+        "stratum": "substance_abuse_or_withdrawal",
+        "cases": 7,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 7,
+            "total": 7,
+            "rate": 1.0,
+            "wilson_95": [
+              0.6456695649333126,
+              1.0
+            ]
+          },
+          "b4_plus": {
+            "count": 7,
+            "total": 7,
+            "rate": 1.0,
+            "wilson_95": [
+              0.6456695649333126,
+              1.0
+            ]
+          },
+          "harmbench_positive": {
+            "count": 7,
+            "total": 7,
+            "rate": 1.0,
+            "wilson_95": [
+              0.6456695649333126,
+              1.0
+            ]
+          },
+          "strict_joint": {
+            "count": 7,
+            "total": 7,
+            "rate": 1.0,
+            "wilson_95": [
+              0.6456695649333126,
+              1.0
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 28,
+            "total": 28,
+            "rate": 1.0,
+            "wilson_95": [
+              0.8793566952341543,
+              0.9999999999999998
+            ]
+          },
+          "b4_plus": {
+            "count": 24,
+            "total": 28,
+            "rate": 0.8571428571428571,
+            "wilson_95": [
+              0.685101978364747,
+              0.9430099468025059
+            ]
+          },
+          "harmbench_positive": {
+            "count": 22,
+            "total": 28,
+            "rate": 0.7857142857142857,
+            "wilson_95": [
+              0.6046141434627812,
+              0.8978753966710211
+            ]
+          },
+          "strict_joint": {
+            "count": 20,
+            "total": 28,
+            "rate": 0.7142857142857143,
+            "wilson_95": [
+              0.5294071156670428,
+              0.8474600394333092
+            ]
+          }
+        }
+      },
+      {
+        "stratum": "suicidal_ideation",
+        "cases": 88,
+        "case_success_at_4": {
+          "r3_plus": {
+            "count": 87,
+            "total": 88,
+            "rate": 0.9886363636363636,
+            "wilson_95": [
+              0.9384050610770144,
+              0.9979912146822955
+            ]
+          },
+          "b4_plus": {
+            "count": 88,
+            "total": 88,
+            "rate": 1.0,
+            "wilson_95": [
+              0.9581729333351078,
+              0.9999999999999999
+            ]
+          },
+          "harmbench_positive": {
+            "count": 86,
+            "total": 88,
+            "rate": 0.9772727272727273,
+            "wilson_95": [
+              0.9208745464473241,
+              0.9937450717361879
+            ]
+          },
+          "strict_joint": {
+            "count": 84,
+            "total": 88,
+            "rate": 0.9545454545454546,
+            "wilson_95": [
+              0.8888825522678235,
+              0.9821837507640928
+            ]
+          }
+        },
+        "branch_success_at_1": {
+          "r3_plus": {
+            "count": 338,
+            "total": 352,
+            "rate": 0.9602272727272727,
+            "wilson_95": [
+              0.9343550757088634,
+              0.976162774217278
+            ]
+          },
+          "b4_plus": {
+            "count": 272,
+            "total": 352,
+            "rate": 0.7727272727272727,
+            "wilson_95": [
+              0.7261418174664248,
+              0.8134243158231403
+            ]
+          },
+          "harmbench_positive": {
+            "count": 270,
+            "total": 352,
+            "rate": 0.7670454545454546,
+            "wilson_95": [
+              0.7201477069124896,
+              0.8081774652668764
+            ]
+          },
+          "strict_joint": {
+            "count": 243,
+            "total": 352,
+            "rate": 0.6903409090909091,
+            "wilson_95": [
+              0.6402032188552776,
+              0.7363689783363981
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "goal_blind_r3": {
+    "by_source_dataset": [
+      {
+        "stratum": "ailuminate_v1_0_demo_ssh",
+        "cases": 22,
+        "aligned": {
+          "count": 22,
+          "total": 22,
+          "rate": 1.0,
+          "wilson_95": [
+            0.8513451253913791,
+            1.0
+          ]
+        },
+        "shuffled": {
+          "count": 16,
+          "total": 22,
+          "rate": 0.7272727272727273,
+          "wilson_95": [
+            0.5184826598759762,
+            0.8684923971201053
+          ]
+        },
+        "difference_percentage_points": 27.272727272727273,
+        "paired_exact_mcnemar": {
+          "left_only": 6,
+          "right_only": 0,
+          "discordant": 6,
+          "p_value_two_sided_exact": 0.03125
+        }
+      },
+      {
+        "stratum": "beavertails_evaluation_v1_self_harm",
+        "cases": 22,
+        "aligned": {
+          "count": 22,
+          "total": 22,
+          "rate": 1.0,
+          "wilson_95": [
+            0.8513451253913791,
+            1.0
+          ]
+        },
+        "shuffled": {
+          "count": 19,
+          "total": 22,
+          "rate": 0.8636363636363636,
+          "wilson_95": [
+            0.6666501283342828,
+            0.9525099628594474
+          ]
+        },
+        "difference_percentage_points": 13.636363636363637,
+        "paired_exact_mcnemar": {
+          "left_only": 3,
+          "right_only": 0,
+          "discordant": 3,
+          "p_value_two_sided_exact": 0.25
+        }
+      },
+      {
+        "stratum": "jmir_between_help_and_harm_reviewed_256",
+        "cases": 136,
+        "aligned": {
+          "count": 132,
+          "total": 136,
+          "rate": 0.9705882352941176,
+          "wilson_95": [
+            0.9268181220474307,
+            0.9885041370268446
+          ]
+        },
+        "shuffled": {
+          "count": 87,
+          "total": 136,
+          "rate": 0.6397058823529411,
+          "wilson_95": [
+            0.5562057410632959,
+            0.7155305545993795
+          ]
+        },
+        "difference_percentage_points": 33.088235294117645,
+        "paired_exact_mcnemar": {
+          "left_only": 48,
+          "right_only": 3,
+          "discordant": 51,
+          "p_value_two_sided_exact": 1.9674928353197174e-11
+        }
+      },
+      {
+        "stratum": "mvrcii_safety_harmful_text_candidates",
+        "cases": 17,
+        "aligned": {
+          "count": 17,
+          "total": 17,
+          "rate": 1.0,
+          "wilson_95": [
+            0.8156818649911483,
+            1.0
+          ]
+        },
+        "shuffled": {
+          "count": 16,
+          "total": 17,
+          "rate": 0.9411764705882353,
+          "wilson_95": [
+            0.7301796936242461,
+            0.9895395990150025
+          ]
+        },
+        "difference_percentage_points": 5.882352941176471,
+        "paired_exact_mcnemar": {
+          "left_only": 1,
+          "right_only": 0,
+          "discordant": 1,
+          "p_value_two_sided_exact": 1.0
+        }
+      }
+    ],
+    "by_crisis_label": [
+      {
+        "stratum": "risk_taking_behaviours",
+        "cases": 3,
+        "aligned": {
+          "count": 3,
+          "total": 3,
+          "rate": 1.0,
+          "wilson_95": [
+            0.4385029682449546,
+            1.0
+          ]
+        },
+        "shuffled": {
+          "count": 0,
+          "total": 3,
+          "rate": 0.0,
+          "wilson_95": [
+            5.551115123125783e-17,
+            0.5614970317550454
+          ]
+        },
+        "difference_percentage_points": 100.0,
+        "paired_exact_mcnemar": {
+          "left_only": 3,
+          "right_only": 0,
+          "discordant": 3,
+          "p_value_two_sided_exact": 0.25
+        }
+      },
+      {
+        "stratum": "self-harm",
+        "cases": 99,
+        "aligned": {
+          "count": 96,
+          "total": 99,
+          "rate": 0.9696969696969697,
+          "wilson_95": [
+            0.9146631979389799,
+            0.9896413604215459
+          ]
+        },
+        "shuffled": {
+          "count": 58,
+          "total": 99,
+          "rate": 0.5858585858585859,
+          "wilson_95": [
+            0.487397977962848,
+            0.6779050058234847
+          ]
+        },
+        "difference_percentage_points": 38.38383838383838,
+        "paired_exact_mcnemar": {
+          "left_only": 40,
+          "right_only": 2,
+          "discordant": 42,
+          "p_value_two_sided_exact": 4.1109160520136356e-10
+        }
+      },
+      {
+        "stratum": "substance_abuse_or_withdrawal",
+        "cases": 7,
+        "aligned": {
+          "count": 7,
+          "total": 7,
+          "rate": 1.0,
+          "wilson_95": [
+            0.6456695649333126,
+            1.0
+          ]
+        },
+        "shuffled": {
+          "count": 5,
+          "total": 7,
+          "rate": 0.7142857142857143,
+          "wilson_95": [
+            0.35893445183261935,
+            0.9177810759959433
+          ]
+        },
+        "difference_percentage_points": 28.571428571428573,
+        "paired_exact_mcnemar": {
+          "left_only": 2,
+          "right_only": 0,
+          "discordant": 2,
+          "p_value_two_sided_exact": 0.5
+        }
+      },
+      {
+        "stratum": "suicidal_ideation",
+        "cases": 88,
+        "aligned": {
+          "count": 87,
+          "total": 88,
+          "rate": 0.9886363636363636,
+          "wilson_95": [
+            0.9384050610770144,
+            0.9979912146822955
+          ]
+        },
+        "shuffled": {
+          "count": 75,
+          "total": 88,
+          "rate": 0.8522727272727273,
+          "wilson_95": [
+            0.7634888952813075,
+            0.9115874895684275
+          ]
+        },
+        "difference_percentage_points": 13.636363636363637,
+        "paired_exact_mcnemar": {
+          "left_only": 13,
+          "right_only": 1,
+          "discordant": 14,
+          "p_value_two_sided_exact": 0.0018310546875
+        }
+      }
+    ]
+  },
+  "scope_limit": "These are within-PersonaHarm source/category sensitivity analyses. They do not replace validation on a separately sampled natural-dialogue corpus. Small strata are descriptive."
+}

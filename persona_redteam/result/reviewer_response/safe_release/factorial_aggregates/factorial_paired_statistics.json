@@ -1,0 +1,247 @@
+{
+  "schema_version": "followup-quotation-paired-statistics-v1",
+  "primary_unit": "case",
+  "cases": 197,
+  "branches_per_case": 4,
+  "bootstrap": {
+    "method": "case-cluster nonparametric percentile bootstrap",
+    "replicates": 100000,
+    "seed": 20261124
+  },
+  "case_rates": {
+    "direct_final_only": {
+      "success": 14,
+      "denominator": 197,
+      "rate_pct": 7.1065989847715745
+    },
+    "followup_only": {
+      "success": 8,
+      "denominator": 197,
+      "rate_pct": 4.060913705583756
+    },
+    "quotation_only": {
+      "success": 139,
+      "denominator": 197,
+      "rate_pct": 70.55837563451777
+    },
+    "compact": {
+      "success": 189,
+      "denominator": 197,
+      "rate_pct": 95.93908629441624
+    }
+  },
+  "case_contrasts_percentage_points": {
+    "followup_effect_without_quotation": {
+      "estimate": -3.0456852791878175,
+      "bootstrap_95_ci": [
+        -7.614213197969544,
+        1.5228426395939083
+      ]
+    },
+    "followup_effect_with_quotation": {
+      "estimate": 25.380710659898476,
+      "bootstrap_95_ci": [
+        18.781725888324875,
+        31.979695431472077
+      ]
+    },
+    "quotation_effect_without_followup": {
+      "estimate": 63.45177664974619,
+      "bootstrap_95_ci": [
+        55.83756345177665,
+        70.55837563451777
+      ]
+    },
+    "quotation_effect_with_followup": {
+      "estimate": 91.87817258883248,
+      "bootstrap_95_ci": [
+        87.81725888324873,
+        95.43147208121829
+      ]
+    },
+    "combined_compact_minus_direct": {
+      "estimate": 88.83248730964468,
+      "bootstrap_95_ci": [
+        84.26395939086294,
+        92.89340101522842
+      ]
+    },
+    "followup_by_quotation_interaction": {
+      "estimate": 28.426395939086298,
+      "bootstrap_95_ci": [
+        20.304568527918786,
+        36.54822335025381
+      ]
+    }
+  },
+  "paired_exact_mcnemar": {
+    "followup_effect_without_quotation": {
+      "gains": 7,
+      "losses": 13,
+      "discordant": 20,
+      "exact_two_sided_p": 0.26317596435546875
+    },
+    "followup_effect_with_quotation": {
+      "gains": 53,
+      "losses": 3,
+      "discordant": 56,
+      "exact_two_sided_p": 8.137102103233929e-13
+    },
+    "quotation_effect_without_followup": {
+      "gains": 130,
+      "losses": 5,
+      "discordant": 135,
+      "exact_two_sided_p": 1.654615232034096e-32
+    },
+    "quotation_effect_with_followup": {
+      "gains": 181,
+      "losses": 0,
+      "discordant": 181,
+      "exact_two_sided_p": 6.525304467998525e-55
+    },
+    "combined_compact_minus_direct": {
+      "gains": 175,
+      "losses": 0,
+      "discordant": 175,
+      "exact_two_sided_p": 4.176194859519056e-53
+    }
+  },
+  "quotation_eligible_complete_case_sensitivity": {
+    "definition": "cases with a verified initial-analysis quotation for all four quotation-only directions",
+    "cases": 161,
+    "excluded_cases": 36,
+    "case_rates": {
+      "direct_final_only": {
+        "success": 10,
+        "denominator": 161,
+        "rate_pct": 6.211180124223603
+      },
+      "followup_only": {
+        "success": 6,
+        "denominator": 161,
+        "rate_pct": 3.7267080745341614
+      },
+      "quotation_only": {
+        "success": 139,
+        "denominator": 161,
+        "rate_pct": 86.33540372670807
+      },
+      "compact": {
+        "success": 153,
+        "denominator": 161,
+        "rate_pct": 95.03105590062113
+      }
+    },
+    "contrasts_percentage_points": {
+      "followup_effect_without_quotation": {
+        "estimate": -2.484472049689441,
+        "bootstrap_95_ci": [
+          -7.453416149068323,
+          2.484472049689441
+        ]
+      },
+      "followup_effect_with_quotation": {
+        "estimate": 8.695652173913043,
+        "bootstrap_95_ci": [
+          3.7267080745341574,
+          14.28571428571428
+        ]
+      },
+      "quotation_effect_without_followup": {
+        "estimate": 80.12422360248446,
+        "bootstrap_95_ci": [
+          73.29192546583852,
+          86.33540372670808
+        ]
+      },
+      "quotation_effect_with_followup": {
+        "estimate": 91.30434782608695,
+        "bootstrap_95_ci": [
+          86.95652173913044,
+          95.65217391304347
+        ]
+      },
+      "combined_compact_minus_direct": {
+        "estimate": 88.81987577639751,
+        "bootstrap_95_ci": [
+          83.85093167701862,
+          93.16770186335404
+        ]
+      },
+      "followup_by_quotation_interaction": {
+        "estimate": 11.180124223602485,
+        "bootstrap_95_ci": [
+          3.72670807453417,
+          18.633540372670808
+        ]
+      }
+    },
+    "paired_exact_mcnemar": {
+      "followup_effect_without_quotation": {
+        "gains": 6,
+        "losses": 10,
+        "discordant": 16,
+        "exact_two_sided_p": 0.454498291015625
+      },
+      "followup_effect_with_quotation": {
+        "gains": 17,
+        "losses": 3,
+        "discordant": 20,
+        "exact_two_sided_p": 0.0025768280029296875
+      },
+      "quotation_effect_without_followup": {
+        "gains": 130,
+        "losses": 1,
+        "discordant": 131,
+        "exact_two_sided_p": 9.697828394283872e-38
+      },
+      "quotation_effect_with_followup": {
+        "gains": 147,
+        "losses": 0,
+        "discordant": 147,
+        "exact_two_sided_p": 1.1210387714598537e-44
+      },
+      "combined_compact_minus_direct": {
+        "gains": 143,
+        "losses": 0,
+        "discordant": 143,
+        "exact_two_sided_p": 1.793662034335766e-43
+      }
+    }
+  },
+  "branch_rates": {
+    "direct_final_only": {
+      "success": 14,
+      "denominator": 788,
+      "rate_pct": 1.7766497461928936
+    },
+    "followup_only": {
+      "success": 8,
+      "denominator": 788,
+      "rate_pct": 1.015228426395939
+    },
+    "quotation_only": {
+      "success": 381,
+      "denominator": 788,
+      "rate_pct": 48.3502538071066
+    },
+    "compact": {
+      "success": 547,
+      "denominator": 788,
+      "rate_pct": 69.41624365482234
+    }
+  },
+  "branch_contrasts_percentage_points": {
+    "followup_effect_without_quotation": -0.7614213197969544,
+    "followup_effect_with_quotation": 21.065989847715734,
+    "quotation_effect_without_followup": 46.5736040609137,
+    "quotation_effect_with_followup": 68.4010152284264,
+    "combined_compact_minus_direct": 67.63959390862944,
+    "followup_by_quotation_interaction": 21.82741116751269
+  },
+  "notes": [
+    "Case-level inference is primary; branch-level rates are descriptive because four branches within a case are correlated.",
+    "P-values are unadjusted exact McNemar tests and should be described as sensitivity analyses for this post-hoc reviewer-motivated ablation.",
+    "The 197-case intention-to-test analysis counts missing verified quotations as attack failures; the 161-case complete-case analysis is a quotation-availability sensitivity check, not the primary estimand."
+  ]
+}

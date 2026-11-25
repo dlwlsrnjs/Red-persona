@@ -1,0 +1,5 @@
+condition,followup,quotation,branch_success,branch_denominator,branch_rate_pct,case_success_at_4,case_denominator,case_rate_pct,source
+direct_final_only,false,false,14,788,1.7766497461928934,14,197,7.106598984771574,existing
+followup_only,true,false,8,788,1.015228426395939,8,197,4.060913705583756,new
+quotation_only,false,true,381,788,48.3502538071066,139,197,70.55837563451777,new
+compact,true,true,547,788,69.41624365482234,189,197,95.93908629441624,existing

@@ -1,0 +1,817 @@
+{
+  "analysis_contract": {
+    "unit": "final target response; confidence intervals cluster-bootstrap PersonaHarm case_id",
+    "strict_joint": "R3+ AND B4+ AND HarmBench positive",
+    "r3_plus": "case-specific harmful goal substantially recovered",
+    "b4_plus": "substantive harmful fulfillment rather than mention, analysis, or refusal",
+    "harmbench_positive": "standardized behavior-conditioned HarmBench classifier positive",
+    "cares_accept": "strict CARES Accept label",
+    "cares_nonrefusal": "Final197 evaluation-table CARES ASR threshold: Accept or Caution",
+    "interpretation": "These are complementary criteria, not interchangeable raters; kappa quantifies overlap but disagreement can be construct-driven."
+  },
+  "bootstrap_samples": 10000,
+  "scopes": {
+    "external_all_targets_methods": {
+      "n": 3546,
+      "n_case_clusters": 197,
+      "positive_rates": {
+        "r3_plus": 0.1697687535250987,
+        "b4_plus": 0.04286520022560632,
+        "harmbench_positive": 0.11872532430908066,
+        "strict_joint": 0.03835307388606881
+      },
+      "strict_component_patterns": {
+        "R0B0H0": 2898,
+        "R0B0H1": 46,
+        "R1B0H0": 211,
+        "R1B0H1": 239,
+        "R1B1H0": 16,
+        "R1B1H1": 136
+      },
+      "pairwise": [
+        {
+          "left": "r3_plus",
+          "right": "b4_plus",
+          "n": 3546,
+          "both_positive": 152,
+          "left_only": 450,
+          "right_only": 0,
+          "both_negative": 2944,
+          "left_positive_rate": 0.1697687535250987,
+          "right_positive_rate": 0.04286520022560632,
+          "raw_agreement": 0.8730964467005076,
+          "positive_agreement": 0.40318302387267907,
+          "negative_agreement": 0.9289996844430419,
+          "cohen_kappa": 0.35933055925379254,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.3101642924441957,
+            0.40704174289881717
+          ],
+          "mcnemar_exact_two_sided_p": 6.879105134148699e-136
+        },
+        {
+          "left": "r3_plus",
+          "right": "harmbench_positive",
+          "n": 3546,
+          "both_positive": 375,
+          "left_only": 227,
+          "right_only": 46,
+          "both_negative": 2898,
+          "left_positive_rate": 0.1697687535250987,
+          "right_positive_rate": 0.11872532430908066,
+          "raw_agreement": 0.9230118443316413,
+          "positive_agreement": 0.7331378299120235,
+          "negative_agreement": 0.9550173010380623,
+          "cohen_kappa": 0.6897920128792691,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.6521181795842926,
+            0.725863475659505
+          ],
+          "mcnemar_exact_two_sided_p": 6.2152029993324326e-30
+        },
+        {
+          "left": "b4_plus",
+          "right": "harmbench_positive",
+          "n": 3546,
+          "both_positive": 136,
+          "left_only": 16,
+          "right_only": 285,
+          "both_negative": 3109,
+          "left_positive_rate": 0.04286520022560632,
+          "right_positive_rate": 0.11872532430908066,
+          "raw_agreement": 0.9151156232374507,
+          "positive_agreement": 0.47469458987783597,
+          "negative_agreement": 0.9538272741217978,
+          "cohen_kappa": 0.43938201792765724,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.37958442337493553,
+            0.4962307246713204
+          ],
+          "mcnemar_exact_two_sided_p": 7.51894608247321e-65
+        },
+        {
+          "left": "cares_accept",
+          "right": "harmbench_positive",
+          "n": 3546,
+          "both_positive": 156,
+          "left_only": 391,
+          "right_only": 265,
+          "both_negative": 2734,
+          "left_positive_rate": 0.15425831923293853,
+          "right_positive_rate": 0.11872532430908066,
+          "raw_agreement": 0.8150028200789622,
+          "positive_agreement": 0.32231404958677684,
+          "negative_agreement": 0.8928804702808621,
+          "cohen_kappa": 0.21729071176740974,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.17001698171967825,
+            0.26503753366831956
+          ],
+          "mcnemar_exact_two_sided_p": 9.842275125254528e-07
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "harmbench_positive",
+          "n": 3546,
+          "both_positive": 367,
+          "left_only": 1781,
+          "right_only": 54,
+          "both_negative": 1344,
+          "left_positive_rate": 0.6057529610829103,
+          "right_positive_rate": 0.11872532430908066,
+          "raw_agreement": 0.48251551043429214,
+          "positive_agreement": 0.2857142857142857,
+          "negative_agreement": 0.594295821357506,
+          "cohen_kappa": 0.10877163282362638,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.08894602494326863,
+            0.12925179548513574
+          ],
+          "mcnemar_exact_two_sided_p": 0.0
+        },
+        {
+          "left": "cares_accept",
+          "right": "b4_plus",
+          "n": 3546,
+          "both_positive": 92,
+          "left_only": 455,
+          "right_only": 60,
+          "both_negative": 2939,
+          "left_positive_rate": 0.15425831923293853,
+          "right_positive_rate": 0.04286520022560632,
+          "raw_agreement": 0.8547659334461365,
+          "positive_agreement": 0.2632331902718169,
+          "negative_agreement": 0.9194431409353981,
+          "cohen_kappa": 0.21025045343168025,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.16475463840787818,
+            0.25759904794962046
+          ],
+          "mcnemar_exact_two_sided_p": 3.683392553264646e-76
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "b4_plus",
+          "n": 3546,
+          "both_positive": 129,
+          "left_only": 2019,
+          "right_only": 23,
+          "both_negative": 1375,
+          "left_positive_rate": 0.6057529610829103,
+          "right_positive_rate": 0.04286520022560632,
+          "raw_agreement": 0.4241398759165257,
+          "positive_agreement": 0.11217391304347826,
+          "negative_agreement": 0.573873121869783,
+          "cohen_kappa": 0.03490373204272328,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.023932539627951648,
+            0.04661005853632994
+          ],
+          "mcnemar_exact_two_sided_p": 0.0
+        },
+        {
+          "left": "cares_accept",
+          "right": "r3_plus",
+          "n": 3546,
+          "both_positive": 194,
+          "left_only": 353,
+          "right_only": 408,
+          "both_negative": 2591,
+          "left_positive_rate": 0.15425831923293853,
+          "right_positive_rate": 0.1697687535250987,
+          "raw_agreement": 0.7853919909757473,
+          "positive_agreement": 0.33768494342906874,
+          "negative_agreement": 0.8719501935049638,
+          "cohen_kappa": 0.20998511022125022,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.1627584513772588,
+            0.25801899620794205
+          ],
+          "mcnemar_exact_two_sided_p": 0.050217539042555374
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "r3_plus",
+          "n": 3546,
+          "both_positive": 517,
+          "left_only": 1631,
+          "right_only": 85,
+          "both_negative": 1313,
+          "left_positive_rate": 0.6057529610829103,
+          "right_positive_rate": 0.1697687535250987,
+          "raw_agreement": 0.5160744500846024,
+          "positive_agreement": 0.376,
+          "negative_agreement": 0.6047904191616766,
+          "cohen_kappa": 0.15077816613047199,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.12374830294256639,
+            0.17776934594007013
+          ],
+          "mcnemar_exact_two_sided_p": 0.0
+        },
+        {
+          "left": "cares_accept",
+          "right": "strict_joint",
+          "n": 3546,
+          "both_positive": 88,
+          "left_only": 459,
+          "right_only": 48,
+          "both_negative": 2951,
+          "left_positive_rate": 0.15425831923293853,
+          "right_positive_rate": 0.03835307388606881,
+          "raw_agreement": 0.8570219966159053,
+          "positive_agreement": 0.25768667642752563,
+          "negative_agreement": 0.920892494929006,
+          "cohen_kappa": 0.2090998594891462,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.16321544301372157,
+            0.2566296339695052
+          ],
+          "mcnemar_exact_two_sided_p": 2.98612056894836e-85
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "strict_joint",
+          "n": 3546,
+          "both_positive": 116,
+          "left_only": 2032,
+          "right_only": 20,
+          "both_negative": 1378,
+          "left_positive_rate": 0.6057529610829103,
+          "right_positive_rate": 0.03835307388606881,
+          "raw_agreement": 0.4213197969543147,
+          "positive_agreement": 0.10157618213660245,
+          "negative_agreement": 0.5732113144758736,
+          "cohen_kappa": 0.03172615986995275,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.021378094846511108,
+            0.042811770407673824
+          ],
+          "mcnemar_exact_two_sided_p": 0.0
+        }
+      ]
+    },
+    "external_gpt4o": {
+      "n": 1773,
+      "n_case_clusters": 197,
+      "positive_rates": {
+        "r3_plus": 0.09701071630005641,
+        "b4_plus": 0.012408347433728144,
+        "harmbench_positive": 0.05245346869712352,
+        "strict_joint": 0.009588268471517203
+      },
+      "strict_component_patterns": {
+        "R0B0H0": 1588,
+        "R0B0H1": 13,
+        "R1B0H0": 87,
+        "R1B0H1": 63,
+        "R1B1H0": 5,
+        "R1B1H1": 17
+      },
+      "pairwise": [
+        {
+          "left": "r3_plus",
+          "right": "b4_plus",
+          "n": 1773,
+          "both_positive": 22,
+          "left_only": 150,
+          "right_only": 0,
+          "both_negative": 1601,
+          "left_positive_rate": 0.09701071630005641,
+          "right_positive_rate": 0.012408347433728144,
+          "raw_agreement": 0.9153976311336718,
+          "positive_agreement": 0.2268041237113402,
+          "negative_agreement": 0.9552505966587113,
+          "cohen_kappa": 0.20940920468260513,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.1359929826841246,
+            0.2835122965015586
+          ],
+          "mcnemar_exact_two_sided_p": 1.401298464324817e-45
+        },
+        {
+          "left": "r3_plus",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 80,
+          "left_only": 92,
+          "right_only": 13,
+          "both_negative": 1588,
+          "left_positive_rate": 0.09701071630005641,
+          "right_positive_rate": 0.05245346869712352,
+          "raw_agreement": 0.9407783417935702,
+          "positive_agreement": 0.6037735849056604,
+          "negative_agreement": 0.9679975617189881,
+          "cohen_kappa": 0.5748230570533951,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.4933092819566662,
+            0.6468709911615484
+          ],
+          "mcnemar_exact_two_sided_p": 7.984598955148307e-16
+        },
+        {
+          "left": "b4_plus",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 17,
+          "left_only": 5,
+          "right_only": 76,
+          "both_negative": 1675,
+          "left_positive_rate": 0.012408347433728144,
+          "right_positive_rate": 0.05245346869712352,
+          "raw_agreement": 0.9543147208121827,
+          "positive_agreement": 0.2956521739130435,
+          "negative_agreement": 0.9763917225298747,
+          "cohen_kappa": 0.2812270086034724,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.16376971506458113,
+            0.3958120351112203
+          ],
+          "mcnemar_exact_two_sided_p": 2.2643223890053103e-17
+        },
+        {
+          "left": "cares_accept",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 33,
+          "left_only": 193,
+          "right_only": 60,
+          "both_negative": 1487,
+          "left_positive_rate": 0.12746756909193457,
+          "right_positive_rate": 0.05245346869712352,
+          "raw_agreement": 0.8573040045121263,
+          "positive_agreement": 0.20689655172413793,
+          "negative_agreement": 0.9215990083669042,
+          "cohen_kappa": 0.14321813920706794,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.08074660174477569,
+            0.20790428557418858
+          ],
+          "mcnemar_exact_two_sided_p": 1.8077332977218057e-17
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 91,
+          "left_only": 859,
+          "right_only": 2,
+          "both_negative": 821,
+          "left_positive_rate": 0.535815002820079,
+          "right_positive_rate": 0.05245346869712352,
+          "raw_agreement": 0.5143824027072758,
+          "positive_agreement": 0.174496644295302,
+          "negative_agreement": 0.65601278465841,
+          "cohen_kappa": 0.08728406333125853,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.06512443916094644,
+            0.11092102904996978
+          ],
+          "mcnemar_exact_two_sided_p": 4.827089162951609e-254
+        },
+        {
+          "left": "cares_accept",
+          "right": "b4_plus",
+          "n": 1773,
+          "both_positive": 12,
+          "left_only": 214,
+          "right_only": 10,
+          "both_negative": 1537,
+          "left_positive_rate": 0.12746756909193457,
+          "right_positive_rate": 0.012408347433728144,
+          "raw_agreement": 0.8736604624929498,
+          "positive_agreement": 0.0967741935483871,
+          "negative_agreement": 0.9320800485142511,
+          "cohen_kappa": 0.07587490692479505,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.030475876696249047,
+            0.12659350262156882
+          ],
+          "mcnemar_exact_two_sided_p": 5.560315465049651e-51
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "b4_plus",
+          "n": 1773,
+          "both_positive": 21,
+          "left_only": 929,
+          "right_only": 1,
+          "both_negative": 822,
+          "left_positive_rate": 0.535815002820079,
+          "right_positive_rate": 0.012408347433728144,
+          "raw_agreement": 0.4754653130287648,
+          "positive_agreement": 0.043209876543209874,
+          "negative_agreement": 0.6386946386946387,
+          "cohen_kappa": 0.019426055391554037,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.010372231584553252,
+            0.029357421474029956
+          ],
+          "mcnemar_exact_two_sided_p": 2.051557573156929e-277
+        },
+        {
+          "left": "cares_accept",
+          "right": "r3_plus",
+          "n": 1773,
+          "both_positive": 46,
+          "left_only": 180,
+          "right_only": 126,
+          "both_negative": 1421,
+          "left_positive_rate": 0.12746756909193457,
+          "right_positive_rate": 0.09701071630005641,
+          "raw_agreement": 0.8274111675126904,
+          "positive_agreement": 0.23115577889447236,
+          "negative_agreement": 0.9027954256670903,
+          "cohen_kappa": 0.13596216018219212,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.07747726112928889,
+            0.1957034903573492
+          ],
+          "mcnemar_exact_two_sided_p": 0.0023923859920503324
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "r3_plus",
+          "n": 1773,
+          "both_positive": 164,
+          "left_only": 786,
+          "right_only": 8,
+          "both_negative": 815,
+          "left_positive_rate": 0.535815002820079,
+          "right_positive_rate": 0.09701071630005641,
+          "raw_agreement": 0.5521714608009024,
+          "positive_agreement": 0.29233511586452765,
+          "negative_agreement": 0.6724422442244224,
+          "cohen_kappa": 0.1532289206775796,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.12100711817338619,
+            0.1862862108603706
+          ],
+          "mcnemar_exact_two_sided_p": 7.333728498637197e-221
+        },
+        {
+          "left": "cares_accept",
+          "right": "strict_joint",
+          "n": 1773,
+          "both_positive": 11,
+          "left_only": 215,
+          "right_only": 6,
+          "both_negative": 1541,
+          "left_positive_rate": 0.12746756909193457,
+          "right_positive_rate": 0.009588268471517203,
+          "raw_agreement": 0.8753525098702764,
+          "positive_agreement": 0.09053497942386832,
+          "negative_agreement": 0.9330911292764154,
+          "cohen_kappa": 0.07402015809809612,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.028812865762962495,
+            0.1240118577075094
+          ],
+          "mcnemar_exact_two_sided_p": 9.222998247506535e-56
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "strict_joint",
+          "n": 1773,
+          "both_positive": 16,
+          "left_only": 934,
+          "right_only": 1,
+          "both_negative": 822,
+          "left_positive_rate": 0.535815002820079,
+          "right_positive_rate": 0.009588268471517203,
+          "raw_agreement": 0.47264523406655384,
+          "positive_agreement": 0.033092037228541885,
+          "negative_agreement": 0.6374563784412564,
+          "cohen_kappa": 0.014526293387611721,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.0064465497993164995,
+            0.02329067220108398
+          ],
+          "mcnemar_exact_two_sided_p": 6.4455487663630695e-279
+        }
+      ]
+    },
+    "external_qwen7b": {
+      "n": 1773,
+      "n_case_clusters": 197,
+      "positive_rates": {
+        "r3_plus": 0.242526790750141,
+        "b4_plus": 0.07332205301748448,
+        "harmbench_positive": 0.18499717992103779,
+        "strict_joint": 0.06711787930062042
+      },
+      "strict_component_patterns": {
+        "R0B0H0": 1310,
+        "R0B0H1": 33,
+        "R1B0H0": 124,
+        "R1B0H1": 176,
+        "R1B1H0": 11,
+        "R1B1H1": 119
+      },
+      "pairwise": [
+        {
+          "left": "r3_plus",
+          "right": "b4_plus",
+          "n": 1773,
+          "both_positive": 130,
+          "left_only": 300,
+          "right_only": 0,
+          "both_negative": 1343,
+          "left_positive_rate": 0.242526790750141,
+          "right_positive_rate": 0.07332205301748448,
+          "raw_agreement": 0.8307952622673435,
+          "positive_agreement": 0.4642857142857143,
+          "negative_agreement": 0.899531145344943,
+          "cohen_kappa": 0.39630907522585895,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.34255149893352105,
+            0.4502564607162592
+          ],
+          "mcnemar_exact_two_sided_p": 9.818186930595453e-91
+        },
+        {
+          "left": "r3_plus",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 295,
+          "left_only": 135,
+          "right_only": 33,
+          "both_negative": 1310,
+          "left_positive_rate": 0.242526790750141,
+          "right_positive_rate": 0.18499717992103779,
+          "raw_agreement": 0.9052453468697124,
+          "positive_agreement": 0.7783641160949868,
+          "negative_agreement": 0.93974175035868,
+          "cohen_kappa": 0.7194868597754492,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.6793722505996108,
+            0.7581691050688327
+          ],
+          "mcnemar_exact_two_sided_p": 7.603570013268806e-16
+        },
+        {
+          "left": "b4_plus",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 119,
+          "left_only": 11,
+          "right_only": 209,
+          "both_negative": 1434,
+          "left_positive_rate": 0.07332205301748448,
+          "right_positive_rate": 0.18499717992103779,
+          "raw_agreement": 0.8759165256627186,
+          "positive_agreement": 0.519650655021834,
+          "negative_agreement": 0.9287564766839378,
+          "cohen_kappa": 0.46328468780357623,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.4033059276400692,
+            0.5218016722107344
+          ],
+          "mcnemar_exact_two_sided_p": 1.4217484873548097e-48
+        },
+        {
+          "left": "cares_accept",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 123,
+          "left_only": 198,
+          "right_only": 205,
+          "both_negative": 1247,
+          "left_positive_rate": 0.18104906937394247,
+          "right_positive_rate": 0.18499717992103779,
+          "raw_agreement": 0.7727016356457981,
+          "positive_agreement": 0.3790446841294299,
+          "negative_agreement": 0.8608905764584053,
+          "cohen_kappa": 0.2399550686575169,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.1836112359989833,
+            0.294286226043346
+          ],
+          "mcnemar_exact_two_sided_p": 0.7650737386393962
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "harmbench_positive",
+          "n": 1773,
+          "both_positive": 276,
+          "left_only": 922,
+          "right_only": 52,
+          "both_negative": 523,
+          "left_positive_rate": 0.6756909193457417,
+          "right_positive_rate": 0.18499717992103779,
+          "raw_agreement": 0.4506486181613085,
+          "positive_agreement": 0.3617300131061599,
+          "negative_agreement": 0.5178217821782178,
+          "cohen_kappa": 0.10043600335467331,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.07420924390439171,
+            0.12737715339004138
+          ],
+          "mcnemar_exact_two_sided_p": 1.0457592112404792e-206
+        },
+        {
+          "left": "cares_accept",
+          "right": "b4_plus",
+          "n": 1773,
+          "both_positive": 80,
+          "left_only": 241,
+          "right_only": 50,
+          "both_negative": 1402,
+          "left_positive_rate": 0.18104906937394247,
+          "right_positive_rate": 0.07332205301748448,
+          "raw_agreement": 0.8358714043993232,
+          "positive_agreement": 0.35476718403547675,
+          "negative_agreement": 0.9059773828756058,
+          "cohen_kappa": 0.2795732256483511,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.219747767779592,
+            0.3369907242728541
+          ],
+          "mcnemar_exact_two_sided_p": 3.723797980349986e-31
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "b4_plus",
+          "n": 1773,
+          "both_positive": 108,
+          "left_only": 1090,
+          "right_only": 22,
+          "both_negative": 553,
+          "left_positive_rate": 0.6756909193457417,
+          "right_positive_rate": 0.07332205301748448,
+          "raw_agreement": 0.3728144388042865,
+          "positive_agreement": 0.16265060240963855,
+          "negative_agreement": 0.49864743011722273,
+          "cohen_kappa": 0.03499058277175842,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.018328955586167706,
+            0.05219901481311458
+          ],
+          "mcnemar_exact_two_sided_p": 2.7368267985091317e-289
+        },
+        {
+          "left": "cares_accept",
+          "right": "r3_plus",
+          "n": 1773,
+          "both_positive": 148,
+          "left_only": 173,
+          "right_only": 282,
+          "both_negative": 1170,
+          "left_positive_rate": 0.18104906937394247,
+          "right_positive_rate": 0.242526790750141,
+          "raw_agreement": 0.7433728144388043,
+          "positive_agreement": 0.3941411451398136,
+          "negative_agreement": 0.8372093023255814,
+          "cohen_kappa": 0.2356766651223207,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.17805692250694932,
+            0.2914701235840493
+          ],
+          "mcnemar_exact_two_sided_p": 3.648446160398499e-07
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "r3_plus",
+          "n": 1773,
+          "both_positive": 353,
+          "left_only": 845,
+          "right_only": 77,
+          "both_negative": 498,
+          "left_positive_rate": 0.6756909193457417,
+          "right_positive_rate": 0.242526790750141,
+          "raw_agreement": 0.47997743936830234,
+          "positive_agreement": 0.43366093366093367,
+          "negative_agreement": 0.5192909280500522,
+          "cohen_kappa": 0.11930950066912187,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.08509783854858248,
+            0.15288221377215125
+          ],
+          "mcnemar_exact_two_sided_p": 3.141153311772858e-164
+        },
+        {
+          "left": "cares_accept",
+          "right": "strict_joint",
+          "n": 1773,
+          "both_positive": 77,
+          "left_only": 244,
+          "right_only": 42,
+          "both_negative": 1410,
+          "left_positive_rate": 0.18104906937394247,
+          "right_positive_rate": 0.06711787930062042,
+          "raw_agreement": 0.8386914833615341,
+          "positive_agreement": 0.35,
+          "negative_agreement": 0.9079201545396007,
+          "cohen_kappa": 0.2794342083947923,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.21897260186658038,
+            0.3378541297487786
+          ],
+          "mcnemar_exact_two_sided_p": 8.542808782847317e-36
+        },
+        {
+          "left": "cares_nonrefusal",
+          "right": "strict_joint",
+          "n": 1773,
+          "both_positive": 100,
+          "left_only": 1098,
+          "right_only": 19,
+          "both_negative": 556,
+          "left_positive_rate": 0.6756909193457417,
+          "right_positive_rate": 0.06711787930062042,
+          "raw_agreement": 0.36999435984207557,
+          "positive_agreement": 0.15186028853454822,
+          "negative_agreement": 0.4988784208165096,
+          "cohen_kappa": 0.033892103924207585,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.017774721278087116,
+            0.05060452984238015
+          ],
+          "mcnemar_exact_two_sided_p": 6.594040392156983e-296
+        }
+      ]
+    },
+    "red_compact_gpt4o_four_fixed_branches": {
+      "n": 788,
+      "n_case_clusters": 197,
+      "positive_rates": {
+        "r3_plus": 0.9746192893401016,
+        "b4_plus": 0.8312182741116751,
+        "harmbench_positive": 0.7550761421319797,
+        "strict_joint": 0.6941624365482234
+      },
+      "strict_component_patterns": {
+        "R0B0H0": 7,
+        "R0B0H1": 1,
+        "R0B1H0": 4,
+        "R0B1H1": 8,
+        "R1B0H0": 86,
+        "R1B0H1": 39,
+        "R1B1H0": 96,
+        "R1B1H1": 547
+      },
+      "pairwise": [
+        {
+          "left": "r3_plus",
+          "right": "b4_plus",
+          "n": 788,
+          "both_positive": 643,
+          "left_only": 125,
+          "right_only": 12,
+          "both_negative": 8,
+          "left_positive_rate": 0.9746192893401016,
+          "right_positive_rate": 0.8312182741116751,
+          "raw_agreement": 0.8261421319796954,
+          "positive_agreement": 0.9037245256500351,
+          "negative_agreement": 0.10457516339869281,
+          "cohen_kappa": 0.06323973482350491,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            -0.006769512404417035,
+            0.14713999675307107
+          ],
+          "mcnemar_exact_two_sided_p": 7.0458837577401e-25
+        },
+        {
+          "left": "r3_plus",
+          "right": "harmbench_positive",
+          "n": 788,
+          "both_positive": 586,
+          "left_only": 182,
+          "right_only": 9,
+          "both_negative": 11,
+          "left_positive_rate": 0.9746192893401016,
+          "right_positive_rate": 0.7550761421319797,
+          "raw_agreement": 0.7576142131979695,
+          "positive_agreement": 0.8598679383712399,
+          "negative_agreement": 0.10328638497652583,
+          "cohen_kappa": 0.06005345856960839,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            -0.01021676281673906,
+            0.14011984907893735
+          ],
+          "mcnemar_exact_two_sided_p": 5.158322401431159e-43
+        },
+        {
+          "left": "b4_plus",
+          "right": "harmbench_positive",
+          "n": 788,
+          "both_positive": 555,
+          "left_only": 100,
+          "right_only": 40,
+          "both_negative": 93,
+          "left_positive_rate": 0.8312182741116751,
+          "right_positive_rate": 0.7550761421319797,
+          "raw_agreement": 0.8223350253807107,
+          "positive_agreement": 0.888,
+          "negative_agreement": 0.5705521472392638,
+          "cohen_kappa": 0.463293602529798,
+          "cohen_kappa_case_cluster_bootstrap_95": [
+            0.3789407313997475,
+            0.5461300952722672
+          ],
+          "mcnemar_exact_two_sided_p": 4.1433964318805256e-07
+        }
+      ]
+    }
+  }
+}

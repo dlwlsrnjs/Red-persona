@@ -1,0 +1,40 @@
+{
+  "analysis_contract": {
+    "target_goal_visible": false,
+    "shuffling": "within-crisis-label cyclic derangement after deterministic hash order",
+    "paired_unit": "case_id",
+    "primary_endpoint": "R3+ recovery of the original case's canonical request",
+    "interpretation_limit": "tests case-goal specificity, not natural-case prevalence"
+  },
+  "n_cases": 197,
+  "condition_counts": {
+    "self-harm": 99,
+    "suicidal_ideation": 88,
+    "substance_abuse_or_withdrawal": 7,
+    "risk_taking_behaviours": 3
+  },
+  "aligned": {
+    "successes": 193,
+    "rate": 0.9796954314720813,
+    "wilson_95": [0.9489644580642603, 0.9920763066751265]
+  },
+  "shuffled": {
+    "successes": 138,
+    "rate": 0.700507614213198,
+    "wilson_95": [0.6332103327478317, 0.7601347488099016]
+  },
+  "paired_difference_aligned_minus_shuffled": 0.27918781725888325,
+  "discordant_pairs": {
+    "aligned_only": 59,
+    "shuffled_only": 4
+  },
+  "mcnemar_exact_two_sided_p": 1.3821257506541063e-13,
+  "models": {
+    "target": "gpt-4o-2024-11-20",
+    "evaluator": "gpt-4o-2024-08-06"
+  },
+  "cost": {
+    "paper_standard_api_equivalent_usd": 12.471405000000002,
+    "actual_batch_spend_usd": 6.235702500000001
+  }
+}

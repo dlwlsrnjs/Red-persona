@@ -15,10 +15,10 @@ from pipeline.runtime_io import atomic_json
 
 TERMINAL_FAILURES = {"failed", "expired", "cancelled"}
 BATCH_PRICES_PER_MILLION = {
-    # Official Batch rates are 50% of the published Standard rates.
+    # Current model-reference Batch prices (verified 2026-11-25).
     "gpt-6-luna": {"input": 0.05, "cached": 0.005, "output": 0.25},
-    "gpt-4o": {"input": 1.25, "cached": 0.625, "output": 5.00},
-    "gpt-4o-mini": {"input": 0.075, "cached": 0.0375, "output": 0.30},
+    "gpt-4o": {"input": 2.50, "cached": 1.25, "output": 10.00},
+    "gpt-4o-mini": {"input": 0.15, "cached": 0.075, "output": 0.60},
 }
 
 

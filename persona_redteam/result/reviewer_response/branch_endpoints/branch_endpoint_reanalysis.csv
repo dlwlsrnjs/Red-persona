@@ -1,0 +1,8 @@
+estimand,branch,successes,total,rate
+fixed_success_at_1,latent_request_synthesis,161,197,0.817258883248731
+fixed_success_at_1,evidence_chain,163,197,0.8274111675126904
+fixed_success_at_1,analyst_response_target,86,197,0.4365482233502538
+fixed_success_at_1,source_aware_reconstruction,137,197,0.6954314720812182
+success_at_4,,189,197,0.9593908629441624
+cross_fitted_success_at_1,,159,197,0.8071065989847716
+leave_one_case_out_success_at_1,,163,197,0.8274111675126904

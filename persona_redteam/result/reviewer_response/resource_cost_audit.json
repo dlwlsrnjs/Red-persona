@@ -1,0 +1,618 @@
+{
+  "pricing": {
+    "unit": "USD per 1M tokens",
+    "paper_primary": "standard_api_equivalent",
+    "standard_api_rates": {
+      "gpt-4o": {
+        "input": 5.0,
+        "cached": 2.5,
+        "output": 20.0
+      },
+      "gpt-4o-mini": {
+        "input": 0.3,
+        "cached": 0.15,
+        "output": 1.2
+      }
+    },
+    "actual_execution_batch_rates": {
+      "gpt-4o": {
+        "input": 2.5,
+        "cached": 1.25,
+        "output": 10.0
+      },
+      "gpt-4o-mini": {
+        "input": 0.15,
+        "cached": 0.075,
+        "output": 0.6
+      }
+    },
+    "basis": "Paper-facing comparisons use Standard API equivalents. Actual execution spend uses the Batch API rates shown on the model reference; the Batch guide states a 50% discount relative to synchronous APIs.",
+    "sources": [
+      "https://developers.openai.com/api/docs/models/gpt-4o",
+      "https://developers.openai.com/api/docs/guides/batch"
+    ]
+  },
+  "external_baselines": {
+    "direct": {
+      "final197_cases": {
+        "reused": 197,
+        "fresh": 0
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 500,
+            "prompt_tokens": 68116,
+            "completion_tokens": 123217,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 66680,
+            "api_cost_usd_standard_rate": 2.80492,
+            "actual_cost_usd_batch_rate": 1.40246
+          },
+          "final197_fresh_exact": {},
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 197.0,
+            "prompt_tokens": 26837.704,
+            "completion_tokens": 48547.498,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 26271.920000000002,
+            "api_cost_usd_standard_rate": 1.1051384800000001,
+            "actual_cost_usd_batch_rate": 0.5525692400000001
+          },
+          "final197_total_attributed": {
+            "calls": 197.0,
+            "api_cost_usd_standard_rate": 1.1051384800000001,
+            "recoverable_attacker_output_tokens": 26271.920000000002,
+            "actual_cost_usd_batch_rate": 0.5525692400000001,
+            "completion_tokens": 48547.498,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 26837.704
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": null,
+        "attacker_calls_attributed": 0,
+        "online_control_evaluator_calls_reconstructed": 0,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "many_shot": {
+      "final197_cases": {
+        "reused": 197,
+        "fresh": 0
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 500,
+            "prompt_tokens": 1394086,
+            "completion_tokens": 85397,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 1397144,
+            "api_cost_usd_standard_rate": 8.67837,
+            "actual_cost_usd_batch_rate": 4.339185
+          },
+          "final197_fresh_exact": {},
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 197.0,
+            "prompt_tokens": 549269.8840000001,
+            "completion_tokens": 33646.418,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 550474.736,
+            "api_cost_usd_standard_rate": 3.41927778,
+            "actual_cost_usd_batch_rate": 1.70963889
+          },
+          "final197_total_attributed": {
+            "calls": 197.0,
+            "api_cost_usd_standard_rate": 3.41927778,
+            "recoverable_attacker_output_tokens": 550474.736,
+            "actual_cost_usd_batch_rate": 1.70963889,
+            "completion_tokens": 33646.418,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 549269.8840000001
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": null,
+        "attacker_calls_attributed": 0,
+        "online_control_evaluator_calls_reconstructed": 0,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "skeleton_key": {
+      "final197_cases": {
+        "reused": 197,
+        "fresh": 0
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 500,
+            "prompt_tokens": 119116,
+            "completion_tokens": 90624,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 66680,
+            "api_cost_usd_standard_rate": 2.40806,
+            "actual_cost_usd_batch_rate": 1.20403
+          },
+          "final197_fresh_exact": {},
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 197.0,
+            "prompt_tokens": 46931.704000000005,
+            "completion_tokens": 35705.856,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 26271.920000000002,
+            "api_cost_usd_standard_rate": 0.94877564,
+            "actual_cost_usd_batch_rate": 0.47438782
+          },
+          "final197_total_attributed": {
+            "calls": 197.0,
+            "api_cost_usd_standard_rate": 0.94877564,
+            "recoverable_attacker_output_tokens": 26271.920000000002,
+            "actual_cost_usd_batch_rate": 0.47438782,
+            "completion_tokens": 35705.856,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 46931.704000000005
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": null,
+        "attacker_calls_attributed": 0,
+        "online_control_evaluator_calls_reconstructed": 0,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "pair": {
+      "final197_cases": {
+        "reused": 43,
+        "fresh": 154
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 2755,
+            "prompt_tokens": 424472,
+            "completion_tokens": 1029297,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 272765,
+            "api_cost_usd_standard_rate": 22.7083,
+            "actual_cost_usd_batch_rate": 11.35415
+          },
+          "final197_fresh_exact": {
+            "calls": 1740,
+            "prompt_tokens": 519722,
+            "completion_tokens": 595311,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 97454,
+            "api_cost_usd_standard_rate": 14.50483,
+            "actual_cost_usd_batch_rate": 7.252415
+          },
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 236.92999999999998,
+            "prompt_tokens": 36504.592,
+            "completion_tokens": 88519.54199999999,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 23457.789999999997,
+            "api_cost_usd_standard_rate": 1.9529138,
+            "actual_cost_usd_batch_rate": 0.9764569
+          },
+          "final197_total_attributed": {
+            "calls": 1976.93,
+            "api_cost_usd_standard_rate": 16.4577438,
+            "recoverable_attacker_output_tokens": 120911.79,
+            "actual_cost_usd_batch_rate": 8.2288719,
+            "completion_tokens": 683830.542,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 556226.592
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": "Qwen/Qwen2.5-7B-Instruct",
+        "attacker_calls_attributed": 1976.93,
+        "online_control_evaluator_calls_reconstructed": 1976.93,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "tap": {
+      "final197_cases": {
+        "reused": 43,
+        "fresh": 154
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 1291,
+            "prompt_tokens": 292750,
+            "completion_tokens": 363579,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 107070,
+            "api_cost_usd_standard_rate": 8.73533,
+            "actual_cost_usd_batch_rate": 4.367665
+          },
+          "final197_fresh_exact": {
+            "calls": 1466,
+            "prompt_tokens": 593126,
+            "completion_tokens": 298831,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 73949,
+            "api_cost_usd_standard_rate": 8.94225,
+            "actual_cost_usd_batch_rate": 4.471125
+          },
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 111.026,
+            "prompt_tokens": 25176.499999999996,
+            "completion_tokens": 31267.793999999998,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 9208.019999999999,
+            "api_cost_usd_standard_rate": 0.7512383799999999,
+            "actual_cost_usd_batch_rate": 0.37561918999999994
+          },
+          "final197_total_attributed": {
+            "calls": 1577.026,
+            "api_cost_usd_standard_rate": 9.69348838,
+            "recoverable_attacker_output_tokens": 83157.02,
+            "actual_cost_usd_batch_rate": 4.84674419,
+            "completion_tokens": 330098.794,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 618302.5
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": "Qwen/Qwen2.5-7B-Instruct",
+        "attacker_calls_attributed": 1577.026,
+        "online_control_evaluator_calls_reconstructed": 3154.052,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "crescendo": {
+      "final197_cases": {
+        "reused": 43,
+        "fresh": 154
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 1283,
+            "prompt_tokens": 466173,
+            "completion_tokens": 380038,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 45405,
+            "api_cost_usd_standard_rate": 9.931625,
+            "actual_cost_usd_batch_rate": 4.9658125
+          },
+          "final197_fresh_exact": {
+            "calls": 979,
+            "prompt_tokens": 576846,
+            "completion_tokens": 297571,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 38784,
+            "api_cost_usd_standard_rate": 8.83565,
+            "actual_cost_usd_batch_rate": 4.417825
+          },
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 110.338,
+            "prompt_tokens": 40090.878,
+            "completion_tokens": 32683.267999999996,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 3904.8299999999995,
+            "api_cost_usd_standard_rate": 0.85411975,
+            "actual_cost_usd_batch_rate": 0.427059875
+          },
+          "final197_total_attributed": {
+            "calls": 1089.338,
+            "api_cost_usd_standard_rate": 9.68976975,
+            "recoverable_attacker_output_tokens": 42688.83,
+            "actual_cost_usd_batch_rate": 4.844884875,
+            "completion_tokens": 330254.268,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 616936.878
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": "Qwen/Qwen2.5-7B-Instruct",
+        "attacker_calls_attributed": 1089.338,
+        "online_control_evaluator_calls_reconstructed": 1089.338,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "red_teaming": {
+      "final197_cases": {
+        "reused": 43,
+        "fresh": 154
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 753,
+            "prompt_tokens": 147336,
+            "completion_tokens": 141760,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 57006,
+            "api_cost_usd_standard_rate": 3.57188,
+            "actual_cost_usd_batch_rate": 1.78594
+          },
+          "final197_fresh_exact": {
+            "calls": 529,
+            "prompt_tokens": 163509,
+            "completion_tokens": 89327,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 32788,
+            "api_cost_usd_standard_rate": 2.604085,
+            "actual_cost_usd_batch_rate": 1.3020425
+          },
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 64.758,
+            "prompt_tokens": 12670.895999999999,
+            "completion_tokens": 12191.359999999999,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 4902.516,
+            "api_cost_usd_standard_rate": 0.30718168,
+            "actual_cost_usd_batch_rate": 0.15359084
+          },
+          "final197_total_attributed": {
+            "calls": 593.758,
+            "api_cost_usd_standard_rate": 2.9112666799999998,
+            "recoverable_attacker_output_tokens": 37690.516,
+            "actual_cost_usd_batch_rate": 1.4556333399999999,
+            "completion_tokens": 101518.36,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 176179.896
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": "Qwen/Qwen2.5-7B-Instruct",
+        "attacker_calls_attributed": 593.758,
+        "online_control_evaluator_calls_reconstructed": 593.758,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "therapist_crescendo": {
+      "final197_cases": {
+        "reused": 43,
+        "fresh": 154
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 1231,
+            "prompt_tokens": 468826,
+            "completion_tokens": 359150,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 60140,
+            "api_cost_usd_standard_rate": 9.52713,
+            "actual_cost_usd_batch_rate": 4.763565
+          },
+          "final197_fresh_exact": {
+            "calls": 1038,
+            "prompt_tokens": 588497,
+            "completion_tokens": 287893,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 54003,
+            "api_cost_usd_standard_rate": 8.700345,
+            "actual_cost_usd_batch_rate": 4.3501725
+          },
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 105.86599999999999,
+            "prompt_tokens": 40319.036,
+            "completion_tokens": 30886.899999999998,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 5172.04,
+            "api_cost_usd_standard_rate": 0.8193331799999999,
+            "actual_cost_usd_batch_rate": 0.40966658999999994
+          },
+          "final197_total_attributed": {
+            "calls": 1143.866,
+            "api_cost_usd_standard_rate": 9.51967818,
+            "recoverable_attacker_output_tokens": 59175.04,
+            "actual_cost_usd_batch_rate": 4.75983909,
+            "completion_tokens": 318779.9,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 628816.036
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": "Qwen/Qwen2.5-7B-Instruct",
+        "attacker_calls_attributed": 1143.866,
+        "online_control_evaluator_calls_reconstructed": 1143.866,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    },
+    "pcsa_phase2": {
+      "final197_cases": {
+        "reused": 43,
+        "fresh": 154
+      },
+      "services": {
+        "target": {
+          "source_500_campaign_exact": {
+            "calls": 7572,
+            "prompt_tokens": 4102346,
+            "completion_tokens": 2163284,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 424981,
+            "api_cost_usd_standard_rate": 63.77741,
+            "actual_cost_usd_batch_rate": 31.888705
+          },
+          "final197_fresh_exact": {
+            "calls": 3080,
+            "prompt_tokens": 1328514,
+            "completion_tokens": 797680,
+            "cached_tokens": 0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 157846,
+            "api_cost_usd_standard_rate": 22.59617,
+            "actual_cost_usd_batch_rate": 11.298085
+          },
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 651.1919999999999,
+            "prompt_tokens": 352801.756,
+            "completion_tokens": 186042.424,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-2024-08-06",
+            "recoverable_attacker_output_tokens": 36548.365999999995,
+            "api_cost_usd_standard_rate": 5.48485726,
+            "actual_cost_usd_batch_rate": 2.74242863
+          },
+          "final197_total_attributed": {
+            "calls": 3731.192,
+            "api_cost_usd_standard_rate": 28.08102726,
+            "recoverable_attacker_output_tokens": 194394.36599999998,
+            "actual_cost_usd_batch_rate": 14.04051363,
+            "completion_tokens": 983722.424,
+            "model": "gpt-4o-2024-08-06",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 1681315.756
+          }
+        },
+        "pcsa_evaluator": {
+          "source_500_campaign_exact": {
+            "calls": 7572,
+            "prompt_tokens": 5029350,
+            "completion_tokens": 555614,
+            "cached_tokens": 0,
+            "model": "gpt-4o-mini-2024-07-18",
+            "api_cost_usd_standard_rate": 2.1755418,
+            "actual_cost_usd_batch_rate": 1.0877709
+          },
+          "final197_fresh_exact": {
+            "calls": 2824,
+            "prompt_tokens": 1485284,
+            "completion_tokens": 170696,
+            "cached_tokens": 0,
+            "model": "gpt-4o-mini-2024-07-18",
+            "api_cost_usd_standard_rate": 0.6504204,
+            "actual_cost_usd_batch_rate": 0.3252102
+          },
+          "final197_reused_attributed_from_source_mean": {
+            "calls": 651.1919999999999,
+            "prompt_tokens": 432524.1,
+            "completion_tokens": 47782.804,
+            "cached_tokens": 0.0,
+            "model": "gpt-4o-mini-2024-07-18",
+            "api_cost_usd_standard_rate": 0.1870965948,
+            "actual_cost_usd_batch_rate": 0.0935482974
+          },
+          "final197_total_attributed": {
+            "calls": 3475.192,
+            "api_cost_usd_standard_rate": 0.8375169948,
+            "actual_cost_usd_batch_rate": 0.4187584974,
+            "completion_tokens": 218478.804,
+            "model": "gpt-4o-mini-2024-07-18",
+            "cached_tokens": 0.0,
+            "prompt_tokens": 1917808.1
+          }
+        }
+      },
+      "local_auxiliary": {
+        "attacker_model": "Qwen/Qwen2.5-7B-Instruct",
+        "attacker_calls_attributed": 3731.192,
+        "online_control_evaluator_calls_reconstructed": 0,
+        "input_tokens": null,
+        "input_tokens_reason": "PyRIT memory DB/history was not retained in Git, GitHub releases/artifacts, LFS, or the server workspace",
+        "dollar_api_cost": 0.0,
+        "compute_note": "local GPU calls; GPU-hours unavailable from retained artifacts"
+      }
+    }
+  },
+  "red_persona_compact_four_branches": {
+    "model": "gpt-4o",
+    "calls": 1773,
+    "prompt_tokens": 5224662,
+    "completion_tokens": 680409,
+    "api_cost_usd_standard_equivalent": 39.73149,
+    "api_cost_usd_if_batch_rate": 19.865745,
+    "measurement": "reconstructed from exact stored messages; API usage object unavailable"
+  },
+  "posthoc_evaluators": {
+    "rb_gpt4o": {
+      "target": {
+        "calls": 3608,
+        "prompt_tokens": 14238207,
+        "completion_tokens": 1447102,
+        "cached_tokens": 0,
+        "model": "gpt-4o-2024-08-06",
+        "api_cost_usd_standard_rate": 100.133075,
+        "actual_cost_usd_batch_rate": 50.0665375
+      }
+    },
+    "cares_gpt4o": {
+      "target": {
+        "calls": 5171,
+        "prompt_tokens": 5694545,
+        "completion_tokens": 21721,
+        "cached_tokens": 0,
+        "model": "gpt-4o-2024-08-06",
+        "api_cost_usd_standard_rate": 28.907145,
+        "actual_cost_usd_batch_rate": 14.4535725
+      }
+    }
+  },
+  "audit_limits": [
+    "Final197 reuse allocation is source-500 mean times the reused case count; it is not a per-case usage measurement.",
+    "Local attacker/scorer input tokens and GPU-hours cannot be recovered without the deleted PyRIT memory DB.",
+    "HarmBench is local GPU inference and has no API token charge; GPU-hours must be reported from scheduler accounting when available.",
+    "Offline persona/history construction inputs were not retained and are reported separately as unavailable rather than imputed."
+  ]
+}
